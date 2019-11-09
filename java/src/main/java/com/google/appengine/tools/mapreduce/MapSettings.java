@@ -81,6 +81,7 @@ public class MapSettings implements Serializable {
       backend = settings.getBackend();
       workerQueueName = settings.getWorkerQueueName();
       millisPerSlice = settings.getMillisPerSlice();
+      sliceTimeoutRatio = settings.getSliceTimeoutRatio();
       maxShardRetries = settings.getMaxShardRetries();
       maxSliceRetries = settings.getMaxSliceRetries();
     }
