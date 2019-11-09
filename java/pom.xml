@@ -48,7 +48,7 @@
       <url>https://oss.sonatype.org/content/repositories/comgoogleappengine-1394/</url>
     </repository>
     </repositories>
- 
+
     <distributionManagement>
         <repository>
             <id>sonatype-nexus-staging</id>
@@ -61,7 +61,7 @@
             <url>https://oss.sonatype.org/content/repositories/google-snapshots/</url>
         </snapshotRepository>
     </distributionManagement>
-       
+
   <build>
     <plugins>
       <plugin>
@@ -69,8 +69,8 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.6.2</version>
         <configuration>
-          <source>1.7</source>
-          <target>1.7</target>
+          <source>1.8</source>
+          <target>1.8</target>
         </configuration>
       </plugin>
       <plugin>
@@ -210,7 +210,7 @@
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <!-- version number of release candidates come before the ##.0 in maven, use 
+      <!-- version number of release candidates come before the ##.0 in maven, use
         .99 to get latest release within the specified major version -->
       <version>[15.0,20.99]</version>
     </dependency>
@@ -326,7 +326,7 @@
       <version>3.0</version>
     </dependency>
   </dependencies>
-  
+
   <profiles>
     <profile>
       <id>sonatype-oss-release</id>
