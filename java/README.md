@@ -2,9 +2,9 @@
 
 Java library for MapReduce implementation.  
 
-Build seems to work with both `mvn` and `ant`, so instructions for both included below.
+## Build Instructions
 
-## Instructions with Maven
+Only Maven is currently supported.
 
 To test the library:
 ```shell script
