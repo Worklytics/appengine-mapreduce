@@ -170,6 +170,8 @@
       <version>2.5</version>
       <scope>provided</scope>
     </dependency>
+    <!-- TODO: migrate to com.google.cloud.google-cloud-storage
+    see: https://cloud.google.com/storage/docs/reference/libraries -->
     <dependency>
       <groupId>com.google.appengine.tools</groupId>
       <artifactId>appengine-gcs-client</artifactId>
@@ -200,7 +202,7 @@
     <dependency>
       <groupId>org.json</groupId>
       <artifactId>json</artifactId>
-      <version>20090211</version>
+      <version>20190722</version>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
@@ -217,7 +219,7 @@
     <dependency>
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
-      <version>2.3</version>
+      <version>[2.3,2.10.99)</version>
     </dependency>
     <dependency>
       <groupId>it.unimi.dsi</groupId>
