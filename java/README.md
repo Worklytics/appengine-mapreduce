@@ -15,16 +15,3 @@ To build binary for distribution:
 ```shell script
 mvn build
 ```
-
-
-## Instructions with Ant
-To build the library:
-```shell script
-ant
-```
-Output files will be in dist/lib.
-
-To run the test suite:
-```shell script
-ant test
-```
