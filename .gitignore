@@ -2,3 +2,9 @@ MANIFEST
 *.pyc
 .idea
 *.iml
+
+# build files from java
+java/target
+java/WEB-INF
+java/lib
+java/dist
