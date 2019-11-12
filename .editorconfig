@@ -1,0 +1,30 @@
+# http://editorconfig.org/
+# GitHub respects this file to display their diffs / code reviews if in repo root
+# Seen in https://github.com/isaacs/github/issues/170 as a way to solve the 8 spaces tabs
+root = true
+
+[*]
+# https://google.github.io/styleguide/javaguide.html#s4.4-column-limit
+line_width=100
+# https://google.github.io/styleguide/javaguide.html#s2.2-file-encoding
+charset = utf-8
+
+# https://google.github.io/styleguide/javaguide.html#s4.2-block-indentation
+[*.java]
+indent_style = space
+indent_size = 2
+
+# https://google.github.io/styleguide/jsguide.html#formatting-block-indentation
+[*.{js,json}]
+indent_style = space
+indent_size = 2
+
+# https://google.github.io/styleguide/htmlcssguide.xml#Indentation
+[*.{html,htm,hbs}]
+indent_style = space
+indent_size = 2
+
+
+# force-wrap markdown files to 100 column width
+[.md]
+max_line_length = 100
