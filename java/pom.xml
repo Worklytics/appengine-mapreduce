@@ -32,7 +32,8 @@
     </license>
   </licenses>
   <properties>
-    <appengine.target.version>[1.9.15,2.0)</appengine.target.version>
+    <!-- 1.9.72 as min (2019 version) -->
+    <appengine.target.version>[1.9.72,2.0)</appengine.target.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <github.global.server>github</github.global.server>
