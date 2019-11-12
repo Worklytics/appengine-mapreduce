@@ -20,7 +20,7 @@ import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.JobSetting.OnBackend;
-import com.google.appengine.tools.pipeline.JobSetting.OnModule;
+import com.google.appengine.tools.pipeline.JobSetting.OnService;
 import com.google.appengine.tools.pipeline.JobSetting.OnQueue;
 import com.google.appengine.tools.pipeline.JobSetting.StatusConsoleUrl;
 import com.google.apphosting.api.ApiProxy;
@@ -220,13 +220,15 @@ public class MapSettingsTest extends TestCase {
   public void testPipelineSettings() {
     MapSettings mrSettings = new MapSettings.Builder().setWorkerQueueName("queue1").build();
     verifyPipelineSettings(mrSettings.toJobSettings(),
-        new BackendValidator(null), new ModuleValidator(null), new QueueValidator("queue1"));
+        new BackendValidator(null), new ServiceValidator(null), new QueueValidator("queue1"));
+
     mrSettings = new MapSettings.Builder().setBackend("backend1").build();
     verifyPipelineSettings(mrSettings.toJobSettings(),
-        new BackendValidator("backend1"), new ModuleValidator(null), new QueueValidator(null));
+        new BackendValidator("backend1"), new ServiceValidator(null), new QueueValidator(null));
+
     mrSettings = new MapSettings.Builder().setModule("m1").build();
     verifyPipelineSettings(mrSettings.toJobSettings(new StatusConsoleUrl("u1")),
-        new BackendValidator(null), new ModuleValidator("m1"),
+        new BackendValidator(null), new ServiceValidator("m1"),
         new QueueValidator(null), new StatusConsoleValidator("u1"));
   }
 
@@ -280,14 +282,14 @@ public class MapSettingsTest extends TestCase {
     }
   }
 
-  private class ModuleValidator extends Validator<OnModule, String> {
+  private class ServiceValidator extends Validator<OnService, String> {
 
-    ModuleValidator(String value) {
+    ServiceValidator(String value) {
       super(value);
     }
 
     @Override
-    protected String getValue(OnModule value) {
+    protected String getValue(OnService value) {
       return value.getValue();
     }
   }
