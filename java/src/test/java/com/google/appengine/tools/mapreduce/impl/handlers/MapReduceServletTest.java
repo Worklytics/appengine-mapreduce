@@ -32,8 +32,6 @@ import com.google.appengine.tools.mapreduce.MapReduceServlet;
 import junit.framework.TestCase;
 
 import org.easymock.EasyMock;
-import org.junit.Ignore;
-import org.junit.Test;
 
 import java.io.PrintWriter;
 
