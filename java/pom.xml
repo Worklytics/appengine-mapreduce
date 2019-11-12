@@ -38,30 +38,25 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <github.global.server>github</github.global.server>
   </properties>
-      <repositories>
+  <repositories>
     <repository>
-            <id>sonatype-google-releases</id>
-            <name>Sonatype Google Releases</name>
-            <url>https://oss.sonatype.org/service/local/repositories/google-releases/content</url>
-        </repository>
-      <repository>
-      <id>gae-staging</id>
-      <url>https://oss.sonatype.org/content/repositories/comgoogleappengine-1394/</url>
+      <id>github</id>
+      <name>Apache Maven Packages by Worklytics</name>
+      <url>https://maven.pkg.github.com/worklytics</url>
     </repository>
-    </repositories>
-
-    <distributionManagement>
-        <repository>
-            <id>sonatype-nexus-staging</id>
-            <name>Sonatype Nexus Staging</name>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-        </repository>
-        <snapshotRepository>
-            <id>sonatype-nexus-snapshots</id>
-            <name>Sonatype Nexus Snapshots</name>
-            <url>https://oss.sonatype.org/content/repositories/google-snapshots/</url>
-        </snapshotRepository>
-    </distributionManagement>
+  </repositories>
+  <distributionManagement>
+    <repository>
+      <id>sonatype-nexus-staging</id>
+      <name>Sonatype Nexus Staging</name>
+      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+    </repository>
+    <snapshotRepository>
+      <id>sonatype-nexus-snapshots</id>
+      <name>Sonatype Nexus Snapshots</name>
+      <url>https://oss.sonatype.org/content/repositories/google-snapshots/</url>
+    </snapshotRepository>
+  </distributionManagement>
 
   <build>
     <plugins>
@@ -187,7 +182,7 @@
     <dependency>
       <groupId>com.google.appengine.tools</groupId>
       <artifactId>appengine-pipeline</artifactId>
-      <version>[0.2.11,1.0)</version>
+      <version>[0.3-snapshot,1.0)</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.guava</groupId>
