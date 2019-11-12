@@ -1,18 +1,46 @@
-AppEngine Mapreduce library
-===========================
+# Map Reduce for Google App Engine
 
-[![Build Status](https://travis-ci.org/GoogleCloudPlatform/appengine-mapreduce.svg?branch=master)](https://travis-ci.org/GoogleCloudPlatform/appengine-mapreduce)
+Library for running MapReduce on Google App Engine
 
-Official site: https://github.com/GoogleCloudPlatform/appengine-mapreduce
+## Usage via Maven
 
-Check the site for up to date status, latest version, getting started & user
-guides and other documentation.
+ 1. Add Worklytics org package repository:
+    ```xml
+      <repository>
+        <id>worklytics</id>
+        <name>Apache Maven Packages Published by Worklytics</name>
+        <url>https://maven.pkg.github.com/Worklytics</url>
+      </repository>
+    ```
+ 2. Find the latest package at [Worklytics's package repository](https://github.com/Worklytics/appengine-mapreduce/packages) and add dependency to
+  your `pom.xml`:
+    ```xml
+    <dependency>
+      <groupId>com.google.appengine.tools</groupId>
+      <artifactId>appengine-mapreduce</artifactId>
+      <version>LATEST</version> <!-- look this up --> 
+    </dependency>
+    ```
 
-Archive contents:
-- python         : python version of the library resides here
-  - build.sh     : use this to run tests for python library, build and run demo app
-  - src          : python source code for mapreduce library
-  - tests        : tests for mapreduce library
-  - demo         : a demo application that uses the map reduce.
-- java           : java version of the library
-  - build.xml    : ant build file
+
+## Building
+
+Only Maven is currently supported.
+
+To test the library:
+```shell script
+mvn test
+```
+
+To build binary for distribution:
+```shell script
+mvn build
+```
+
+To deploy it:
+
+ 1. create a GitHub personal access token and put it in your `/.m2/settings.xml`, as described in [GitHub's docs](https://help.github.com/en/github/managing-packages-with-github-package-registry/configuring-apache-maven-for-use-with-github-package-registry)
+ 2. run the following (from the `java/` subdirectory of the repo):
+ ```shell script
+mvn deploy
+```
