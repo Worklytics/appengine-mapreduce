@@ -18,4 +18,4 @@ jobs:
       - name: Build with Maven
         run: |
           cd java/
-          mvn test ${{ secrets.GITHUB_TOKEN }}
+          mvn test
