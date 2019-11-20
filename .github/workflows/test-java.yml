@@ -12,7 +12,10 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
+      - uses: s4u/maven-settings-action@v1
+        with:
+          servers: '[{"id": "github", "username": "OWNER", "password": "${{ secrets.GITHUB_TOKEN }}"}]'
       - name: Build with Maven
         run: |
           cd java/
-          mvn test
+          mvn test ${{ secrets.GITHUB_TOKEN }}
