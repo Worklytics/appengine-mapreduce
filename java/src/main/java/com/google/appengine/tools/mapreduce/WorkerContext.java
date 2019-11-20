@@ -12,6 +12,7 @@ public interface WorkerContext<O> extends ShardContext {
 
   /**
    * Emits a value to the output.
+   * @param value the value to output
    */
   void emit(O value);
 }

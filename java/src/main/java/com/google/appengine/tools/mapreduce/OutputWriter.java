@@ -40,13 +40,14 @@ public abstract class OutputWriter<O> implements Serializable {
 
   /**
    * Used internally to sets the context to be used for the processing that follows.
+   * @param context in which OutputWriter is executing
    */
   public void setContext(ShardContext context) {
     this.context = context;
   }
 
   /**
-   * Returns the current context, or null if none.
+   * @return the current context, or null if none.
    */
   public ShardContext getContext() {
     return context;
@@ -61,7 +62,7 @@ public abstract class OutputWriter<O> implements Serializable {
   public void beginSlice() throws IOException {}
 
   /**
-   * Writes a value to the output.
+   * @param value to write to output
    */
   public abstract void write(O value) throws IOException;
 
@@ -90,7 +91,7 @@ public abstract class OutputWriter<O> implements Serializable {
   }
 
   /**
-   * Returns the estimated memory that will be used by this writer in bytes.
+   * @return the estimated memory that will be used by this writer in bytes.
    * (This is normally just set to the size of the buffers used by the implementation)
    */
   public long estimateMemoryRequirement() {

@@ -57,6 +57,28 @@
       <url>https://oss.sonatype.org/content/repositories/google-snapshots/</url>
     </snapshotRepository>
   </distributionManagement>
+  <reporting>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>3.1.1</version>
+        <reportSets>
+          <reportSet>
+            <id>html</id>
+            <reports>
+              <report>javadoc</report>
+            </reports>
+          </reportSet>
+        </reportSets>
+        <configuration>
+          <show>protected</show>
+          <nohelp>true</nohelp>
+          <outputDirectory>${project.build.directory}/javadoc</outputDirectory>
+        </configuration>
+      </plugin>
+    </plugins>
+  </reporting>
 
   <build>
     <plugins>
@@ -82,33 +104,6 @@
               </addDefaultSpecificationEntries>
             </manifest>
           </archive>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-site-plugin</artifactId>
-        <version>3.6</version>
-        <configuration>
-          <reportPlugins>
-            <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-javadoc-plugin</artifactId>
-              <version>2.10.1</version>
-              <reportSets>
-                <reportSet>
-                  <id>html</id>
-                  <reports>
-                    <report>javadoc</report>
-                  </reports>
-                </reportSet>
-              </reportSets>
-              <configuration>
-                <show>protected</show>
-                <nohelp>true</nohelp>
-                <outputDirectory>${project.build.directory}/javadoc</outputDirectory>
-              </configuration>
-            </plugin>
-          </reportPlugins>
         </configuration>
       </plugin>
       <plugin>
