@@ -177,7 +177,7 @@
     <dependency>
       <groupId>com.google.appengine.tools</groupId>
       <artifactId>appengine-pipeline</artifactId>
-      <version>[0.3-snapshot,1.0)</version>
+      <version>0.3_0</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.guava</groupId>
