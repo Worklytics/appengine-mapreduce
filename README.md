@@ -18,7 +18,7 @@ Library for running MapReduce on Google App Engine
     <dependency>
       <groupId>co.worklytics</groupId>
       <artifactId>appengine-mapreduce</artifactId>
-      <version>0.11-SNAPSHOT</version> <!-- look this up --> 
+      <version>0.10-SNAPSHOT</version> <!-- look this up --> 
     </dependency>
     ```
 
