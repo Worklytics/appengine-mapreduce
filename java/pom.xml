@@ -42,7 +42,9 @@
     <repository>
       <id>github</id>
       <name>Apache Maven Packages by Worklytics</name>
-      <url>https://maven.pkg.github.com/worklytics</url>
+      <!-- /packages portion is magic, not documented directly anywhere; docs suggest to put a specific repoId, which
+           seems weird as we want to make ALL packages published under Worklytics organization available to maven -->
+      <url>https://maven.pkg.github.com/worklytics/packages</url>
     </repository>
   </repositories>
   <distributionManagement>
@@ -175,7 +177,8 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>com.google.appengine.tools</groupId>
+      <groupId>co.worklytics</groupId>
+      <!--<groupId>com.google.appengine.tools</groupId>-->
       <artifactId>appengine-pipeline</artifactId>
       <version>0.3_0</version>
       <exclusions>
