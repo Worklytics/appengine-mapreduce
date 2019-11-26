@@ -98,25 +98,41 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
   private static final LogService LOG_SERVICE = LogServiceFactory.getLogService();
 
   private static final RetryParams DATASTORE_RETRY_PARAMS = new RetryParams.Builder()
-      .initialRetryDelayMillis(1000).maxRetryDelayMillis(30000).retryMinAttempts(5).build();
+    .initialRetryDelayMillis(1000)
+    .maxRetryDelayMillis(30000)
+    .retryMinAttempts(5)
+    .build();
 
-  public static final RetryParams DATASTORE_RETRY_FOREVER_PARAMS =
-      new RetryParams.Builder(DATASTORE_RETRY_PARAMS)
-          .retryMaxAttempts(Integer.MAX_VALUE)
-          .totalRetryPeriodMillis(Long.MAX_VALUE)
-          .build();
+  private static final RetryParams DATASTORE_RETRY_GENEROUS_PARAMS = new RetryParams.Builder()
+    .initialRetryDelayMillis(1000)
+    .maxRetryDelayMillis(60000)
+    .retryMinAttempts(10)
+    .build();
 
-  public static final ExceptionHandler EXCEPTION_HANDLER = new ExceptionHandler.Builder().retryOn(
+  public static final RetryParams DATASTORE_RETRY_FOREVER_PARAMS = new RetryParams.Builder(DATASTORE_RETRY_PARAMS)
+    .retryMaxAttempts(Integer.MAX_VALUE)
+    .totalRetryPeriodMillis(Long.MAX_VALUE)
+    .build();
+
+  public static final ExceptionHandler EXCEPTION_HANDLER = new ExceptionHandler.Builder()
+    .retryOn(
       ApiProxyException.class, ConcurrentModificationException.class,
       DatastoreFailureException.class, CommittedButStillApplyingException.class,
       DatastoreTimeoutException.class, TransientFailureException.class,
-      TransactionalTaskException.class).abortOn(RequestTooLargeException.class,
-      ResponseTooLargeException.class, ArgumentException.class).build();
+      TransactionalTaskException.class)
+    .abortOn(RequestTooLargeException.class,
+      ResponseTooLargeException.class, ArgumentException.class)
+    .build();
 
-  private static final ExceptionHandler AGGRESIVE_EXCEPTION_HANDLER = new ExceptionHandler.Builder()
-      .retryOn(Exception.class).abortOn(RequestTooLargeException.class,
-          ResponseTooLargeException.class, ArgumentException.class,
-          DeadlineExceededException.class).build();
+  private static final ExceptionHandler AGGRESSIVE_EXCEPTION_HANDLER = new ExceptionHandler.Builder()
+    .retryOn(Exception.class)
+    .abortOn(
+      RequestTooLargeException.class,
+      ResponseTooLargeException.class,
+      ArgumentException.class,
+      DeadlineExceededException.class
+    )
+    .build();
 
   private ShardedJobStateImpl<T> lookupJobState(Transaction tx, String jobId) {
     try {
@@ -471,7 +487,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
     taskState.setSequenceNumber(taskState.getSequenceNumber() + 1);
     taskState.getLockInfo().unlock();
     ExceptionHandler exceptionHandler =
-        aggresiveRetry ? AGGRESIVE_EXCEPTION_HANDLER : EXCEPTION_HANDLER;
+        aggresiveRetry ? AGGRESSIVE_EXCEPTION_HANDLER : EXCEPTION_HANDLER;
     RetryHelper.runWithRetries(callable(new Runnable() {
       @Override
       public void run() {
@@ -483,7 +499,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
             log.info(taskId + ": Ignoring an update, as task disappeared while processing");
           } else if (existing.getSequenceNumber() != taskState.getSequenceNumber() - 1) {
             log.warning(taskId + ": Ignoring an update, a concurrent execution changed it to: "
-                + existing);
+              + existing);
           } else {
             if (existing.getRetryCount() < taskState.getRetryCount()) {
               // Slice retry, we need to reset state
@@ -493,6 +509,9 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
             scheduleTask(jobState, taskState, tx);
             tx.commit();
           }
+        } catch (Throwable e) {
+          //concern here is that something bad is happening, it's retrying forever, and we don't see it
+          log.log(Level.WARNING, "Exception updating task, may retry", e);
         } finally {
           rollbackIfActive(tx);
         }
@@ -518,7 +537,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
               jobState.getSettings());
         }
       }
-    }), DATASTORE_RETRY_FOREVER_PARAMS, exceptionHandler);
+    }), DATASTORE_RETRY_GENEROUS_PARAMS, exceptionHandler);
   }
 
   public static String getTaskId(String jobId, int taskNumber) {
