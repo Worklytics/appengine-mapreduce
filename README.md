@@ -16,9 +16,9 @@ Library for running MapReduce on Google App Engine
   your `pom.xml`:
     ```xml
     <dependency>
-      <groupId>com.google.appengine.tools</groupId>
+      <groupId>co.worklytics</groupId>
       <artifactId>appengine-mapreduce</artifactId>
-      <version>LATEST</version> <!-- look this up --> 
+      <version>0.11-SNAPSHOT</version> <!-- look this up --> 
     </dependency>
     ```
 
