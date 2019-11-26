@@ -27,28 +27,29 @@ public abstract class Output<O, R> implements Serializable {
 
   /**
    * Used internally to sets the context to be used for the processing that follows.
+   * @param context to set as context for the output
    */
   public void setContext(Context context) {
     this.context = context;
   }
 
   /**
-   * Returns the current context, or null if none.
+   * @return the current context, or null if none.
    */
   public Context getContext() {
     return context;
   }
 
   /**
-   * Returns a list of writers, one for each shard, for this output.
+   * @param numShards The number of shards which should be equal to the number of {@link OutputWriter}s returned.
    *
-   * @param numShards The number of shards which should be equal to the number of
-   *    {@link OutputWriter}s returned.
+   * @return a list of writers, one for each shard, for this output.
    */
   public abstract List<? extends OutputWriter<O>> createWriters(int numShards);
 
   /**
-   * Returns a result to be made available through {@link MapReduceResult#getOutputResult}.
+   * @param writers used to execute this output, to be finalized into result value
+   * @return a result to be made available through {@link MapReduceResult#getOutputResult}.
    *
    * <p>
    * This method allows the {@code Output} to inspect the final state of its {@link OutputWriter}s

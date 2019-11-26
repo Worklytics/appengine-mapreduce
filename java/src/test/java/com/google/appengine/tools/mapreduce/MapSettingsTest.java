@@ -81,7 +81,7 @@ public class MapSettingsTest extends TestCase {
     builder.setBackend("b1");
     try {
       builder.setModule("m").build();
-      fail("Expected exception to be thrown");
+      fail("Expected IllegalArgumentException to be thrown");
     } catch (IllegalArgumentException ex) {
       // expected
       builder.setModule(null);
@@ -91,24 +91,28 @@ public class MapSettingsTest extends TestCase {
     builder.setMillisPerSlice(10);
     try {
       builder.setMillisPerSlice(-1);
+      fail("Expected IllegalArgumentException to be thrown");
     } catch (IllegalArgumentException ex) {
       // expected
     }
     builder.setSliceTimeoutRatio(1.5);
     try {
       builder.setSliceTimeoutRatio(0.8);
+      fail("Expected IllegalArgumentException to be thrown");
     } catch (IllegalArgumentException ex) {
       //expected
     }
     builder.setMaxShardRetries(1);
     try {
-      builder.setMillisPerSlice(-1);
+      builder.setMaxShardRetries(-1);
+      fail("Expected IllegalArgumentException to be thrown");
     } catch (IllegalArgumentException ex) {
       // expected
     }
     builder.setMaxSliceRetries(0);
     try {
-      builder.setMillisPerSlice(-1);
+      builder.setMaxSliceRetries(-1);
+      fail("Expected IllegalArgumentException to be thrown");
     } catch (IllegalArgumentException ex) {
       // expected
     }
@@ -123,7 +127,7 @@ public class MapSettingsTest extends TestCase {
     builder.setModule("m1");
     try {
       builder.build();
-      fail("Expected exception to be thrown");
+      fail("Expected IllegalArgumentException to be thrown");
     } catch (IllegalArgumentException ex) {
       // expected
       builder.setBackend(null);

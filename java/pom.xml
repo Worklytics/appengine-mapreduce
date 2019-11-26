@@ -37,8 +37,10 @@
   <repositories>
     <repository>
       <id>github</id>
-      <name>GitHub Worklytics Apache Maven Packages</name>
-      <url>https://maven.pkg.github.com/Worklytics</url>
+      <name>Apache Maven Packages by Worklytics</name>
+      <!-- /packages portion is magic, not documented directly anywhere; docs suggest to put a specific repoId, which
+           seems weird as we want to make ALL packages published under Worklytics organization available to maven -->
+      <url>https://maven.pkg.github.com/worklytics/packages</url>
     </repository>
   </repositories>
 
@@ -49,6 +51,28 @@
       <url>https://maven.pkg.github.com/Worklytics/appengine-mapreduce</url>
     </repository>
   </distributionManagement>
+  <reporting>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>3.1.1</version>
+        <reportSets>
+          <reportSet>
+            <id>html</id>
+            <reports>
+              <report>javadoc</report>
+            </reports>
+          </reportSet>
+        </reportSets>
+        <configuration>
+          <show>protected</show>
+          <nohelp>true</nohelp>
+          <outputDirectory>${project.build.directory}/javadoc</outputDirectory>
+        </configuration>
+      </plugin>
+    </plugins>
+  </reporting>
 
   <build>
     <plugins>
@@ -74,33 +98,6 @@
               </addDefaultSpecificationEntries>
             </manifest>
           </archive>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-site-plugin</artifactId>
-        <version>3.6</version>
-        <configuration>
-          <reportPlugins>
-            <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-javadoc-plugin</artifactId>
-              <version>2.10.1</version>
-              <reportSets>
-                <reportSet>
-                  <id>html</id>
-                  <reports>
-                    <report>javadoc</report>
-                  </reports>
-                </reportSet>
-              </reportSets>
-              <configuration>
-                <show>protected</show>
-                <nohelp>true</nohelp>
-                <outputDirectory>${project.build.directory}/javadoc</outputDirectory>
-              </configuration>
-            </plugin>
-          </reportPlugins>
         </configuration>
       </plugin>
       <plugin>
@@ -172,9 +169,10 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>com.google.appengine.tools</groupId>
+      <groupId>co.worklytics</groupId>
+      <!--<groupId>com.google.appengine.tools</groupId>-->
       <artifactId>appengine-pipeline</artifactId>
-      <version>[0.3-SNAPSHOT,1.0)</version>
+      <version>0.3_0</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.guava</groupId>

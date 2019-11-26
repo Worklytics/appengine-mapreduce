@@ -89,7 +89,7 @@ public final class BigQueryFieldUtil {
   }
 
   /**
-   * @param parameterizedType
+   * @param parameterizedType to extract runtime type of
    * @return runtime type of the generic parameter.
    */
   public static Type getParameterType(ParameterizedType parameterizedType) {
@@ -97,7 +97,7 @@ public final class BigQueryFieldUtil {
   }
 
   /**
-   * @param type
+   * @param type to test
    * @return true if the type can be assigned to a {@link Collection} class
    */
   public static boolean isCollection(Class<?> type) {
@@ -105,7 +105,7 @@ public final class BigQueryFieldUtil {
   }
 
   /**
-   * @param type
+   * @param type to test
    * @return true if the field is a parameterized generic type.
    */
   public static boolean isGenericType(Type type) {
@@ -118,7 +118,7 @@ public final class BigQueryFieldUtil {
   }
 
   /**
-   * @param type
+   * @param type to test
    * @return true if the parameterized type had a parameter declared at compile time
    */
   public static boolean isParameterized(Type type) {
@@ -126,7 +126,7 @@ public final class BigQueryFieldUtil {
   }
 
   /**
-   * @param type
+   * @param type to test
    * @return true if it's a collection or an array type.
    */
   public static boolean isCollectionOrArray(Class<?> type) {
@@ -134,7 +134,8 @@ public final class BigQueryFieldUtil {
   }
 
   /**
-   * Returns a set of all the non-transient, non-static fields without the annotation
+   * @param type type of class to serialize
+   * @return a set of all the non-transient, non-static fields without the annotation
    * {@link BigQueryIgnore}.
    */
   public static Set<Field> getFieldsToSerialize(Class<?> type) {
@@ -146,6 +147,7 @@ public final class BigQueryFieldUtil {
    * Bigquery schema cannot be generated in following cases 1. Field is an interface or an abstract
    * type. These types can lead to inconsistent schema at runtime. 2. Generic types. 3. {@link Map}
    * 4. Type having reference to itself as a field.
+   * @param type class to validate
    */
   static void validateTypeForSchemaMarshalling(Class<?> type) {
     if (isNonCollectionInterface(type) || isAbstract(type)) {
@@ -166,10 +168,20 @@ public final class BigQueryFieldUtil {
     }
   }
 
+  /**
+   *
+   * @param type to test
+   * @return whether class is non-collection interface
+   */
   private static boolean isNonCollectionInterface(Class<?> type) {
     return !isCollection(type) && type.isInterface();
   }
 
+  /**
+   *
+   * @param type to test
+   * @return whether class is considered "abstract"
+   */
   private static boolean isAbstract(Class<?> type) {
     // primitive types and Collection interface are abstract. So added this extra check.
     return !type.isPrimitive() && !isCollectionOrArray(type)
@@ -179,6 +191,7 @@ public final class BigQueryFieldUtil {
   /**
    * A field of type {@link Collection} must be parameterized for marshalling it into bigquery data
    * as a raw field can lead to ambiguous bigquery table definitions.
+   * @param field collection field to validate
    */
   public static void validateCollection(Field field) {
     if (!isParameterized(field.getGenericType())) {
@@ -188,9 +201,12 @@ public final class BigQueryFieldUtil {
   }
 
   /**
-   * A field of type Collection<Collection> cannot be marshalled into bigquery data format as
+   * A field of type {@code Collection<Collection>} cannot be marshalled into bigquery data format as
    * parameterized types nested more than one level cannot be determined at runtime. So cannot be
    * marshalled.
+   *
+   * @param parameterType parameter-type of the field
+   * @param field collection-like field that you're trying to marshall
    */
   public static void validateNestedRepeatedType(Class<?> parameterType, Field field) {
     if (isCollectionOrArray(parameterType)) {
@@ -202,6 +218,7 @@ public final class BigQueryFieldUtil {
   /**
    * Parameterized types nested more than one level cannot be determined at runtime. So cannot be
    * marshalled.
+   * @param parameterType to validate
    */
   public static void validateNestedParameterizedType(Type parameterType) {
     if (isParameterized(parameterType)
@@ -214,6 +231,8 @@ public final class BigQueryFieldUtil {
   /**
    * Returns type of the parameter or component type for the repeated field depending on whether it
    * is a collection or an array.
+   * @param field array/collection-like field to get item-type of
+   * @return parameter type of field
    */
   public static Class<?> getParameterTypeOfRepeatedField(Field field) {
     Class<?> componentType = null;
@@ -233,6 +252,12 @@ public final class BigQueryFieldUtil {
     return componentType;
   }
 
+  /**
+   *
+   * @param field to look for
+   * @param object to look for field within
+   * @return value of the field within object
+   */
   static Object getFieldValue(Field field, Object object) {
     try {
       field.setAccessible(true);
@@ -243,7 +268,8 @@ public final class BigQueryFieldUtil {
   }
 
   /**
-   * Returns true if the field is annotated as a required bigquery field.
+   * @param field to test
+   * @return true if the field is annotated as a required bigquery field.
    */
   static boolean isFieldRequired(Field field) {
     BigQueryDataField bqAnnotation = field.getAnnotation(BigQueryDataField.class);
@@ -253,7 +279,8 @@ public final class BigQueryFieldUtil {
   }
 
   /**
-   * Returns if a {@link BigqueryFieldMarshaller} exists for the field either in the map provided or
+   * @param field to find marshaller for
+   * @return if a {@link BigqueryFieldMarshaller} exists for the field either in the map provided or
    * the internally maintained list.
    */
   static BigqueryFieldMarshaller findMarshaller(Field field,
