@@ -169,8 +169,7 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>co.worklytics</groupId>
-      <!--<groupId>com.google.appengine.tools</groupId>-->
+      <groupId>com.google.appengine.tools</groupId>
       <artifactId>appengine-pipeline</artifactId>
       <version>0.3_0</version>
       <exclusions>

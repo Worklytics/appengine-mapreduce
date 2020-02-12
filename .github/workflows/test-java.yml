@@ -13,8 +13,9 @@ jobs:
         with:
           java-version: 1.8
       # init maven settings such maven can consume packages from GitHub, not just maven central
-      - uses: s4u/maven-settings-action@v1
+      - uses: s4u/maven-settings-action@v1.1
         with:
+          override: true
           servers: '[{"id": "github", "username": "OWNER", "password": "${{secrets.GITHUB_TOKEN}}"}]'
       # do actual build + test run
       - name: Build with Maven
