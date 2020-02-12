@@ -47,3 +47,9 @@ To build binary for distribution:
 mvn build
 ```
 
+To deploy (to GitHub)
+
+```shell script
+mvn deploy
+```
+
