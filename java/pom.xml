@@ -5,24 +5,20 @@
   <name>App Engine MapReduce Library</name>
   <description>A user space MapReduce library for Google App Engine.
   </description>
-  <url>https://github.com/GoogleCloudPlatform/appengine-mapreduce/</url>
+  <url>https://github.com/Worklytics/appengine-mapreduce/</url>
   <organization>
     <name>Google</name>
   </organization>
   <version>0.10-SNAPSHOT</version>
   <packaging>jar</packaging>
   <scm>
-    <connection>scm:git:git@github.com:GoogleCloudPlatform/appengine-mapreduce.git</connection>
-    <developerConnection>scm:git:git@github.com:GoogleCloudPlatform/appengine-mapreduce.git</developerConnection>
-    <url>https://github.com/GoogleCloudPlatform/appengine-mapreduce</url>
+    <connection>scm:git:git@github.com:Worklytics/appengine-mapreduce.git</connection>
+    <developerConnection>scm:git:git@github.com:Worklytics/appengine-mapreduce.git</developerConnection>
+    <url>https://github.com/Worklytics/appengine-mapreduce</url>
     <tag>HEAD</tag>
   </scm>
-  <ciManagement>
-    <system>Travis CI</system>
-    <url>https://travis-ci.org/GoogleCloudPlatform/appengine-mapreduce</url>
-  </ciManagement>
   <issueManagement>
-    <url>https://github.com/GoogleCloudPlatform/appengine-mapreduce/issues</url>
+    <url>https://github.com/Worklytics/appengine-mapreduce/issues</url>
     <system>GitHub Issues</system>
   </issueManagement>
   <licenses>
@@ -47,17 +43,13 @@
       <url>https://maven.pkg.github.com/worklytics/packages</url>
     </repository>
   </repositories>
+
   <distributionManagement>
     <repository>
-      <id>sonatype-nexus-staging</id>
-      <name>Sonatype Nexus Staging</name>
-      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+      <id>github</id>
+      <name>Mapreduce for Google App Engine by Worklytics</name>
+      <url>https://maven.pkg.github.com/Worklytics/appengine-mapreduce</url>
     </repository>
-    <snapshotRepository>
-      <id>sonatype-nexus-snapshots</id>
-      <name>Sonatype Nexus Snapshots</name>
-      <url>https://oss.sonatype.org/content/repositories/google-snapshots/</url>
-    </snapshotRepository>
   </distributionManagement>
   <reporting>
     <plugins>
@@ -322,32 +314,4 @@
       <version>3.0</version>
     </dependency>
   </dependencies>
-
-  <profiles>
-    <profile>
-      <id>sonatype-oss-release</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-gpg-plugin</artifactId>
-            <version>1.6</version>
-            <executions>
-              <execution>
-                <id>sign-artifacts</id>
-                <phase>verify</phase>
-                <goals>
-                  <goal>sign</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-javadoc-plugin</artifactId>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
 </project>
