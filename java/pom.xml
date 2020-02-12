@@ -1,6 +1,6 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>com.google.appengine.tools</groupId>
+  <groupId>co.worklytics</groupId>
   <artifactId>appengine-mapreduce</artifactId>
   <name>App Engine MapReduce Library</name>
   <description>A user space MapReduce library for Google App Engine.
@@ -177,7 +177,7 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>com.google.appengine.tools</groupId>
+      <groupId>co.worklytics</groupId>
       <artifactId>appengine-pipeline</artifactId>
       <version>0.3_0</version>
       <exclusions>
