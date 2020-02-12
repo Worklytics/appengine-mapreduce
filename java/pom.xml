@@ -5,24 +5,20 @@
   <name>App Engine MapReduce Library</name>
   <description>A user space MapReduce library for Google App Engine.
   </description>
-  <url>https://github.com/GoogleCloudPlatform/appengine-mapreduce/</url>
+  <url>https://github.com/Worklytics/appengine-mapreduce/</url>
   <organization>
     <name>Google</name>
   </organization>
   <version>0.10-SNAPSHOT</version>
   <packaging>jar</packaging>
   <scm>
-    <connection>scm:git:git@github.com:GoogleCloudPlatform/appengine-mapreduce.git</connection>
-    <developerConnection>scm:git:git@github.com:GoogleCloudPlatform/appengine-mapreduce.git</developerConnection>
-    <url>https://github.com/GoogleCloudPlatform/appengine-mapreduce</url>
+    <connection>scm:git:git@github.com:Worklytics/appengine-mapreduce.git</connection>
+    <developerConnection>scm:git:git@github.com:Worklytics/appengine-mapreduce.git</developerConnection>
+    <url>https://github.com/Worklytics/appengine-mapreduce</url>
     <tag>HEAD</tag>
   </scm>
-  <ciManagement>
-    <system>Travis CI</system>
-    <url>https://travis-ci.org/GoogleCloudPlatform/appengine-mapreduce</url>
-  </ciManagement>
   <issueManagement>
-    <url>https://github.com/GoogleCloudPlatform/appengine-mapreduce/issues</url>
+    <url>https://github.com/Worklytics/appengine-mapreduce/issues</url>
     <system>GitHub Issues</system>
   </issueManagement>
   <licenses>
@@ -32,35 +28,51 @@
     </license>
   </licenses>
   <properties>
-    <appengine.target.version>[1.9.15,2.0)</appengine.target.version>
+    <!-- 1.9.72 as min (2019 version) -->
+    <appengine.target.version>[1.9.72,2.0)</appengine.target.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <github.global.server>github</github.global.server>
   </properties>
-      <repositories>
+  <repositories>
     <repository>
-            <id>sonatype-google-releases</id>
-            <name>Sonatype Google Releases</name>
-            <url>https://oss.sonatype.org/service/local/repositories/google-releases/content</url>
-        </repository>
-      <repository>
-      <id>gae-staging</id>
-      <url>https://oss.sonatype.org/content/repositories/comgoogleappengine-1394/</url>
+      <id>github</id>
+      <name>Apache Maven Packages by Worklytics</name>
+      <!-- /packages portion is magic, not documented directly anywhere; docs suggest to put a specific repoId, which
+           seems weird as we want to make ALL packages published under Worklytics organization available to maven -->
+      <url>https://maven.pkg.github.com/worklytics/packages</url>
     </repository>
-    </repositories>
+  </repositories>
 
-    <distributionManagement>
-        <repository>
-            <id>sonatype-nexus-staging</id>
-            <name>Sonatype Nexus Staging</name>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-        </repository>
-        <snapshotRepository>
-            <id>sonatype-nexus-snapshots</id>
-            <name>Sonatype Nexus Snapshots</name>
-            <url>https://oss.sonatype.org/content/repositories/google-snapshots/</url>
-        </snapshotRepository>
-    </distributionManagement>
+  <distributionManagement>
+    <repository>
+      <id>github</id>
+      <name>Mapreduce for Google App Engine by Worklytics</name>
+      <url>https://maven.pkg.github.com/Worklytics/appengine-mapreduce</url>
+    </repository>
+  </distributionManagement>
+  <reporting>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>3.1.1</version>
+        <reportSets>
+          <reportSet>
+            <id>html</id>
+            <reports>
+              <report>javadoc</report>
+            </reports>
+          </reportSet>
+        </reportSets>
+        <configuration>
+          <show>protected</show>
+          <nohelp>true</nohelp>
+          <outputDirectory>${project.build.directory}/javadoc</outputDirectory>
+        </configuration>
+      </plugin>
+    </plugins>
+  </reporting>
 
   <build>
     <plugins>
@@ -69,7 +81,7 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.6.2</version>
         <configuration>
-          <source>1.8</source>
+          <source>1.8</source> <!-- GAE doesn't support java7 from March 2019 -->
           <target>1.8</target>
         </configuration>
       </plugin>
@@ -86,33 +98,6 @@
               </addDefaultSpecificationEntries>
             </manifest>
           </archive>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-site-plugin</artifactId>
-        <version>3.6</version>
-        <configuration>
-          <reportPlugins>
-            <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-javadoc-plugin</artifactId>
-              <version>2.10.1</version>
-              <reportSets>
-                <reportSet>
-                  <id>html</id>
-                  <reports>
-                    <report>javadoc</report>
-                  </reports>
-                </reportSet>
-              </reportSets>
-              <configuration>
-                <show>protected</show>
-                <nohelp>true</nohelp>
-                <outputDirectory>${project.build.directory}/javadoc</outputDirectory>
-              </configuration>
-            </plugin>
-          </reportPlugins>
         </configuration>
       </plugin>
       <plugin>
@@ -184,9 +169,10 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>com.google.appengine.tools</groupId>
+      <groupId>co.worklytics</groupId>
+      <!--<groupId>com.google.appengine.tools</groupId>-->
       <artifactId>appengine-pipeline</artifactId>
-      <version>[0.2.11,1.0)</version>
+      <version>0.3_0</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.guava</groupId>
@@ -214,7 +200,8 @@
       <artifactId>guava</artifactId>
       <!-- version number of release candidates come before the ##.0 in maven, use
         .99 to get latest release within the specified major version -->
-      <version>[15.0,20.99]</version>
+      <!-- GAE *requires* java8, so reasonable that library for GAE should require it too -->
+      <version>[21.0,21.99]</version>
     </dependency>
     <dependency>
       <groupId>joda-time</groupId>
@@ -229,7 +216,7 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-bigquery</artifactId>
-      <version>v2-rev438-1.25.0</version>
+      <version>v2-rev20190712-1.30.1</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.guava</groupId>
@@ -262,7 +249,7 @@
     <dependency>
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client</artifactId>
-      <version>1.25.0</version>
+      <version>[1.25.0, 1.30.99)</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.guava</groupId>
@@ -328,32 +315,4 @@
       <version>3.0</version>
     </dependency>
   </dependencies>
-
-  <profiles>
-    <profile>
-      <id>sonatype-oss-release</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-gpg-plugin</artifactId>
-            <version>1.6</version>
-            <executions>
-              <execution>
-                <id>sign-artifacts</id>
-                <phase>verify</phase>
-                <goals>
-                  <goal>sign</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-javadoc-plugin</artifactId>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
 </project>

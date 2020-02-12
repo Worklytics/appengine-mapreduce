@@ -86,6 +86,7 @@ public final class FilesByShard implements Serializable {
    * Splits the provided input if needed to ensure there are approximately {@code targetNumShards}
    * shards. (Note that it will not combine files from different input shards into a single output
    * shard)
+   * @param targetNumShards shards to split input into
    */
   public void splitShards(int targetNumShards) {
     int origionalShardCount = getShardCount();

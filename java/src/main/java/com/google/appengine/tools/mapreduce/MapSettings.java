@@ -243,7 +243,7 @@ public class MapSettings implements Serializable {
   JobSetting[] toJobSettings(JobSetting... extra) {
     JobSetting[] settings = new JobSetting[3 + extra.length];
     settings[0] = new JobSetting.OnBackend(backend);
-    settings[1] = new JobSetting.OnModule(module);
+    settings[1] = new JobSetting.OnService(module);
     settings[2] = new JobSetting.OnQueue(workerQueueName);
     System.arraycopy(extra, 0, settings, 3, extra.length);
     return settings;

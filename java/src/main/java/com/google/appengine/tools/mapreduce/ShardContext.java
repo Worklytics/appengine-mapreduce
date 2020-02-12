@@ -9,32 +9,36 @@ package com.google.appengine.tools.mapreduce;
 public interface ShardContext extends Context {
 
   /**
-   * Returns the total number of shards.
+   * @return the total number of shards.
    */
   int getShardCount();
 
   /**
-   * Returns the number of this mapper or reducer shard (zero-based).
+   * @return the number of this mapper or reducer shard (zero-based).
    */
   int getShardNumber();
 
   /**
-   * Returns a {@link Counters} object for doing simple aggregate calculations.
+   * @return a {@link Counters} object for doing simple aggregate calculations.
    */
   Counters getCounters();
 
   /**
-   * Returns the {@link Counter} with the given name.
+   * @param name of counter to get
+   * @return the {@link Counter} with the given name.
    */
   Counter getCounter(String name);
 
   /**
    * Increments the {@link Counter} with the given name by {@code delta}.
+   * @param name identifies the counter to increment
+   * @param delta amount by which to increment counter
    */
   void incrementCounter(String name, long delta);
 
   /**
    * Increments the {@link Counter} with the given name by 1.
+   * @param name identifies the counter to increment
    */
   void incrementCounter(String name);
 }
