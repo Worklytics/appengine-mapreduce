@@ -6,7 +6,7 @@ Java library for MapReduce implementation.
 ## Usage
 
 Packages are hosted in [GitHub Packages](https://github.com/Worklytics/appengine-mapreduce/packages). Specific
- instructions to us these:
+ instructions to use these:
  
   1. Ensure you authenticate Maven such that it can obtain packages from GitHub. See [Authenticating to GitHub
    Packages](https://help.github.com/en/github/managing-packages-with-github-packages/configuring-apache-maven-for-use-with-github-packages#authenticating-to-github-packages).
@@ -52,4 +52,3 @@ To deploy (to GitHub)
 ```shell script
 mvn deploy
 ```
-
