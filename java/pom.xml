@@ -171,7 +171,7 @@
     <dependency>
       <groupId>co.worklytics</groupId>
       <artifactId>appengine-pipeline</artifactId>
-      <version>0.3_0</version>
+      <version>0.3-SNAPSHOT</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.guava</groupId>
