@@ -2,9 +2,7 @@
 package com.google.appengine.tools.mapreduce.impl;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.appengine.tools.mapreduce.Counter;
 import com.google.appengine.tools.mapreduce.Counters;
 import com.google.common.base.Joiner;
