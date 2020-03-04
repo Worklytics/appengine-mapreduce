@@ -21,7 +21,7 @@ public abstract class Input<I> implements Serializable {
 
   private transient Context context;
 
-  void setContext(Context context) {
+  public void setContext(Context context) {
     this.context = context;
   }
 
