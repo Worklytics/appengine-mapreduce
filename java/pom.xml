@@ -41,6 +41,9 @@
       <!-- /packages portion is magic, not documented directly anywhere; docs suggest to put a specific repoId, which
            seems weird as we want to make ALL packages published under Worklytics organization available to maven -->
       <url>https://maven.pkg.github.com/worklytics/packages</url>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
     </repository>
   </repositories>
 
