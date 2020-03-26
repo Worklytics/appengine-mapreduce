@@ -9,6 +9,8 @@
   <organization>
     <name>Google</name>
   </organization>
+  <!-- follow semver for fork of OSS -->
+  <!-- https://gofore.com/en/best-practices-for-forking-a-git-repo/ -->
   <version>0.10+worklytics.1-SNAPSHOT</version>
   <packaging>jar</packaging>
   <scm>
