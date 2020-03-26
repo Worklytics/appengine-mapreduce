@@ -33,6 +33,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <github.global.server>github</github.global.server>
+    <jackson.version>(2.7,2.99)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
   </properties>
   <repositories>
     <repository>
@@ -79,10 +80,11 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.6.2</version>
+        <version>3.8.1</version>
         <configuration>
           <source>1.8</source> <!-- GAE doesn't support java7 from March 2019 -->
           <target>1.8</target>
+          <release>8</release>
         </configuration>
       </plugin>
       <plugin>
@@ -171,7 +173,7 @@
     <dependency>
       <groupId>com.google.appengine.tools</groupId>
       <artifactId>appengine-pipeline</artifactId>
-      <version>0.3_0</version>
+      <version>0.3-SNAPSHOT</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.guava</groupId>
@@ -269,13 +271,13 @@
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-      <version>[2.0,2.99]</version>
-    </dependency>
-        <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-core</artifactId>
-      <version>[2.0,2.99]</version>
+      <version>${jackson.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>${jackson.version}</version>
     </dependency>
     <!-- Test Dependencies -->
     <dependency>
