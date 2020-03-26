@@ -1,6 +1,8 @@
 // Copyright 2011 Google Inc. All Rights Reserved.
 package com.google.appengine.tools.mapreduce.impl;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.appengine.tools.mapreduce.Counter;
 import com.google.appengine.tools.mapreduce.Counters;
 import com.google.common.base.Joiner;
@@ -9,6 +11,7 @@ import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 /**
  */
@@ -17,6 +20,11 @@ public class CountersImpl implements Counters {
   private static final long serialVersionUID = -8499952345096458550L;
 
   private final Map<String, Counter> values = new TreeMap<>();
+
+  @JsonValue
+  public Map<String, Long> asMap() {
+    return values.values().stream().collect(Collectors.toMap(Counter::getName, Counter::getValue));
+  }
 
   @Override
   public String toString() {
@@ -36,6 +44,7 @@ public class CountersImpl implements Counters {
     return counter;
   }
 
+  @JsonIgnore
   @Override
   public Iterable<? extends Counter> getCounters() {
     return Iterables.unmodifiableIterable(values.values());
@@ -77,5 +86,6 @@ public class CountersImpl implements Counters {
     public void increment(long delta) {
       value += delta;
     }
+
   }
 }
