@@ -86,7 +86,7 @@ public class GoogleCloudStorageLevelDbInputReaderTest extends TestCase {
 
   public void writeData(GcsFilename filename, ByteBufferGenerator gen) throws IOException {
     LevelDbOutputWriter writer = new GoogleCloudStorageLevelDbOutputWriter(
-        new GoogleCloudStorageFileOutputWriter(filename, "TestData"));
+        new GoogleCloudStorageFileOutputWriter(filename, "TestData", GoogleCloudStorageFileOutputWriter.BaseOptions.defaults()));
     writer.beginShard();
     writer.beginSlice();
     while (gen.hasNext()) {

@@ -10,10 +10,7 @@ import com.google.appengine.tools.mapreduce.Output;
 import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.impl.sort.LexicographicalComparator;
 import com.google.appengine.tools.mapreduce.impl.util.SerializableValue;
-import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutputWriter;
-import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageLevelDbOutputWriter;
-import com.google.appengine.tools.mapreduce.outputs.ItemSegmentingOutputWriter;
-import com.google.appengine.tools.mapreduce.outputs.MarshallingOutputWriter;
+import com.google.appengine.tools.mapreduce.outputs.*;
 import com.google.common.collect.ImmutableList;
 
 import java.nio.ByteBuffer;
@@ -73,7 +70,7 @@ public class GoogleCloudStorageMergeOutput extends
               new GoogleCloudStorageFileOutputWriter(
                   new GcsFilename(bucket, fileName),
                   MapReduceConstants.REDUCE_INPUT_MIME_TYPE,
-                  false)),
+                GoogleCloudStorageFileOutputWriter.BaseOptions.defaults().withSupportSliceRetries(false))),
           Marshallers.getKeyValuesMarshaller(identity, identity));
     }
 

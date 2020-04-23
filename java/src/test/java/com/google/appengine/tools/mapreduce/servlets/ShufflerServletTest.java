@@ -239,7 +239,7 @@ public class ShufflerServletTest {
     TreeMultimap<ByteBuffer, ByteBuffer> result = TreeMultimap.create(comparator, comparator);
     for (String fileName : shufflerParams.getInputFileNames()) {
       LevelDbOutputWriter writer = new LevelDbOutputWriter(new GoogleCloudStorageFileOutputWriter(
-          new GcsFilename(shufflerParams.getGcsBucket(), fileName), "testData"));
+          new GcsFilename(shufflerParams.getGcsBucket(), fileName), "testData", GoogleCloudStorageFileOutputWriter.BaseOptions.defaults()));
       writer.beginShard();
       writer.beginSlice();
       for (int i = 0; i < recordsPerFile; i++) {

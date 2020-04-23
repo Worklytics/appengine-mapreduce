@@ -22,3 +22,5 @@ jobs:
         run: |
           cd java/
           mvn test
+        env:
+          APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY: ${{ secrets.APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY }}

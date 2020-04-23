@@ -10,11 +10,7 @@ import com.google.appengine.tools.mapreduce.Marshallers;
 import com.google.appengine.tools.mapreduce.Output;
 import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.Sharder;
-import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutputWriter;
-import com.google.appengine.tools.mapreduce.outputs.LevelDbOutputWriter;
-import com.google.appengine.tools.mapreduce.outputs.MarshallingOutputWriter;
-import com.google.appengine.tools.mapreduce.outputs.ShardingOutputWriter;
-import com.google.appengine.tools.mapreduce.outputs.SliceSegmentingOutputWriter;
+import com.google.appengine.tools.mapreduce.outputs.*;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -105,7 +101,7 @@ public class GoogleCloudStorageSortOutput extends
       // unneeded as the file is being finalized.
       return new MarshallingOutputWriter<>(
           new LevelDbOutputWriter(new GoogleCloudStorageFileOutputWriter(
-              new GcsFilename(bucket, fileName), MapReduceConstants.REDUCE_INPUT_MIME_TYPE, false)),
+              new GcsFilename(bucket, fileName), MapReduceConstants.REDUCE_INPUT_MIME_TYPE, GoogleCloudStorageFileOutputWriter.BaseOptions.defaults().withSupportSliceRetries(false))),
           Marshallers.getKeyValuesMarshaller(identity, identity));
     }
 

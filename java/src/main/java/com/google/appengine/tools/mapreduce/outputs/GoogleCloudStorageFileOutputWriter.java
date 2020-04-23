@@ -1,27 +1,29 @@
 package com.google.appengine.tools.mapreduce.outputs;
 
 import static com.google.appengine.tools.mapreduce.impl.MapReduceConstants.DEFAULT_IO_BUFFER_SIZE;
-import static com.google.appengine.tools.mapreduce.impl.MapReduceConstants.GCS_RETRY_PARAMETERS;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.appengine.tools.cloudstorage.GcsFileOptions;
 import com.google.appengine.tools.cloudstorage.GcsFilename;
-import com.google.appengine.tools.cloudstorage.GcsInputChannel;
-import com.google.appengine.tools.cloudstorage.GcsOutputChannel;
-import com.google.appengine.tools.cloudstorage.GcsService;
-import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
-import com.google.appengine.tools.cloudstorage.GcsServiceOptions;
 import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.impl.MapReduceConstants;
+import com.google.auth.Credentials;
+import com.google.cloud.ReadChannel;
+import com.google.cloud.WriteChannel;
+import com.google.cloud.storage.*;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.ToString;
+import lombok.With;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -32,57 +34,82 @@ import java.util.logging.Logger;
  * it by default cannot be read back with the CloudStorageLineInputReader.
  *
  */
+@ToString
 public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer> {
-  private static final long serialVersionUID = -4019473590179157706L;
+  private static final long serialVersionUID = 2L;
   private static final Logger logger =
       Logger.getLogger(GoogleCloudStorageFileOutputWriter.class.getName());
-  private static final GcsService GCS_SERVICE = GcsServiceFactory.createGcsService(
-      new GcsServiceOptions.Builder()
-          .setRetryParams(GCS_RETRY_PARAMETERS)
-          .setDefaultWriteBufferSize(DEFAULT_IO_BUFFER_SIZE)
-          .setHttpHeaders(ImmutableMap.of("User-Agent", "App Engine MR"))
-          .build());
+
   private static final Random RND = new SecureRandom();
 
   public static final long MEMORY_REQUIRED_WITHOUT_SLICE_RETRY =
       MapReduceConstants.DEFAULT_IO_BUFFER_SIZE * 2;
   public static final long MEMORY_REQUIRED = MapReduceConstants.DEFAULT_IO_BUFFER_SIZE * 3;
 
+  //TODO: split this into bucket + objectName, or some other container that's not dependent on legacy GAE Storage client
   private final GcsFilename file;
   private final String mimeType;
-  private final boolean supportSliceRetries;
-  private GcsOutputChannel channel;
-  private GcsOutputChannel sliceChannel;
-  private final List<String> toDelete = new ArrayList<>();
+  private final Options options;
 
-  public GoogleCloudStorageFileOutputWriter(GcsFilename file, String mimeType) {
-    this(file, mimeType, true);
+  private transient Storage client;
+  private BlobId shardBlobId;
+  private BlobId sliceBlobId;
+  private transient WriteChannel sliceChannel;
+  private List<BlobId> toDelete = new ArrayList<>();
+
+  interface Options extends Serializable {
+
+    Boolean getSupportSliceRetries();
+
+    Optional<Credentials> getCredentials();
+
+    String getProjectId();
   }
 
-  public GoogleCloudStorageFileOutputWriter(GcsFilename file, String mimeType,
-      boolean supportSliceRetries) {
+  public GoogleCloudStorageFileOutputWriter(GcsFilename file, String mimeType, Options options) {
     this.file = checkNotNull(file, "Null file");
     this.mimeType = checkNotNull(mimeType, "Null mimeType");
-    this.supportSliceRetries = supportSliceRetries;
+    this.options = options;
   }
 
   @Override
   public void cleanup() {
-    for (String name : toDelete) {
+    for (BlobId id : toDelete) {
       try {
-        GCS_SERVICE.delete(new GcsFilename(file.getBucketName(), name));
-      } catch (IOException ex) {
-        logger.log(Level.WARNING, "Could not cleanup temporary file " + name, ex);
+        getClient().delete(id);
+      } catch (StorageException ex) {
+        logger.log(Level.WARNING, "Could not cleanup temporary file " + id.getName(), ex);
       }
     }
     toDelete.clear();
   }
 
+
+
+  protected Storage getClient() {
+    if (client == null) {
+      //TODO: set retry param (GCS_RETRY_PARAMETERS)
+      //TODO: set User-Agent to "App Engine MR"?
+      if (this.options.getCredentials().isPresent()) {
+        client = StorageOptions.newBuilder()
+          .setCredentials(this.options.getCredentials().get())
+          .setProjectId(this.options.getProjectId())
+          .build().getService();
+      } else {
+        client = StorageOptions.getDefaultInstance().getService();
+      }
+    }
+    return client;
+  }
+
   @Override
   public void beginShard() throws IOException {
-    GcsFileOptions fileOptions = new GcsFileOptions.Builder().mimeType(mimeType).build();
-    GcsFilename dest = new GcsFilename(file.getBucketName(), file.getObjectName() + "~");
-    channel = GCS_SERVICE.createOrReplace(dest, fileOptions);
+
+    BlobInfo blobInfo = BlobInfo.newBuilder(file.getBucketName(), file.getObjectName() + "~")
+      .setContentType(mimeType)
+      .build();
+    Blob shardBlob = getClient().create(blobInfo);
+    shardBlobId = BlobId.of(shardBlob.getBucket(), shardBlob.getName());
     sliceChannel = null;
     toDelete.clear();
   }
@@ -90,30 +117,46 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
   @Override
   public void beginSlice() throws IOException {
     cleanup();
-    if (supportSliceRetries) {
-      if (sliceChannel != null) {
-        copy(sliceChannel.getFilename(), channel);
-        toDelete.add(sliceChannel.getFilename().getObjectName());
+    if (options.getSupportSliceRetries()) {
+      if (sliceBlobId != null) {
+        //append latest version of previous slice's file to shard's file
+        // q: why not do this in endSlice??
+        // q: why are we doing this as part of every slice? why not just do a big compose of all slices
+        // into shard at endShard?
+        BlobId latestSliceBlobId = BlobId.of(sliceBlobId.getBucket(), sliceBlobId.getName());
+
+        //q: race condition here? what if this append() doesn't really see the 'latest' copy of blob?
+        append(latestSliceBlobId, shardBlobId);
+        toDelete.add(latestSliceBlobId);
       }
-      GcsFileOptions opt = new GcsFileOptions.Builder().mimeType(mimeType).build();
       String name = file.getObjectName() + "~" + Math.abs(RND.nextLong());
-      sliceChannel = GCS_SERVICE.createOrReplace(new GcsFilename(file.getBucketName(), name), opt);
+      Blob sliceBlob = getClient().create(BlobInfo.newBuilder(file.getBucketName(), name)
+        .setContentType(mimeType).build());
+      sliceBlobId = BlobId.of(sliceBlob.getBucket(), sliceBlob.getName());
+      sliceChannel = sliceBlob.writer();
     } else {
-      sliceChannel = channel;
+      //if won't retry slices, can just write straight into shard's blob
+      sliceChannel = getClient().get(shardBlobId).writer();
     }
+    sliceChannel.setChunkSize(DEFAULT_IO_BUFFER_SIZE);
   }
 
-  private static void copy(GcsFilename from, GcsOutputChannel toChannel) throws IOException {
+
+  void append(BlobId src, BlobId dest) throws IOException {
     ByteBuffer buffer = ByteBuffer.allocate(MapReduceConstants.DEFAULT_IO_BUFFER_SIZE);
-    try (GcsInputChannel fromChannel = GCS_SERVICE.openReadChannel(from, 0)) {
-      while (fromChannel.read(buffer) >= 0) {
+    WriteChannel destChannel =
+      getClient().writer(BlobInfo.newBuilder(dest.getBucket(), dest.getName()).build());
+    try (ReadChannel reader = getClient().reader(src)) {
+      while (reader.read(buffer) >= 0) {
         buffer.flip();
         while (buffer.hasRemaining()) {
-          toChannel.write(buffer);
+          destChannel.write(buffer);
         }
         buffer.clear();
       }
     }
+    destChannel.close();
+    //q: return dest with updated version number? (generation ID?)
   }
 
   @Override
@@ -126,33 +169,34 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
 
   @Override
   public void endSlice() throws IOException {
-    if (supportSliceRetries) {
-      sliceChannel.close();
-    }
-    channel.waitForOutstandingWrites();
+    sliceChannel.close();
   }
 
   @Override
   public void endShard() throws IOException {
-    if (channel == null) {
+    if (sliceBlobId == null) {
       return;
     }
-    channel.close();
-    if (supportSliceRetries && sliceChannel != null) {
+    if (options.getSupportSliceRetries() && sliceChannel != null) {
       // compose temporary destination and last slice to final destination
-      List<String> source = ImmutableList.of(channel.getFilename().getObjectName(),
-          sliceChannel.getFilename().getObjectName());
-      GcsFileOptions opt = new GcsFileOptions.Builder().mimeType(mimeType).build();
-      GCS_SERVICE.compose(source, file);
-      GCS_SERVICE.update(file, opt);
-      toDelete.add(sliceChannel.getFilename().getObjectName());
-      sliceChannel = null;
+      List<String> source = ImmutableList.of(shardBlobId.getName(), sliceBlobId.getName());
+      BlobInfo dest = BlobInfo.newBuilder(file.getBucketName(), file.getObjectName())
+        .setContentType(this.mimeType)
+        .build();
+      getClient().compose(Storage.ComposeRequest.of(source, dest));
     } else {
       // rename temporary destination to final destination
-      GCS_SERVICE.copy(channel.getFilename(), file);
+      //q: race condition here? what if this copy() doesn't really see the 'latest' copy of sliceBlob?
+      // is there a way to get the latest generation number from our last write, so that we can make
+      // this copy request contingent upon seeing that??
+
+      getClient().copy(Storage.CopyRequest.of(BlobId.of(sliceBlobId.getBucket(), sliceBlobId.getName()), BlobInfo.newBuilder(file.getBucketName(), file.getObjectName()).build()));
     }
-    toDelete.add(channel.getFilename().getObjectName());
-    channel = null;
+
+    //queue blob for deletion
+    toDelete.add(BlobId.of(shardBlobId.getBucket(), shardBlobId.getName()));
+    shardBlobId = null;
+    sliceChannel = null;
   }
 
   public GcsFilename getFile() {
@@ -160,14 +204,29 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
   }
 
   @Override
-  public String toString() {
-    return "GoogleCloudStorageFileOutputWriter [file=" + file + ", mimeType=" + mimeType
-        + ", channel=" + channel + ", supportSliceRetries= " + supportSliceRetries
-        + ", sliceChannel=" + sliceChannel + ", toDelete=" + toDelete + "]";
-  }
-
-  @Override
   public long estimateMemoryRequirement() {
     return MEMORY_REQUIRED;
+  }
+
+  @Getter
+  @Builder
+  @With
+  @ToString
+  public static class BaseOptions implements Serializable, Options {
+
+    @Builder.Default
+    private final Boolean supportSliceRetries = true;
+
+    private Credentials credentials;
+
+    private String projectId;
+
+    public static BaseOptions defaults() {
+      return BaseOptions.builder().build();
+    }
+
+    public Optional<Credentials> getCredentials() {
+      return Optional.ofNullable(this.credentials);
+    }
   }
 }

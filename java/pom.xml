@@ -11,7 +11,7 @@
   </organization>
   <!-- follow semver for fork of OSS -->
   <!-- https://gofore.com/en/best-practices-for-forking-a-git-repo/ -->
-  <version>0.10+worklytics.1-SNAPSHOT</version>
+  <version>0.10+worklytics.2-SNAPSHOT</version>
   <packaging>jar</packaging>
   <scm>
     <connection>scm:git:git@github.com:Worklytics/appengine-mapreduce.git</connection>
@@ -54,6 +54,7 @@
       <url>https://maven.pkg.github.com/Worklytics/appengine-mapreduce</url>
     </repository>
   </distributionManagement>
+
   <reporting>
     <plugins>
       <plugin>
@@ -76,6 +77,18 @@
       </plugin>
     </plugins>
   </reporting>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.google.cloud</groupId>
+        <artifactId>libraries-bom</artifactId>
+        <version>5.1.0</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <build>
     <plugins>
@@ -159,6 +172,22 @@
       <version>2.5</version>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1.18.12</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-storage</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava-jdk5</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
     <!-- TODO: migrate to com.google.cloud.google-cloud-storage
     see: https://cloud.google.com/storage/docs/reference/libraries -->
     <dependency>
@@ -167,8 +196,8 @@
       <version>[0.4.3,1.0)</version>
       <exclusions>
         <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava-jdk5</artifactId>
+          <groupId>com.google.apis</groupId>
+          <artifactId>google-api-services-storage</artifactId>
         </exclusion>
       </exclusions>
     </dependency>

@@ -1190,7 +1190,7 @@ public class EndToEndTest extends EndToEndTestCase {
     @Override
     public void beginSlice() {
       GcsFilename filename = new GcsFilename("bucket", UUID.randomUUID().toString());
-      sideOutput = new GoogleCloudStorageFileOutputWriter(filename, "application/octet-stream");
+      sideOutput = new GoogleCloudStorageFileOutputWriter(filename, "application/octet-stream", GoogleCloudStorageFileOutputWriter.BaseOptions.defaults());
       try {
         sideOutput.beginShard();
         sideOutput.beginSlice();
