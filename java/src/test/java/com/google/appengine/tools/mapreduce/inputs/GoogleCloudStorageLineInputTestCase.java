@@ -9,6 +9,7 @@ import com.google.appengine.tools.development.testing.LocalBlobstoreServiceTestC
 import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 
+import com.google.appengine.tools.mapreduce.CloudStorageIntegrationTestHelper;
 import junit.framework.TestCase;
 
 import java.io.IOException;
@@ -16,10 +17,10 @@ import java.nio.ByteBuffer;
 
 /**
  */
-abstract class GoogleCloudStorageLineInputTestCase extends TestCase {
+abstract class GoogleCloudStorageLineInputTestCase extends TestCase  {
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper(
-      new LocalBlobstoreServiceTestConfig(),
+      new CloudStorageIntegrationTestHelper(),
       new LocalDatastoreServiceTestConfig());
 
   @Override

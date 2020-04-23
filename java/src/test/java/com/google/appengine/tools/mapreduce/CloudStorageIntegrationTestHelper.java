@@ -1,12 +1,13 @@
 package com.google.appengine.tools.mapreduce;
 
+import com.google.appengine.tools.development.testing.LocalServiceTestConfig;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.testing.RemoteStorageHelper;
-import junit.framework.TestCase;
 import lombok.Getter;
+import lombok.SneakyThrows;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -30,7 +31,7 @@ import java.util.concurrent.TimeUnit;
  * q: better to have a helper class for this? analogous to
  * @see com.google.appengine.tools.development.testing.LocalServiceTestHelper
  */
-public class CloudStorageIntegrationTestCase extends TestCase {
+public class CloudStorageIntegrationTestHelper implements LocalServiceTestConfig {
 
   public final String KEY_ENV_VAR = "APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY";
 
@@ -43,9 +44,9 @@ public class CloudStorageIntegrationTestCase extends TestCase {
   @Getter
   Credentials credentials;
 
+  @SneakyThrows
   @Override
-  protected void setUp() throws Exception {
-    super.setUp();
+  public void setUp() {
 
     String keyVar = System.getenv(KEY_ENV_VAR);
     if (keyVar == null) {
@@ -64,9 +65,9 @@ public class CloudStorageIntegrationTestCase extends TestCase {
     storage.create(BucketInfo.of(bucket));
   }
 
+  @SneakyThrows
   @Override
-  protected void tearDown() throws Exception {
-    super.tearDown();
+  public void tearDown() {
     RemoteStorageHelper.forceDelete(storage, bucket, 5, TimeUnit.SECONDS);
   }
 }

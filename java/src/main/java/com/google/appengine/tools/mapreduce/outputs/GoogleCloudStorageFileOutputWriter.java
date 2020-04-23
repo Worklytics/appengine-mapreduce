@@ -66,6 +66,29 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
     String getProjectId();
   }
 
+  @Getter
+  @Builder
+  @With
+  @ToString
+  public static class BaseOptions implements Serializable, Options {
+
+    @Builder.Default
+    private final Boolean supportSliceRetries = true;
+
+    private Credentials credentials;
+
+    private String projectId;
+
+    public static BaseOptions defaults() {
+      return BaseOptions.builder().build();
+    }
+
+    public Optional<Credentials> getCredentials() {
+      return Optional.ofNullable(this.credentials);
+    }
+  }
+
+
   public GoogleCloudStorageFileOutputWriter(GcsFilename file, String mimeType, Options options) {
     this.file = checkNotNull(file, "Null file");
     this.mimeType = checkNotNull(mimeType, "Null mimeType");
@@ -208,25 +231,5 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
     return MEMORY_REQUIRED;
   }
 
-  @Getter
-  @Builder
-  @With
-  @ToString
-  public static class BaseOptions implements Serializable, Options {
 
-    @Builder.Default
-    private final Boolean supportSliceRetries = true;
-
-    private Credentials credentials;
-
-    private String projectId;
-
-    public static BaseOptions defaults() {
-      return BaseOptions.builder().build();
-    }
-
-    public Optional<Credentials> getCredentials() {
-      return Optional.ofNullable(this.credentials);
-    }
-  }
 }
