@@ -34,7 +34,11 @@ mvn test
 
 To build binary for distribution:
 ```shell script
-mvn build
+mvn package
+```
+without tests (which take a long time):
+```shell script
+mvn package -Dmaven.test.skip=TRUE
 ```
 
 To deploy it:
