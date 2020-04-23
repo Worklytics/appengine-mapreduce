@@ -206,6 +206,11 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
       BlobInfo dest = BlobInfo.newBuilder(file.getBucketName(), file.getObjectName())
         .setContentType(this.mimeType)
         .build();
+      // unclear that we can "compose" if also using customer-managed encryption keys because:
+      // https://cloud.google.com/storage/docs/encryption/customer-managed-keys#key-resources
+      // "when one or more of the source objects are encrypted with a customer-managed encryption key."
+      // but https://cloud.google.com/storage/docs/json_api/v1/objects/compose
+      // says "To compose objects encrypted by a customer-supplied encryption key, use the headers listed on the Encryption page in your request."
       getClient().compose(Storage.ComposeRequest.of(source, dest));
     } else {
       // rename temporary destination to final destination
