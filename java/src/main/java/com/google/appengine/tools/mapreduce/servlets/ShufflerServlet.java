@@ -225,7 +225,7 @@ public class ShufflerServlet extends HttpServlet {
       @Override
       public void run() {
         String hostname = ModulesServiceFactory.getModulesService().getVersionHostname(
-            shufflerParams.getCallbackModule(), shufflerParams.getCallbackVersion());
+            shufflerParams.getCallbackService(), shufflerParams.getCallbackVersion());
         Queue queue = QueueFactory.getQueue(shufflerParams.getCallbackQueue());
         String separater = shufflerParams.getCallbackPath().contains("?") ? "&" : "?";
         try {
@@ -258,7 +258,7 @@ public class ShufflerServlet extends HttpServlet {
     if (params.getGcsBucket() == null) {
       throw new IllegalArgumentException("GcsBucket parameter is mandatory");
     }
-    if (params.getCallbackModule() == null || params.getCallbackVersion() == null) {
+    if (params.getCallbackService() == null || params.getCallbackVersion() == null) {
       throw new IllegalArgumentException(
           "CallbackModule and CallbackVersion parameters are mandatory");
     }

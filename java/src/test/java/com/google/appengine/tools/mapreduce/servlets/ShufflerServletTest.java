@@ -183,7 +183,7 @@ public class ShufflerServletTest {
     assertEquals(shufflerParams.getOutputDir(), readShufflerParams.getOutputDir());
     assertEquals(shufflerParams.getOutputShards(), readShufflerParams.getOutputShards());
     assertEquals(shufflerParams.getCallbackQueue(), readShufflerParams.getCallbackQueue());
-    assertEquals(shufflerParams.getCallbackModule(), readShufflerParams.getCallbackModule());
+    assertEquals(shufflerParams.getCallbackService(), readShufflerParams.getCallbackService());
     assertEquals(shufflerParams.getCallbackVersion(), readShufflerParams.getCallbackVersion());
     assertEquals(shufflerParams.getCallbackPath(), readShufflerParams.getCallbackPath());
   }
@@ -263,7 +263,7 @@ public class ShufflerServletTest {
 
   static ShufflerParams createParams(int inputFiles, int outputShards) {
     ShufflerParams shufflerParams = new ShufflerParams();
-    shufflerParams.setCallbackModule("default");
+    shufflerParams.setCallbackService("default");
     shufflerParams.setCallbackVersion("callbackVersion");
     shufflerParams.setCallbackPath(CALLBACK_PATH);
     shufflerParams.setCallbackQueue("default");
