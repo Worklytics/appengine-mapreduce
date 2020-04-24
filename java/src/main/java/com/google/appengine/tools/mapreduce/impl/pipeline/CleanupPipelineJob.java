@@ -1,13 +1,7 @@
 package com.google.appengine.tools.mapreduce.impl.pipeline;
 
-import com.google.appengine.tools.cloudstorage.GcsFilename;
-import com.google.appengine.tools.pipeline.FutureValue;
-import com.google.appengine.tools.pipeline.Job1;
-import com.google.appengine.tools.pipeline.JobSetting;
-import com.google.appengine.tools.pipeline.Jobs;
-import com.google.appengine.tools.pipeline.PipelineService;
-import com.google.appengine.tools.pipeline.PipelineServiceFactory;
-import com.google.appengine.tools.pipeline.Value;
+import com.google.appengine.tools.mapreduce.GcsFilename;
+import com.google.appengine.tools.pipeline.*;
 import com.google.common.collect.Lists;
 
 import java.util.ArrayList;

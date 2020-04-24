@@ -5,12 +5,7 @@ package com.google.appengine.tools.mapreduce.impl;
 import static com.google.appengine.tools.mapreduce.impl.MapReduceConstants.DEFAULT_IO_BUFFER_SIZE;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.appengine.tools.cloudstorage.GcsFilename;
-import com.google.appengine.tools.mapreduce.Input;
-import com.google.appengine.tools.mapreduce.InputReader;
-import com.google.appengine.tools.mapreduce.KeyValue;
-import com.google.appengine.tools.mapreduce.Marshaller;
-import com.google.appengine.tools.mapreduce.Marshallers;
+import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.inputs.ConcatenatingInputReader;
 import com.google.appengine.tools.mapreduce.inputs.ForwardingInputReader;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInputReader;

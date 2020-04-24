@@ -3,7 +3,7 @@ package com.google.appengine.tools.mapreduce.bigqueryjobs;
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.appengine.tools.cloudstorage.GcsFilename;
+import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.impl.pipeline.DeleteFilesJob;
 import com.google.appengine.tools.mapreduce.impl.util.SerializableValue;
 import com.google.appengine.tools.pipeline.FutureValue;
@@ -24,7 +24,7 @@ import java.util.logging.Logger;
 final class RetryLoadOrCleanupJob extends
     Job2<BigQueryLoadJobReference, BigQueryLoadJobReference, Integer> {
 
-  private static final long serialVersionUID = 6203149802079995465L;
+  private static final long serialVersionUID = 2L;
   private static final Logger log = Logger.getLogger(RetryLoadOrCleanupJob.class.getName());
 
   private final String dataset;

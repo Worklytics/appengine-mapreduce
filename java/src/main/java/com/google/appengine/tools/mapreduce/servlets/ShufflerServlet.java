@@ -132,7 +132,7 @@ public class ShufflerServlet extends HttpServlet {
     }
 
     private MapReduceSpecification<KeyValue<ByteBuffer, ByteBuffer>, ByteBuffer, ByteBuffer,
-      KeyValue<ByteBuffer, ? extends Iterable<ByteBuffer>>, GoogleCloudStorageFileSet> 
+      KeyValue<ByteBuffer, ? extends Iterable<ByteBuffer>>, GoogleCloudStorageFileSet>
         createSpec() {
       return new MapReduceSpecification.Builder<KeyValue<ByteBuffer, ByteBuffer>, ByteBuffer,
           ByteBuffer, KeyValue<ByteBuffer, ? extends Iterable<ByteBuffer>>,
@@ -203,7 +203,7 @@ public class ShufflerServlet extends HttpServlet {
       GcsOutputChannel output = gcsService.createOrReplace(
           new GcsFilename(shufflerParams.getGcsBucket(), manifestPath),
           new GcsFileOptions.Builder().mimeType("text/plain").build());
-      for (GcsFilename fileName : result.getOutputResult().getFiles()) {
+      for (com.google.appengine.tools.mapreduce.GcsFilename fileName : result.getOutputResult().getFiles()) {
         output.write(StandardCharsets.UTF_8.encode(fileName.getObjectName()));
         output.write(StandardCharsets.UTF_8.encode("\n"));
       }

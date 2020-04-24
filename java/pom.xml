@@ -188,6 +188,19 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <!-- TODO: migrate to com.google.cloud.google-cloud-storage
+    see: https://cloud.google.com/storage/docs/reference/libraries -->
+    <dependency>
+      <groupId>com.google.appengine.tools</groupId>
+      <artifactId>appengine-gcs-client</artifactId>
+      <version>[0.4.3,1.0)</version>
+      <exclusions>
+        <exclusion>
+          <groupId>com.google.apis</groupId>
+          <artifactId>google-api-services-storage</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
     <dependency>
       <groupId>com.google.appengine.tools</groupId>
       <artifactId>appengine-pipeline</artifactId>
