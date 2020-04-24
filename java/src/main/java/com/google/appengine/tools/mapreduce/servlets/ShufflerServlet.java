@@ -104,9 +104,9 @@ public class ShufflerServlet extends HttpServlet {
   @VisibleForTesting
   static final class ShuffleMapReduce extends Job0<Void> {
 
-    private static final long serialVersionUID = 7223668152902598033L;
+    private static final long serialVersionUID = 2L;
 
-    private final Marshaller<ByteBuffer> idenityMarshaller = Marshallers.getByteBufferMarshaller();
+    private final Marshaller<ByteBuffer> identityMarshaller = Marshallers.getByteBufferMarshaller();
 
     private final ShufflerParams shufflerParams;
 
@@ -142,8 +142,8 @@ public class ShufflerServlet extends HttpServlet {
           .setReducer(new IdentityReducer<ByteBuffer, ByteBuffer>(MAX_VALUES_COUNT))
           .setOutput(createOutput())
           .setJobName("Shuffle")
-          .setKeyMarshaller(idenityMarshaller)
-          .setValueMarshaller(idenityMarshaller)
+          .setKeyMarshaller(identityMarshaller)
+          .setValueMarshaller(identityMarshaller)
           .setNumReducers(shufflerParams.getOutputShards())
           .build();
     }
@@ -153,7 +153,7 @@ public class ShufflerServlet extends HttpServlet {
       String jobId = getPipelineKey().getName();
       return new MarshallingOutput<>(new GoogleCloudStorageLevelDbOutput(
           shufflerParams.getGcsBucket(), getOutputNamePattern(jobId), MIME_TYPE),
-          Marshallers.getKeyValuesMarshaller(idenityMarshaller, idenityMarshaller));
+          Marshallers.getKeyValuesMarshaller(identityMarshaller, identityMarshaller));
     }
 
     @VisibleForTesting
@@ -165,7 +165,7 @@ public class ShufflerServlet extends HttpServlet {
       List<String> fileNames = Arrays.asList(shufflerParams.getInputFileNames());
       return new UnmarshallingInput<>(new GoogleCloudStorageLevelDbInput(
           new GoogleCloudStorageFileSet(shufflerParams.getGcsBucket(), fileNames)),
-          Marshallers.getKeyValueMarshaller(idenityMarshaller, idenityMarshaller));
+          Marshallers.getKeyValueMarshaller(identityMarshaller, identityMarshaller));
     }
 
     /**
