@@ -14,6 +14,7 @@ import com.google.cloud.storage.StorageOptions;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.ToString;
 
@@ -169,6 +170,14 @@ public class MapReduceSettings extends MapSettings {
      */
     public Builder setMergeFanin(int mergeFanin) {
       this.mergeFanin = mergeFanin;
+      return this;
+    }
+
+    /**
+     * credentials to use when accessing storage for sort/shuffle phases of this MR j
+     */
+    public Builder setStorageCredentials(Credentials credentials) {
+      this.storageCredentials = credentials;
       return this;
     }
 

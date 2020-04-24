@@ -22,11 +22,6 @@ import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
 import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.tools.cloudstorage.ExceptionHandler;
-import com.google.appengine.tools.cloudstorage.GcsFileOptions;
-import com.google.appengine.tools.cloudstorage.GcsFilename;
-import com.google.appengine.tools.cloudstorage.GcsOutputChannel;
-import com.google.appengine.tools.cloudstorage.GcsService;
-import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
 import com.google.appengine.tools.cloudstorage.RetryHelper;
 import com.google.appengine.tools.cloudstorage.RetryParams;
 import com.google.appengine.tools.mapreduce.GoogleCloudStorageFileSet;
@@ -41,6 +36,7 @@ import com.google.appengine.tools.mapreduce.impl.MapReduceConstants;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInput;
 import com.google.appengine.tools.mapreduce.inputs.UnmarshallingInput;
 import com.google.appengine.tools.mapreduce.mappers.IdentityMapper;
+import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageLevelDbOutput;
 import com.google.appengine.tools.mapreduce.outputs.MarshallingOutput;
 import com.google.appengine.tools.mapreduce.reducers.IdentityReducer;
@@ -54,6 +50,11 @@ import com.google.appengine.tools.pipeline.Value;
 import com.google.apphosting.api.ApiProxy.ArgumentException;
 import com.google.apphosting.api.ApiProxy.RequestTooLargeException;
 import com.google.apphosting.api.ApiProxy.ResponseTooLargeException;
+import com.google.cloud.WriteChannel;
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.ByteStreams;
 
@@ -79,7 +80,7 @@ import javax.servlet.http.HttpServletResponse;
  */
 public class ShufflerServlet extends HttpServlet {
 
-  private static final long serialVersionUID = -7521735241651972278L;
+  private static final long serialVersionUID = 2L;
 
   private static final Logger log = Logger.getLogger(ShufflerServlet.class.getName());
 
@@ -89,17 +90,15 @@ public class ShufflerServlet extends HttpServlet {
 
   private static final ExceptionHandler EXCEPTION_HANDLER = new ExceptionHandler.Builder()
       .retryOn(Exception.class).abortOn(IllegalArgumentException.class,
-          RequestTooLargeException.class, ResponseTooLargeException.class, ArgumentException.class)
+                                        RequestTooLargeException.class, ResponseTooLargeException.class, ArgumentException.class)
       .build();
 
   private static final RetryParams RETRY_PARAMS = new RetryParams.Builder()
-      .initialRetryDelayMillis(1000)
-      .maxRetryDelayMillis(30000)
-      .retryMinAttempts(10)
-      .retryMaxAttempts(10)
-      .build();
-
-  private static final GcsService gcsService = GcsServiceFactory.createGcsService();
+    .initialRetryDelayMillis(1000)
+    .maxRetryDelayMillis(30000)
+    .retryMinAttempts(10)
+    .retryMaxAttempts(10)
+    .build();
 
   @VisibleForTesting
   static final class ShuffleMapReduce extends Job0<Void> {
@@ -127,8 +126,11 @@ public class ShufflerServlet extends HttpServlet {
     }
 
     private MapReduceSettings createSettings() {
-      return new MapReduceSettings.Builder().setBucketName(shufflerParams.getGcsBucket())
-          .setWorkerQueueName(shufflerParams.getShufflerQueue()).build();
+      return new MapReduceSettings.Builder()
+          .setBucketName(shufflerParams.getGcsBucket())
+          .setWorkerQueueName(shufflerParams.getShufflerQueue())
+          .setStorageCredentials(shufflerParams.getCredentials())
+          .build();
     }
 
     private MapReduceSpecification<KeyValue<ByteBuffer, ByteBuffer>, ByteBuffer, ByteBuffer,
@@ -137,9 +139,10 @@ public class ShufflerServlet extends HttpServlet {
       return new MapReduceSpecification.Builder<KeyValue<ByteBuffer, ByteBuffer>, ByteBuffer,
           ByteBuffer, KeyValue<ByteBuffer, ? extends Iterable<ByteBuffer>>,
           GoogleCloudStorageFileSet>()
+
           .setInput(createInput())
-          .setMapper(new IdentityMapper<ByteBuffer, ByteBuffer>())
-          .setReducer(new IdentityReducer<ByteBuffer, ByteBuffer>(MAX_VALUES_COUNT))
+          .setMapper(new IdentityMapper<>())
+          .setReducer(new IdentityReducer<>(MAX_VALUES_COUNT))
           .setOutput(createOutput())
           .setJobName("Shuffle")
           .setKeyMarshaller(identityMarshaller)
@@ -151,9 +154,13 @@ public class ShufflerServlet extends HttpServlet {
     private MarshallingOutput<KeyValue<ByteBuffer, ? extends Iterable<ByteBuffer>>,
         GoogleCloudStorageFileSet> createOutput() {
       String jobId = getPipelineKey().getName();
-      return new MarshallingOutput<>(new GoogleCloudStorageLevelDbOutput(
-          shufflerParams.getGcsBucket(), getOutputNamePattern(jobId), MIME_TYPE),
-          Marshallers.getKeyValuesMarshaller(identityMarshaller, identityMarshaller));
+
+      GoogleCloudStorageFileOutput.Options gcsOutputOptions = GoogleCloudStorageFileOutput.BaseOptions.defaults().withCredentials(shufflerParams.getCredentials());
+
+      return new MarshallingOutput<>(
+        new GoogleCloudStorageLevelDbOutput(shufflerParams.getGcsBucket(), getOutputNamePattern(jobId), MIME_TYPE, gcsOutputOptions),
+          Marshallers.getKeyValuesMarshaller(identityMarshaller, identityMarshaller)
+      );
     }
 
     @VisibleForTesting
@@ -185,7 +192,7 @@ public class ShufflerServlet extends HttpServlet {
    */
   private static final class Complete extends
       Job1<Void, MapReduceResult<GoogleCloudStorageFileSet>> {
-    private static final long serialVersionUID = 7203174569285731762L;
+    private static final long serialVersionUID = 2L;
     private final ShufflerParams shufflerParams;
 
     private Complete(ShufflerParams shufflerParams) {
@@ -200,9 +207,20 @@ public class ShufflerServlet extends HttpServlet {
 
       log.info("Shuffle job done: jobId=" + jobId + ", results located in " + manifestPath + "]");
 
-      GcsOutputChannel output = gcsService.createOrReplace(
-          new GcsFilename(shufflerParams.getGcsBucket(), manifestPath),
-          new GcsFileOptions.Builder().mimeType("text/plain").build());
+
+      Storage client;
+      if (this.shufflerParams.getCredentials() == null) {
+        client = StorageOptions.getDefaultInstance().getService();
+      } else {
+        client = StorageOptions.newBuilder()
+          .setCredentials(this.shufflerParams.getCredentials())
+          .build().getService();
+      }
+
+      Blob blob = client.create(BlobInfo.newBuilder(shufflerParams.getGcsBucket(), manifestPath).setContentType("text/plain").build());
+
+      WriteChannel output = blob.writer();
+
       for (com.google.appengine.tools.mapreduce.GcsFilename fileName : result.getOutputResult().getFiles()) {
         output.write(StandardCharsets.UTF_8.encode(fileName.getObjectName()));
         output.write(StandardCharsets.UTF_8.encode("\n"));
@@ -227,9 +245,9 @@ public class ShufflerServlet extends HttpServlet {
         String hostname = ModulesServiceFactory.getModulesService().getVersionHostname(
             shufflerParams.getCallbackService(), shufflerParams.getCallbackVersion());
         Queue queue = QueueFactory.getQueue(shufflerParams.getCallbackQueue());
-        String separater = shufflerParams.getCallbackPath().contains("?") ? "&" : "?";
+        String separator = shufflerParams.getCallbackPath().contains("?") ? "&" : "?";
         try {
-          queue.add(TaskOptions.Builder.withUrl(shufflerParams.getCallbackPath() + separater + url)
+          queue.add(TaskOptions.Builder.withUrl(shufflerParams.getCallbackPath() + separator + url)
               .method(TaskOptions.Method.GET).header("Host", hostname).taskName(taskName));
         } catch (TaskAlreadyExistsException e) {
           // harmless dup.

@@ -14,6 +14,7 @@
 
 package com.google.appengine.tools.mapreduce.servlets;
 
+import com.google.auth.Credentials;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -31,6 +32,11 @@ class ShufflerParams implements Serializable {
   private String gcsBucket;
   private String[] inputFileNames;
   private String outputDir;
+
+  /**
+   * credentials to use when accessing GCS bucket for shuffling
+   */
+  private Credentials credentials;
 
   private int outputShards;
   private String callbackQueue;
