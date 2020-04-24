@@ -65,7 +65,7 @@ public class GoogleCloudStorageMergeOutput extends
               new GoogleCloudStorageFileOutputWriter(
                   new GcsFilename(bucket, fileName),
                   MapReduceConstants.REDUCE_INPUT_MIME_TYPE,
-                GoogleCloudStorageFileOutputWriter.BaseOptions.defaults().withSupportSliceRetries(false))),
+                GoogleCloudStorageFileOutput.BaseOptions.defaults().withSupportSliceRetries(false))),
           Marshallers.getKeyValuesMarshaller(identity, identity));
     }
 

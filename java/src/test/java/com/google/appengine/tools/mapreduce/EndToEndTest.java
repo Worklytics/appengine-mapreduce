@@ -50,6 +50,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+import lombok.RequiredArgsConstructor;
 import org.easymock.EasyMock;
 import org.junit.After;
 import org.junit.Before;
@@ -89,12 +90,18 @@ public class EndToEndTest extends EndToEndTestCase {
 
   CloudStorageIntegrationTestHelper storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
 
+  GoogleCloudStorageFileOutput.Options cloudStorageFileOutputOptions;
+
   @Before
   @Override
   public void setUp() throws Exception {
     super.setUp();
     pipelineService = PipelineServiceFactory.newPipelineService();
     storageIntegrationTestHelper.setUp();
+    cloudStorageFileOutputOptions = GoogleCloudStorageFileOutput.BaseOptions.defaults()
+      .withCredentials(storageIntegrationTestHelper.getCredentials())
+      .withProjectId(storageIntegrationTestHelper.getProjectId());
+
   }
 
   @After
@@ -200,7 +207,7 @@ public class EndToEndTest extends EndToEndTestCase {
     String fileNamePattern = "MapOnlySegmentingTestShard-%04d/file-%04d";
 
     SizeSegmentedGoogleCloudStorageFileOutput output =
-        new SizeSegmentedGoogleCloudStorageFileOutput(storageIntegrationTestHelper.getBucket(), 30, fileNamePattern, mimeType);
+        new SizeSegmentedGoogleCloudStorageFileOutput(storageIntegrationTestHelper.getBucket(), 30, fileNamePattern, mimeType, cloudStorageFileOutputOptions);
     MarshallingOutput<String, GoogleCloudStorageFileSet> op =
         new MarshallingOutput<>(output, Marshallers.getStringMarshaller());
 
@@ -1182,14 +1189,17 @@ public class EndToEndTest extends EndToEndTestCase {
         });
   }
 
+  @RequiredArgsConstructor
   @SuppressWarnings("serial")
   static class SideOutputMapper extends Mapper<Long, GcsFilename, Void> {
     transient GoogleCloudStorageFileOutputWriter sideOutput;
 
+    final GoogleCloudStorageFileOutput.Options options;
+
     @Override
     public void beginSlice() {
       GcsFilename filename = new GcsFilename("bucket", UUID.randomUUID().toString());
-      sideOutput = new GoogleCloudStorageFileOutputWriter(filename, "application/octet-stream", GoogleCloudStorageFileOutputWriter.BaseOptions.defaults());
+      sideOutput = new GoogleCloudStorageFileOutputWriter(filename, "application/octet-stream", options);
       try {
         sideOutput.beginShard();
         sideOutput.beginSlice();
@@ -1225,7 +1235,7 @@ public class EndToEndTest extends EndToEndTestCase {
   public void testSideOutput() throws Exception {
 
     runTest(new MapReduceSpecification.Builder<>(new ConsecutiveLongInput(0, 6, 6),
-        new SideOutputMapper(), KeyProjectionReducer.<GcsFilename, Void>create(),
+        new SideOutputMapper(cloudStorageFileOutputOptions), KeyProjectionReducer.<GcsFilename, Void>create(),
         new InMemoryOutput<GcsFilename>())
         .setKeyMarshaller(Marshallers.<GcsFilename>getSerializationMarshaller())
         .setValueMarshaller(Marshallers.getVoidMarshaller())

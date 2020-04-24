@@ -30,6 +30,7 @@ import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig.S
 import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.impl.sort.LexicographicalComparator;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInputReader;
+import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutputWriter;
 import com.google.appengine.tools.mapreduce.outputs.LevelDbOutputWriter;
 import com.google.appengine.tools.mapreduce.servlets.ShufflerServlet.ShuffleMapReduce;
@@ -235,7 +236,7 @@ public class ShufflerServletTest {
     TreeMultimap<ByteBuffer, ByteBuffer> result = TreeMultimap.create(comparator, comparator);
     for (String fileName : shufflerParams.getInputFileNames()) {
       LevelDbOutputWriter writer = new LevelDbOutputWriter(new GoogleCloudStorageFileOutputWriter(
-          new GcsFilename(shufflerParams.getGcsBucket(), fileName), "testData", GoogleCloudStorageFileOutputWriter.BaseOptions.defaults()));
+          new GcsFilename(shufflerParams.getGcsBucket(), fileName), "testData", GoogleCloudStorageFileOutput.BaseOptions.defaults()));
       writer.beginShard();
       writer.beginSlice();
       for (int i = 0; i < recordsPerFile; i++) {

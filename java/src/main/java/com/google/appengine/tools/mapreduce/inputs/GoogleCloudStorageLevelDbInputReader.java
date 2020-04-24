@@ -31,7 +31,6 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
    * @param bufferSize The buffersize to be used by the Gcs prefetching read channel.
    */
   public GoogleCloudStorageLevelDbInputReader(GcsFilename file, int bufferSize) {
-
     this(file, GoogleCloudStorageLineInput.BaseOptions.defaults().withBufferSize(bufferSize));
   }
 

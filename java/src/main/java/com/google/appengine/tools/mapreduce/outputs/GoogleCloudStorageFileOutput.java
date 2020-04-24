@@ -4,6 +4,7 @@ import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.GoogleCloudStorageFileSet;
 import com.google.appengine.tools.mapreduce.Output;
 import com.google.appengine.tools.mapreduce.OutputWriter;
+import com.google.auth.Credentials;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import lombok.*;
@@ -11,6 +12,7 @@ import lombok.*;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * An {@link Output} that writes bytes to a set of Cloud Storage files, one per shard.
@@ -30,7 +32,18 @@ public class GoogleCloudStorageFileOutput extends Output<ByteBuffer, GoogleCloud
   @NonNull
   private final String mimeType;
   @NonNull
-  private final GoogleCloudStorageFileOutputWriter.Options options;
+  private final Options options;
+
+
+  /**
+   * options accepted by this output (superset of those to Writer)
+   *
+   * functions much likes Beam's PipelineOptions, although not intended to be "global" to Pipeline. For good reason,
+   * different instantations of GCS outputs may get different options
+   */
+  public interface Options extends GoogleCloudStorageFileOutputWriter.Options {
+
+  }
 
   /**
    * Creates output files who's names follow the provided pattern in the specified bucket.
@@ -42,7 +55,7 @@ public class GoogleCloudStorageFileOutput extends Output<ByteBuffer, GoogleCloud
    */
   @Deprecated
   public GoogleCloudStorageFileOutput(String bucket, String fileNamePattern, String mimeType) {
-    this(bucket, fileNamePattern, mimeType, GoogleCloudStorageFileOutputWriter.BaseOptions.defaults());
+    this(bucket, fileNamePattern, mimeType, BaseOptions.defaults());
   }
 
   /**
@@ -58,7 +71,7 @@ public class GoogleCloudStorageFileOutput extends Output<ByteBuffer, GoogleCloud
   @Deprecated
   public GoogleCloudStorageFileOutput(String bucket, String fileNamePattern, String mimeType,
       boolean supportSliceRetries) {
-    this(bucket, fileNamePattern, mimeType, GoogleCloudStorageFileOutputWriter.BaseOptions.defaults().withSupportSliceRetries(supportSliceRetries));
+    this(bucket, fileNamePattern, mimeType, BaseOptions.defaults().withSupportSliceRetries(supportSliceRetries));
   }
 
   @Override
@@ -82,5 +95,27 @@ public class GoogleCloudStorageFileOutput extends Output<ByteBuffer, GoogleCloud
       out.add(writer.getFile().getObjectName());
     }
     return new GoogleCloudStorageFileSet(bucket, out);
+  }
+
+  @Getter
+  @Builder
+  @With
+  @ToString
+  public static class BaseOptions implements GoogleCloudStorageFileOutput.Options {
+
+    @Builder.Default
+    private final Boolean supportSliceRetries = true;
+
+    private Credentials credentials;
+
+    private String projectId;
+
+    public static BaseOptions defaults() {
+      return BaseOptions.builder().build();
+    }
+
+    public Optional<Credentials> getCredentials() {
+      return Optional.ofNullable(this.credentials);
+    }
   }
 }

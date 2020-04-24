@@ -1,7 +1,7 @@
 package com.google.appengine.tools.mapreduce.outputs;
 
 import static com.google.appengine.tools.mapreduce.impl.MapReduceConstants.DEFAULT_IO_BUFFER_SIZE;
-import static com.google.common.base.Preconditions.checkNotNull;
+
 
 import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.OutputWriter;
@@ -55,35 +55,12 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
   private transient WriteChannel sliceChannel;
   private List<BlobId> toDelete = new ArrayList<>();
 
-  interface Options extends Serializable {
-
+  public interface Options extends Serializable {
     Boolean getSupportSliceRetries();
 
     Optional<Credentials> getCredentials();
 
     String getProjectId();
-  }
-
-  @Getter
-  @Builder
-  @With
-  @ToString
-  public static class BaseOptions implements Serializable, Options {
-
-    @Builder.Default
-    private final Boolean supportSliceRetries = true;
-
-    private Credentials credentials;
-
-    private String projectId;
-
-    public static BaseOptions defaults() {
-      return BaseOptions.builder().build();
-    }
-
-    public Optional<Credentials> getCredentials() {
-      return Optional.ofNullable(this.credentials);
-    }
   }
 
   @Override

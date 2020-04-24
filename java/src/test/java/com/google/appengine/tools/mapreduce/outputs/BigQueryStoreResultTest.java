@@ -1,6 +1,7 @@
 package com.google.appengine.tools.mapreduce.outputs;
 
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
+import com.google.appengine.tools.mapreduce.CloudStorageIntegrationTestHelper;
 import com.google.appengine.tools.mapreduce.GoogleCloudStorageFileSet;
 import com.google.appengine.tools.mapreduce.impl.BigQueryMarshallerByType;
 import com.google.appengine.tools.mapreduce.testmodels.Child;
@@ -16,27 +17,31 @@ import java.io.IOException;
 import java.util.List;
 
 public class BigQueryStoreResultTest extends TestCase {
-  private static final String BUCKET = "test-bigquery-loader";
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper();
+  CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
 
   @Override
   protected void setUp() throws Exception {
     super.setUp();
     helper.setUp();
+    storageIntegrationTestHelper.setUp();
   }
 
   @Override
   protected void tearDown() throws Exception {
     super.tearDown();
     helper.tearDown();
+    storageIntegrationTestHelper.tearDown();
   }
 
   @Test
   public void testSerialization() throws IOException {
     BigQueryGoogleCloudStorageStoreOutput<Father> creator =
         new BigQueryGoogleCloudStorageStoreOutput<Father>(
-            new BigQueryMarshallerByType<Father>(Father.class), BUCKET, "testJob");
+            new BigQueryMarshallerByType<Father>(Father.class), storageIntegrationTestHelper.getBucket(), "testJob", GoogleCloudStorageFileOutput.BaseOptions.defaults()
+        .withCredentials(storageIntegrationTestHelper.getCredentials())
+        .withProjectId(storageIntegrationTestHelper.getProjectId()));
 
     List<MarshallingOutputWriter<Father>> writers = creator.createWriters(5);
     for (MarshallingOutputWriter<Father> writer : writers) {

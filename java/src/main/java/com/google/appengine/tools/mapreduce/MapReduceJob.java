@@ -31,6 +31,7 @@ import com.google.appengine.tools.mapreduce.impl.sort.MergeShardTask;
 import com.google.appengine.tools.mapreduce.impl.sort.SortContext;
 import com.google.appengine.tools.mapreduce.impl.sort.SortShardTask;
 import com.google.appengine.tools.mapreduce.impl.sort.SortWorker;
+import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
 import com.google.appengine.tools.pipeline.FutureValue;
 import com.google.appengine.tools.pipeline.Job0;
 import com.google.appengine.tools.pipeline.Job1;
@@ -139,7 +140,11 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
               mrJobId,
               mrSpec.getKeyMarshaller(),
               mrSpec.getValueMarshaller(),
-              new HashingSharder(getNumOutputFiles(readers.size())));
+              new HashingSharder(getNumOutputFiles(readers.size())),
+              GoogleCloudStorageFileOutput.BaseOptions.builder()
+                .credentials(settings.getStorageCredentials())
+                .build()
+      );
       output.setContext(context);
 
       List<? extends OutputWriter<KeyValue<K, V>>> writers = output.createWriters(readers.size());

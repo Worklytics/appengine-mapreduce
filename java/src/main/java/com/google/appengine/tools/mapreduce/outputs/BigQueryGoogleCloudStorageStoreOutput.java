@@ -32,13 +32,13 @@ public final class BigQueryGoogleCloudStorageStoreOutput<O> extends
    *        newline delimited json.
    */
   public BigQueryGoogleCloudStorageStoreOutput(BigQueryMarshaller<O> bigQueryMarshaller,
-      String bucketName, String fileNamePattern) {
+      String bucketName, String fileNamePattern, GoogleCloudStorageFileOutput.Options options) {
     this.bigQueryMarshaller = bigQueryMarshaller;
     this.bucketName = bucketName;
     this.fileNamePattern = fileNamePattern;
     SizeSegmentedGoogleCloudStorageFileOutput sizeSegmentedOutput =
         new SizeSegmentedGoogleCloudStorageFileOutput(this.bucketName, MAX_BIG_QUERY_GCS_FILE_SIZE,
-            String.format(GCS_FILE_NAME_FORMAT, this.fileNamePattern), MIME_TYPE);
+            String.format(GCS_FILE_NAME_FORMAT, this.fileNamePattern), MIME_TYPE, options);
     this.dataMarshallingOutput = new MarshallingOutput<>(sizeSegmentedOutput, bigQueryMarshaller);
   }
 

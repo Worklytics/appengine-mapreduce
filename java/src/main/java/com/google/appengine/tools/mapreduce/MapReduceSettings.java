@@ -4,16 +4,20 @@ package com.google.appengine.tools.mapreduce;
 
 import com.google.appengine.api.appidentity.AppIdentityServiceFactory;
 import com.google.appengine.api.appidentity.AppIdentityServiceFailureException;
-import com.google.appengine.tools.cloudstorage.GcsFileOptions;
-import com.google.appengine.tools.cloudstorage.GcsFilename;
-import com.google.appengine.tools.cloudstorage.GcsService;
-import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
-import com.google.appengine.tools.cloudstorage.RetryParams;
+
+import com.google.auth.Credentials;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import lombok.Getter;
+import lombok.SneakyThrows;
+import lombok.ToString;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -28,6 +32,7 @@ import java.util.logging.Logger;
  *
  * @author ohler@google.com (Christian Ohler)
  */
+@ToString
 public class MapReduceSettings extends MapSettings {
 
   private static final long serialVersionUID = 610088354289299175L;
@@ -38,12 +43,30 @@ public class MapReduceSettings extends MapSettings {
   public static final int DEFAULT_MERGE_FANIN = 32;
 
 
+  @Getter
   private final String bucketName;
+  @Getter
   private final int mapFanout;
+  @Getter
   private final Long maxSortMemory;
+  @Getter
   private final int sortReadTimeMillis;
+  @Getter
   private final int sortBatchPerEmitBytes;
+  @Getter
   private final int mergeFanin;
+
+  /**
+   * credentials to use when accessing
+   *
+   * NOTE: as these will be serialized / copied to datastore/etc during pipeline execution, this exists mainly for dev
+   * purposes where you're running outside a GCP environment where the default implicit credentials will work. For
+   * production use, relying on implicit credentials and granting the service account under which your code is executing
+   * in GAE/GCE/etc is the most secure approach, as no keys need to be generated or passed around, which always entails
+   * some risk of exposure.
+   */
+  @Getter
+  private final Credentials storageCredentials;
 
   public static class Builder extends BaseBuilder<Builder> {
 
@@ -53,9 +76,12 @@ public class MapReduceSettings extends MapSettings {
     private int sortReadTimeMillis = DEFAULT_SORT_READ_TIME_MILLIS;
     private int sortBatchPerEmitBytes = DEFAULT_SORT_BATCH_PER_EMIT_BYTES;
     private int mergeFanin = DEFAULT_MERGE_FANIN;
+    @Getter
+    private Credentials storageCredentials;
 
     public Builder() {}
 
+    @SneakyThrows
     public Builder(MapReduceSettings settings) {
       super(settings);
       this.bucketName = settings.bucketName;
@@ -64,6 +90,7 @@ public class MapReduceSettings extends MapSettings {
       this.sortReadTimeMillis = settings.sortReadTimeMillis;
       this.sortBatchPerEmitBytes = settings.sortBatchPerEmitBytes;
       this.mergeFanin = settings.mergeFanin;
+      this.storageCredentials = GoogleCredentials.getApplicationDefault();
     }
 
     public Builder(MapSettings settings) {
@@ -83,7 +110,7 @@ public class MapReduceSettings extends MapSettings {
       this.bucketName = bucketName;
       return this;
     }
-    
+
     /**
      * The maximum number of files the map stage will write to at the same time. A higher number may
      * increase the speed of the job at the expense of more memory used during the map and sort
@@ -96,7 +123,7 @@ public class MapReduceSettings extends MapSettings {
       this.mapFanout = mapFanout;
       return this;
     }
-    
+
     /**
      * The maximum memory the sort stage should allocate (in bytes). This is used to lower the
      * amount of memory it will use. Regardless of this setting it will not exhaust available
@@ -109,7 +136,7 @@ public class MapReduceSettings extends MapSettings {
       this.maxSortMemory = maxMemory;
       return this;
     }
-    
+
     /**
      * The maximum length of time sort should spend reading input before it starts sorting it and
      * writing it out.
@@ -121,7 +148,7 @@ public class MapReduceSettings extends MapSettings {
       this.sortReadTimeMillis = sortReadTimeMillis;
       return this;
     }
-    
+
     /**
      * Size (in bytes) of items to batch together in the output of the sort. (A higher value saves
      * storage cost, but needs to be small enough to not impact memory use.)
@@ -152,46 +179,16 @@ public class MapReduceSettings extends MapSettings {
 
   private MapReduceSettings(Builder builder) {
     super(builder);
-    bucketName = verifyAndSetBucketName(builder.bucketName);
     mapFanout = builder.mapFanout;
     maxSortMemory = builder.maxSortMemory;
     sortReadTimeMillis = builder.sortReadTimeMillis;
     sortBatchPerEmitBytes = builder.sortBatchPerEmitBytes;
     mergeFanin = builder.mergeFanin;
+    storageCredentials = builder.storageCredentials;
+    bucketName = verifyAndSetBucketName(builder.bucketName);
   }
 
-  String getBucketName() {
-    return bucketName;
-  }
-
-  Long getMaxSortMemory() {
-    return maxSortMemory;
-  }
-
-  int getMapFanout() {
-    return mapFanout;
-  }
-
-  int getSortReadTimeMillis() {
-    return sortReadTimeMillis;
-  }
-
-  int getSortBatchPerEmitBytes() {
-    return sortBatchPerEmitBytes;
-  }
-
-  int getMergeFanin() {
-    return mergeFanin;
-  }
-
-  @Override
-  public String toString() {
-    return "MapReduceSettings [bucketName=" + bucketName + ", mapFanout=" + mapFanout
-        + ", maxSortMemory=" + maxSortMemory + ", sortReadTimeMillis=" + sortReadTimeMillis
-        + ", sortBatchPerEmitBytes=" + sortBatchPerEmitBytes + ", mergeFanin=" + mergeFanin + "]";
-  }
-
-  private static String verifyAndSetBucketName(String bucket) {
+  private String verifyAndSetBucketName(String bucket) {
     if (Strings.isNullOrEmpty(bucket)) {
       try {
         bucket = AppIdentityServiceFactory.getAppIdentityService().getDefaultGcsBucketName();
@@ -217,23 +214,26 @@ public class MapReduceSettings extends MapSettings {
     return bucket;
   }
 
-  private static void verifyBucketIsWritable(String bucket) throws IOException {
-    GcsService gcsService = GcsServiceFactory.createGcsService(new RetryParams.Builder()
-        .retryMinAttempts(2)
-        .retryMaxAttempts(3)
-        .totalRetryPeriodMillis(20000)
-        .requestTimeoutMillis(10000)
-        .build());
-    GcsFilename filename = new GcsFilename(bucket, UUID.randomUUID() + ".tmp");
-    if (gcsService.getMetadata(filename) != null) {
-      log.warning("File '" + filename.getObjectName() + "' exists. Skipping bucket write test.");
+  protected Storage getClient() {
+    if (this.storageCredentials == null) {
+      return StorageOptions.getDefaultInstance().getService();
+    } else {
+      return StorageOptions.newBuilder()
+        .setCredentials(this.storageCredentials)
+        .build().getService();
+    }
+  }
+
+  private void verifyBucketIsWritable(String bucket) throws IOException {
+    BlobId blobId = BlobId.of(bucket, UUID.randomUUID() + ".tmp");
+    if (getClient().get(blobId) != null) {
+      log.warning("File '" + blobId.getName() + "' exists. Skipping bucket write test.");
       return;
     }
     try {
-      gcsService.createOrReplace(filename, GcsFileOptions.getDefaultInstance(),
-          ByteBuffer.wrap("Delete me!".getBytes(StandardCharsets.UTF_8)));
+      getClient().create(BlobInfo.newBuilder(blobId).build(), "Delete me!".getBytes(StandardCharsets.UTF_8));
     } finally {
-      gcsService.delete(filename);
+      getClient().delete(blobId);
     }
   }
 }

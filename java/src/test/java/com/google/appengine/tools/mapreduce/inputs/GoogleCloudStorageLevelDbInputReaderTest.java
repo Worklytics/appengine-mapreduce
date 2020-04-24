@@ -7,6 +7,7 @@ import com.google.appengine.tools.mapreduce.CloudStorageIntegrationTestHelper;
 import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
+import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutputWriter;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageLevelDbOutputWriter;
 import com.google.appengine.tools.mapreduce.outputs.LevelDbOutputWriter;
@@ -86,7 +87,7 @@ public class GoogleCloudStorageLevelDbInputReaderTest extends TestCase {
 
   public void writeData(GcsFilename filename, ByteBufferGenerator gen) throws IOException {
     LevelDbOutputWriter writer = new GoogleCloudStorageLevelDbOutputWriter(
-        new GoogleCloudStorageFileOutputWriter(filename, "TestData", GoogleCloudStorageFileOutputWriter.BaseOptions.defaults()));
+        new GoogleCloudStorageFileOutputWriter(filename, "TestData", GoogleCloudStorageFileOutput.BaseOptions.defaults()));
     writer.beginShard();
     writer.beginSlice();
     while (gen.hasNext()) {

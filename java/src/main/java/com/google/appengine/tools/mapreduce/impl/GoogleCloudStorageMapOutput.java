@@ -11,6 +11,7 @@ import com.google.appengine.tools.mapreduce.Output;
 import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.Sharder;
 import com.google.appengine.tools.mapreduce.impl.GoogleCloudStorageMapOutputWriter.MapOutputWriter;
+import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -35,15 +36,17 @@ public class GoogleCloudStorageMapOutput<K, V> extends Output<KeyValue<K, V>, Fi
   private final Marshaller<K> keyMarshaller;
   private final Marshaller<V> valueMarshaller;
   private final Sharder sharder;
+  private final GoogleCloudStorageFileOutput.Options options;
 
   public GoogleCloudStorageMapOutput(String bucket, String mrJobId, Marshaller<K> keyMarshaller,
-      Marshaller<V> valueMarshaller, Sharder sharder) {
+      Marshaller<V> valueMarshaller, Sharder sharder, GoogleCloudStorageFileOutput.Options options) {
     this.bucket = checkNotNull(bucket, "Null bucket");
     this.sharder = checkNotNull(sharder, "Null sharder");
     this.mrJobId = checkNotNull(mrJobId, "Null mrJobId");
     checkArgument(sharder.getNumShards() >= 0);
     this.keyMarshaller = checkNotNull(keyMarshaller, "Null keyMarshaller");
     this.valueMarshaller = checkNotNull(valueMarshaller, "Null valueMarshaller");
+    this.options = options;
   }
 
   @Override
@@ -52,7 +55,7 @@ public class GoogleCloudStorageMapOutput<K, V> extends Output<KeyValue<K, V>, Fi
     for (int i = 0; i < shards; i++) {
       String fileNamePattern = String.format(MAP_OUTPUT_DIR_FORMAT, mrJobId, i);
       OutputWriter<KeyValue<K, V>> writer = new GoogleCloudStorageMapOutputWriter<>(
-          bucket, fileNamePattern, keyMarshaller, valueMarshaller, sharder);
+          bucket, fileNamePattern, keyMarshaller, valueMarshaller, sharder, this.options);
       result.add(writer);
     }
     return result;

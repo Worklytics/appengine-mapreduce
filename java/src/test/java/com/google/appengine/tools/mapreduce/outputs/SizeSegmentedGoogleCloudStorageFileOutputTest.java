@@ -25,11 +25,15 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
   private static final String BUCKET = "test-bigquery-loader";
   private static final String MIME_TYPE = "application/json";
 
+  GoogleCloudStorageFileOutput.Options options;
+
   @Override
   protected void setUp() throws Exception {
     super.setUp();
     helper.setUp();
     cloudStorageIntegrationTestHelper.setUp();
+    options = GoogleCloudStorageFileOutput.BaseOptions.defaults().withCredentials(cloudStorageIntegrationTestHelper.getCredentials()).withProjectId(cloudStorageIntegrationTestHelper.getProjectId());
+
   }
 
   @Override
@@ -37,6 +41,7 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
     super.tearDown();
     helper.tearDown();
     cloudStorageIntegrationTestHelper.tearDown();
+
   }
 
   public void testFilesWritten() throws IOException {
@@ -44,7 +49,7 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
     String fileNamePattern = String.format(BigQueryConstants.GCS_FILE_NAME_FORMAT, "testJob");
     SizeSegmentedGoogleCloudStorageFileOutput segmenter =
         new SizeSegmentedGoogleCloudStorageFileOutput(BUCKET, segmentSizeLimit, fileNamePattern,
-            BigQueryConstants.MIME_TYPE);
+            BigQueryConstants.MIME_TYPE, options);
     List<? extends OutputWriter<ByteBuffer>> writers = segmenter.createWriters(5);
     List<OutputWriter<ByteBuffer>> finished = new ArrayList<>();
     assertEquals(5, writers.size());
@@ -77,7 +82,7 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
     int segmentSizeLimit = 10;
     SizeSegmentedGoogleCloudStorageFileOutput segmenter =
         new SizeSegmentedGoogleCloudStorageFileOutput(BUCKET, segmentSizeLimit, "testJob",
-            BigQueryConstants.MIME_TYPE);
+            BigQueryConstants.MIME_TYPE, options);
     List<? extends OutputWriter<ByteBuffer>> writers = segmenter.createWriters(5);
     int countFiles = 0;
     for (OutputWriter<ByteBuffer> w : writers) {

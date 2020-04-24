@@ -26,15 +26,16 @@ public class GoogleCloudStorageLineInput extends Input<byte[]> {
 
   private static final long MIN_SHARD_SIZE = 1024L;
 
-  private static final long serialVersionUID = 5501931160319682453L;
-
-
+  private static final long serialVersionUID = 2L;
 
   private final GcsFilename file;
   private final byte separator;
   private final int shardCount;
   private final Options options;
 
+  /**
+   * Options - everything the reader needs, plus anything needed by input at top-level
+   */
   public interface Options extends GoogleCloudStorageLineInputReader.Options {
 
     int DEFAULT_BUFFER_SIZE = 1024 * 1024;
