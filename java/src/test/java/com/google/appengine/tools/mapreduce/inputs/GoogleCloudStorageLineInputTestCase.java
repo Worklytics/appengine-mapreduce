@@ -1,15 +1,13 @@
 package com.google.appengine.tools.mapreduce.inputs;
 
-import com.google.appengine.tools.cloudstorage.GcsFileOptions;
-import com.google.appengine.tools.cloudstorage.GcsFilename;
-import com.google.appengine.tools.cloudstorage.GcsOutputChannel;
-import com.google.appengine.tools.cloudstorage.GcsService;
-import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
-import com.google.appengine.tools.development.testing.LocalBlobstoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 
 import com.google.appengine.tools.mapreduce.CloudStorageIntegrationTestHelper;
+import com.google.cloud.WriteChannel;
+import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.Storage;
 import junit.framework.TestCase;
 
 import java.io.IOException;
@@ -18,6 +16,8 @@ import java.nio.ByteBuffer;
 /**
  */
 abstract class GoogleCloudStorageLineInputTestCase extends TestCase  {
+
+  CloudStorageIntegrationTestHelper cloudStorageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper(
       new CloudStorageIntegrationTestHelper(),
@@ -29,20 +29,20 @@ abstract class GoogleCloudStorageLineInputTestCase extends TestCase  {
     helper.setUp();
   }
 
-  long createFile(GcsFilename filename, String record, int recordsCount) throws IOException {
-    GcsService gcsService = GcsServiceFactory.createGcsService();
-    try (GcsOutputChannel writeChannel = gcsService.createOrReplace(
-        filename, new GcsFileOptions.Builder().mimeType("application/bin").build())) {
+  long createFile(String filename, String record, int recordsCount) throws IOException {
+    Storage storage = cloudStorageIntegrationTestHelper.getStorage();
+    try (WriteChannel writeChannel = storage.writer(BlobInfo.newBuilder(cloudStorageIntegrationTestHelper.getBucket(), filename).setContentType("application/bin").build())) {
       for (int i = 0; i < recordsCount; i++) {
         writeChannel.write(ByteBuffer.wrap(record.getBytes()));
       }
     }
-    return gcsService.getMetadata(filename).getLength();
+    return cloudStorageIntegrationTestHelper.getStorage().get(BlobId.of(cloudStorageIntegrationTestHelper.getBucket(), filename)).getSize();
   }
 
   @Override
   public void tearDown() throws Exception {
     helper.tearDown();
+    cloudStorageIntegrationTestHelper.setUp();
     super.tearDown();
   }
 }

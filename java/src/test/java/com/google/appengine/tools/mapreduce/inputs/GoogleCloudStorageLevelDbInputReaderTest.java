@@ -1,11 +1,10 @@
 package com.google.appengine.tools.mapreduce.inputs;
 
-import com.google.appengine.tools.cloudstorage.GcsFilename;
-import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
-import com.google.appengine.tools.development.testing.LocalBlobstoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
+import com.google.appengine.tools.mapreduce.CloudStorageIntegrationTestHelper;
+import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutputWriter;
@@ -32,9 +31,10 @@ public class GoogleCloudStorageLevelDbInputReaderTest extends TestCase {
   private static final int BLOCK_SIZE = LevelDbConstants.BLOCK_SIZE;
   GcsFilename filename = new GcsFilename("Bucket", "GoogleCloudStorageLevelDbInputReaderTest");
 
+  private static final CloudStorageIntegrationTestHelper storageHelper = new CloudStorageIntegrationTestHelper();
+
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper(
       new LocalTaskQueueTestConfig(),
-      new LocalBlobstoreServiceTestConfig(),
       new LocalDatastoreServiceTestConfig());
 
 
@@ -47,7 +47,7 @@ public class GoogleCloudStorageLevelDbInputReaderTest extends TestCase {
   @Override
   @After
   public void tearDown() throws Exception {
-    GcsServiceFactory.createGcsService().delete(filename);
+    storageHelper.getStorage().delete(filename.asBlobId());
     helper.tearDown();
   }
 

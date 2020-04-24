@@ -8,4 +8,5 @@ Java library for MapReduce implementation.
 ## Change Log
 
 ### worklytics.2
-  * migrate to modern GCS client
+  * migrate to modern GCS client; breaking changes to all GoogleCloudStorage Input/Output classes
+  

@@ -20,12 +20,6 @@ import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Entity;
 import com.google.appengine.api.datastore.KeyFactory;
 import com.google.appengine.api.datastore.Query;
-import com.google.appengine.tools.cloudstorage.GcsFileMetadata;
-import com.google.appengine.tools.cloudstorage.GcsFilename;
-import com.google.appengine.tools.cloudstorage.GcsInputChannel;
-import com.google.appengine.tools.cloudstorage.GcsService;
-import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
-import com.google.appengine.tools.cloudstorage.RetryParams;
 import com.google.appengine.tools.mapreduce.impl.HashingSharder;
 import com.google.appengine.tools.mapreduce.impl.InProcessMap;
 import com.google.appengine.tools.mapreduce.impl.InProcessMapReduce;
@@ -49,6 +43,7 @@ import com.google.appengine.tools.mapreduce.reducers.ValueProjectionReducer;
 import com.google.appengine.tools.pipeline.JobInfo;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.PipelineServiceFactory;
+import com.google.cloud.ReadChannel;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -56,6 +51,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import org.easymock.EasyMock;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -91,13 +87,19 @@ public class EndToEndTest extends EndToEndTestCase {
 
   private PipelineService pipelineService;
 
-  private static final String BUCKET = "GCSFileOutputTest";
+  CloudStorageIntegrationTestHelper storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
 
   @Before
   @Override
   public void setUp() throws Exception {
     super.setUp();
     pipelineService = PipelineServiceFactory.newPipelineService();
+    storageIntegrationTestHelper.setUp();
+  }
+
+  @After
+  public void tearDown() {
+    storageIntegrationTestHelper.tearDown();
   }
 
   private interface Verifier<R> {
@@ -198,7 +200,7 @@ public class EndToEndTest extends EndToEndTestCase {
     String fileNamePattern = "MapOnlySegmentingTestShard-%04d/file-%04d";
 
     SizeSegmentedGoogleCloudStorageFileOutput output =
-        new SizeSegmentedGoogleCloudStorageFileOutput(BUCKET, 30, fileNamePattern, mimeType);
+        new SizeSegmentedGoogleCloudStorageFileOutput(storageIntegrationTestHelper.getBucket(), 30, fileNamePattern, mimeType);
     MarshallingOutput<String, GoogleCloudStorageFileSet> op =
         new MarshallingOutput<>(output, Marshallers.getStringMarshaller());
 
@@ -710,10 +712,9 @@ public class EndToEndTest extends EndToEndTestCase {
         assertEquals(1, result.getOutputResult().getNumFiles());
         assertEquals(10, result.getCounters().getCounter(CounterNames.MAPPER_CALLS).getValue());
         GcsFilename file = result.getOutputResult().getFile(0);
-        GcsService service = GcsServiceFactory.createGcsService(RetryParams.getDefaultInstance());
-        GcsInputChannel ch = service.openReadChannel(file, 0);
+        ReadChannel channel = storageIntegrationTestHelper.getStorage().reader(file.asBlobId());
         BufferedReader reader =
-            new BufferedReader(Channels.newReader(ch, US_ASCII.newDecoder(), -1));
+            new BufferedReader(Channels.newReader(channel, US_ASCII.newDecoder(), -1));
         String line = reader.readLine();
         List<String> strings = Arrays.asList(line.split(","));
         assertEquals(10, strings.size());
@@ -757,18 +758,16 @@ public class EndToEndTest extends EndToEndTestCase {
         assertEquals(2, result.getOutputResult().getNumFiles());
         assertEquals(10, result.getCounters().getCounter(CounterNames.MAPPER_CALLS).getValue());
         ArrayList<Long> results = new ArrayList<>();
-        GcsService gcsService = GcsServiceFactory.createGcsService();
         ByteBuffer holder = ByteBuffer.allocate(8);
         for (GcsFilename file : result.getOutputResult().getFiles()) {
-          GcsFileMetadata metadata = gcsService.getMetadata(file);
-          assertEquals("application/octet-stream", metadata.getOptions().getMimeType());
-          try (GcsInputChannel channel = gcsService.openPrefetchingReadChannel(file, 0, 4096)) {
-            int read = channel.read(holder);
+          assertEquals("application/octet-stream", storageIntegrationTestHelper.getStorage().get(file.asBlobId()).getContentType());
+          try (ReadChannel reader = storageIntegrationTestHelper.getStorage().reader(file.asBlobId())) {
+            int read = reader.read(holder);
             while (read != -1) {
               holder.rewind();
               results.add(holder.getLong());
               holder.rewind();
-              read = channel.read(holder);
+              read = reader.read(holder);
             }
           }
         }
@@ -1241,12 +1240,12 @@ public class EndToEndTest extends EndToEndTestCase {
               expected.add(i);
             }
             assertEquals(1, outputResult.size());
-            GcsService gcs = GcsServiceFactory.createGcsService(RetryParams.getDefaultInstance());
+
             for (List<GcsFilename> files : outputResult) {
               assertEquals(6, files.size());
               for (GcsFilename file : files) {
                 ByteBuffer buf = ByteBuffer.allocate(8);
-                try (GcsInputChannel ch = gcs.openReadChannel(file, 0)) {
+                try (ReadChannel ch = storageIntegrationTestHelper.getStorage().reader(file.asBlobId())) {
                   assertEquals(8, ch.read(buf));
                   assertEquals(-1, ch.read(ByteBuffer.allocate(1)));
                 }

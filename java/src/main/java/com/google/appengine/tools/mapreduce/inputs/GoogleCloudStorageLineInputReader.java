@@ -2,17 +2,14 @@ package com.google.appengine.tools.mapreduce.inputs;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.appengine.tools.cloudstorage.GcsFilename;
+import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.InputReader;
-import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutputWriter;
 import com.google.auth.Credentials;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import lombok.Builder;
-import lombok.Getter;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,9 +25,6 @@ import java.util.Optional;
 class GoogleCloudStorageLineInputReader extends InputReader<byte[]> {
   private static final long serialVersionUID = 2L;
 
-  private static final int DEFAULT_BUFFER_SIZE = 1024 * 1024;
-
-
   public interface Options extends Serializable {
 
     Integer getBufferSize();
@@ -38,25 +32,6 @@ class GoogleCloudStorageLineInputReader extends InputReader<byte[]> {
     Optional<Credentials> getCredentials();
 
   }
-
-  @Builder
-  public static class BaseOptions implements Options {
-
-    @Getter @Builder.Default
-    Integer bufferSize = DEFAULT_BUFFER_SIZE;
-
-    private Credentials credentials;
-
-    public static BaseOptions defaults() {
-      return GoogleCloudStorageLineInputReader.BaseOptions.builder().build();
-    }
-
-    public Optional<Credentials> getCredentials() {
-      return Optional.ofNullable(this.credentials);
-    }
-
-  }
-
 
   @VisibleForTesting final long startOffset;
   @VisibleForTesting final long endOffset;
@@ -71,21 +46,8 @@ class GoogleCloudStorageLineInputReader extends InputReader<byte[]> {
 
   GoogleCloudStorageLineInputReader(GcsFilename file, long startOffset, long endOffset,
       byte separator) {
-    this(file, startOffset, endOffset, separator, (Options) BaseOptions.defaults());
-  }
-
-  GoogleCloudStorageLineInputReader(GcsFilename file, long startOffset, long endOffset,
-      byte separator, Options options) {
-    this.separator = separator;
-    this.file = checkNotNull(file, "Null file");
-    Preconditions.checkArgument(endOffset >= startOffset);
-    this.startOffset = startOffset;
-    this.endOffset = endOffset;
-    Preconditions.checkArgument(options.getBufferSize() > 0, "buffersize must be > 0");
-    this.options = options;
-  }
-
-  protected Storage getClient() {
+    this(file, startOffset, endOffset, separator, GoogleCloudStorageLineInput.BaseOptions.defaults());
+  }  protected Storage getClient() {
     if (client == null) {
       //TODO: set retry param (GCS_RETRY_PARAMETERS)
       //TODO: set User-Agent to "App Engine MR"?
@@ -99,6 +61,19 @@ class GoogleCloudStorageLineInputReader extends InputReader<byte[]> {
     }
     return client;
   }
+
+  GoogleCloudStorageLineInputReader(GcsFilename file, long startOffset, long endOffset,
+      byte separator, Options options) {
+    this.separator = separator;
+    this.file = checkNotNull(file, "Null file");
+    Preconditions.checkArgument(endOffset >= startOffset);
+    this.startOffset = startOffset;
+    this.endOffset = endOffset;
+    Preconditions.checkArgument(options.getBufferSize() > 0, "buffersize must be > 0");
+    this.options = options;
+  }
+
+
 
 
   @Override
@@ -121,7 +96,7 @@ class GoogleCloudStorageLineInputReader extends InputReader<byte[]> {
   public void beginSlice() throws IOException {
     Preconditions.checkState(in == null, "%s: Already initialized: %s", this, in);
 
-    ReadChannel reader = getClient().reader(file.getBucketName(), file.getObjectName());
+    ReadChannel reader = getClient().reader(file.asBlobId());
     reader.setChunkSize(options.getBufferSize());
     reader.seek(startOffset + offset);
 

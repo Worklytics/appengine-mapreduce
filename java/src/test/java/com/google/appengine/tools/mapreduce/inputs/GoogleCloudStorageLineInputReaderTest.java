@@ -1,6 +1,6 @@
 package com.google.appengine.tools.mapreduce.inputs;
 
-import com.google.appengine.tools.cloudstorage.GcsFilename;
+import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 
 import java.io.IOException;
@@ -13,17 +13,17 @@ import java.util.NoSuchElementException;
 public class GoogleCloudStorageLineInputReaderTest extends GoogleCloudStorageLineInputTestCase {
 
   private static final String FILENAME = "GoogleCloudStorageLineInputReaderTestFile";
-  private static final String BUCKET = "GoogleCloudStorageInputReaderTestBucket";
   public static final String RECORD = "01234567890\n";
   public static final int RECORDS_COUNT = 10;
 
-  GcsFilename filename = new GcsFilename(BUCKET, FILENAME);
+  GcsFilename filename;
   long fileSize;
 
   @Override
   public void setUp() throws Exception {
     super.setUp();
-    fileSize = createFile(filename, RECORD, RECORDS_COUNT);
+    filename = new GcsFilename(cloudStorageIntegrationTestHelper.getBucket(), FILENAME);
+    fileSize = createFile(filename.getObjectName(), RECORD, RECORDS_COUNT);
   }
   public void testSingleSplitPoint() throws Exception {
     List<GoogleCloudStorageLineInputReader> readers = new ArrayList<>();

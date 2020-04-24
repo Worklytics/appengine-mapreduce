@@ -3,7 +3,7 @@ package com.google.appengine.tools.mapreduce.outputs;
 import static com.google.appengine.tools.mapreduce.impl.MapReduceConstants.DEFAULT_IO_BUFFER_SIZE;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.appengine.tools.cloudstorage.GcsFilename;
+import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.impl.MapReduceConstants;
 import com.google.auth.Credentials;
@@ -12,10 +12,7 @@ import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.*;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.ToString;
-import lombok.With;
+import lombok.*;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -34,6 +31,7 @@ import java.util.logging.Logger;
  * it by default cannot be read back with the CloudStorageLineInputReader.
  *
  */
+@RequiredArgsConstructor
 @ToString
 public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer> {
   private static final long serialVersionUID = 2L;
@@ -46,10 +44,10 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
       MapReduceConstants.DEFAULT_IO_BUFFER_SIZE * 2;
   public static final long MEMORY_REQUIRED = MapReduceConstants.DEFAULT_IO_BUFFER_SIZE * 3;
 
-  //TODO: split this into bucket + objectName, or some other container that's not dependent on legacy GAE Storage client
-  private final GcsFilename file;
-  private final String mimeType;
-  private final Options options;
+  @Getter
+  @NonNull private final GcsFilename file;
+  @NonNull private final String mimeType;
+  @NonNull private final Options options;
 
   private transient Storage client;
   private BlobId shardBlobId;
@@ -86,13 +84,6 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
     public Optional<Credentials> getCredentials() {
       return Optional.ofNullable(this.credentials);
     }
-  }
-
-
-  public GoogleCloudStorageFileOutputWriter(GcsFilename file, String mimeType, Options options) {
-    this.file = checkNotNull(file, "Null file");
-    this.mimeType = checkNotNull(mimeType, "Null mimeType");
-    this.options = options;
   }
 
   @Override
@@ -225,10 +216,6 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
     toDelete.add(BlobId.of(shardBlobId.getBucket(), shardBlobId.getName()));
     shardBlobId = null;
     sliceChannel = null;
-  }
-
-  public GcsFilename getFile() {
-    return file;
   }
 
   @Override

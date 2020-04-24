@@ -1,6 +1,6 @@
 package com.google.appengine.tools.mapreduce.inputs;
 
-import com.google.appengine.tools.cloudstorage.GcsFilename;
+import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.InputReader;
 
 import java.util.List;
@@ -11,17 +11,17 @@ import java.util.List;
 public class GoogleCloudStorageLineInputTest extends GoogleCloudStorageLineInputTestCase {
 
   private static final String FILENAME = "CloudStorageLineInputTestFile";
-  private static final String BUCKET = "CloudStorageLineInputTestBucket";
   public static final String RECORD = "01234567890\n";
   public static final int RECORDS_COUNT = 1000;
 
-  GcsFilename filename = new GcsFilename(BUCKET, FILENAME);
+  GcsFilename filename;
   long fileSize;
 
   @Override
   public void setUp() throws Exception {
     super.setUp();
-    fileSize = createFile(filename, RECORD, RECORDS_COUNT);
+    filename = new GcsFilename(cloudStorageIntegrationTestHelper.getBucket(), FILENAME);
+    fileSize = createFile(filename.getObjectName(), RECORD, RECORDS_COUNT);
   }
 
   public void testSplit() throws Exception {

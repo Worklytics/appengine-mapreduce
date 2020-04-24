@@ -2,21 +2,25 @@ package com.google.appengine.tools.mapreduce.inputs;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.appengine.tools.cloudstorage.GcsFileMetadata;
-import com.google.appengine.tools.cloudstorage.GcsFilename;
-import com.google.appengine.tools.cloudstorage.GcsService;
-import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
+import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.Input;
 import com.google.appengine.tools.mapreduce.InputReader;
-import com.google.appengine.tools.mapreduce.impl.MapReduceConstants;
+import com.google.auth.Credentials;
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
+import com.google.cloud.storage.StorageOptions;
 import com.google.common.base.Preconditions;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.With;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
- * CloudStorageLineInput shards files in Cloud Storage on separator boundries.
+ * CloudStorageLineInput shards files in Cloud Storage on separator boundaries.
  */
 public class GoogleCloudStorageLineInput extends Input<byte[]> {
 
@@ -24,13 +28,42 @@ public class GoogleCloudStorageLineInput extends Input<byte[]> {
 
   private static final long serialVersionUID = 5501931160319682453L;
 
+
+
   private final GcsFilename file;
   private final byte separator;
   private final int shardCount;
-  private final int bufferSize;
+  private final Options options;
+
+  public interface Options extends GoogleCloudStorageLineInputReader.Options {
+
+    int DEFAULT_BUFFER_SIZE = 1024 * 1024;
+  }
+
+  @Getter
+  @With
+  @Builder
+  public static class BaseOptions implements GoogleCloudStorageLineInput.Options {
+
+    private static final long serialVersionUID = 1L;
+
+    @Builder.Default
+    Integer bufferSize = DEFAULT_BUFFER_SIZE;
+
+    private Credentials credentials;
+
+    public static BaseOptions defaults() {
+      return BaseOptions.builder().build();
+    }
+
+    public Optional<Credentials> getCredentials() {
+      return Optional.ofNullable(this.credentials);
+    }
+
+  }
 
   public GoogleCloudStorageLineInput(GcsFilename file, byte separator, int shardCount) {
-    this(file, separator, shardCount, 0);
+    this(file, separator, shardCount, Options.DEFAULT_BUFFER_SIZE);
   }
 
   public GoogleCloudStorageLineInput(
@@ -38,24 +71,24 @@ public class GoogleCloudStorageLineInput extends Input<byte[]> {
     this.file = checkNotNull(file, "Null file");
     this.separator = separator;
     this.shardCount = shardCount;
-    this.bufferSize = bufferSize;
+    this.options = BaseOptions.defaults().withBufferSize(bufferSize);
   }
 
   @Override
   public List<? extends InputReader<byte[]>> createReaders() {
-    GcsService gcsService =
-        GcsServiceFactory.createGcsService(MapReduceConstants.GCS_RETRY_PARAMETERS);
-    GcsFileMetadata metadata;
+
+    Storage client = StorageOptions.newBuilder()
+      .setCredentials(this.options.getCredentials().get())
+      .build().getService();
     try {
-      metadata = gcsService.getMetadata(file);
-      if (metadata == null) {
+      Blob blob = client.get(file.asBlobId());
+      if (blob == null) {
         throw new RuntimeException("File does not exist: " + file);
       }
-    } catch (IOException e) {
+      return split(file, blob.getSize(), shardCount);
+    } catch (StorageException e) {
       throw new RuntimeException("Unable to read file metadata: " + file, e);
     }
-    long blobSize = metadata.getLength();
-    return split(file, blobSize, shardCount);
   }
 
 
@@ -74,8 +107,7 @@ public class GoogleCloudStorageLineInput extends Input<byte[]> {
     long startOffset = 0L;
     for (int i = 1; i < shardCount; i++) {
       long endOffset = (i * blobSize) / shardCount;
-      result.add(new GoogleCloudStorageLineInputReader(file, startOffset, endOffset, separator,
-          GoogleCloudStorageLineInputReader.BaseOptions.defaults()));
+      result.add(new GoogleCloudStorageLineInputReader(file, startOffset, endOffset, separator, this.options));
       startOffset = endOffset;
     }
     result.add(new GoogleCloudStorageLineInputReader(file, startOffset, blobSize, separator));
