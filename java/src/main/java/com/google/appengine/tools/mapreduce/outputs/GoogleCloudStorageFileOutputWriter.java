@@ -60,7 +60,9 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
 
     Optional<Credentials> getCredentials();
 
-    String getProjectId();
+    String getProjectId(); //think only needed if creating bucket? which this shouldn't be ..
+
+    Options withSupportSliceRetries(Boolean sliceRetries);
   }
 
   @Override

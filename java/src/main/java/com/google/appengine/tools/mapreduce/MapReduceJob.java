@@ -31,6 +31,7 @@ import com.google.appengine.tools.mapreduce.impl.sort.MergeShardTask;
 import com.google.appengine.tools.mapreduce.impl.sort.SortContext;
 import com.google.appengine.tools.mapreduce.impl.sort.SortShardTask;
 import com.google.appengine.tools.mapreduce.impl.sort.SortWorker;
+import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
 import com.google.appengine.tools.pipeline.FutureValue;
 import com.google.appengine.tools.pipeline.Job0;
@@ -246,12 +247,18 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       int reduceShards = mrSpec.getNumReducers();
       FilesByShard filesByShard = mapResult.getOutputResult();
       filesByShard.splitShards(Math.max(mapShards, reduceShards));
-      GoogleCloudStorageSortInput input = new GoogleCloudStorageSortInput(filesByShard);
+      GoogleCloudStorageLineInput.BaseOptions inputOptions = GoogleCloudStorageLineInput.BaseOptions.defaults();
+      GoogleCloudStorageFileOutput.BaseOptions outputOptions = GoogleCloudStorageFileOutput.BaseOptions.defaults();
+      if (settings.getStorageCredentials() != null) {
+        inputOptions = inputOptions.withCredentials(settings.getStorageCredentials());
+        outputOptions = outputOptions.withCredentials(settings.getStorageCredentials());
+      }
+      GoogleCloudStorageSortInput input = new GoogleCloudStorageSortInput(filesByShard, inputOptions);
       ((Input<?>) input).setContext(context);
       List<? extends InputReader<KeyValue<ByteBuffer, ByteBuffer>>> readers = input.createReaders();
       Output<KeyValue<ByteBuffer, List<ByteBuffer>>, FilesByShard> output =
           new GoogleCloudStorageSortOutput(settings.getBucketName(), mrJobId,
-              new HashingSharder(reduceShards));
+              new HashingSharder(reduceShards), outputOptions);
       output.setContext(context);
 
       List<? extends OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>>> writers =

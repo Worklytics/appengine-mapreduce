@@ -30,6 +30,7 @@ import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig.S
 import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.impl.sort.LexicographicalComparator;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInputReader;
+import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutputWriter;
 import com.google.appengine.tools.mapreduce.outputs.LevelDbOutputWriter;
@@ -126,9 +127,12 @@ public class ShufflerServletTest {
     }
   }
 
+  CloudStorageIntegrationTestHelper storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
+
   @Before
   public void setUp() throws Exception {
     helper.setUp();
+    storageIntegrationTestHelper.setUp();
     ApiProxyLocal proxy = (ApiProxyLocal) ApiProxy.getDelegate();
     // Creating files is not allowed in some test execution environments, so don't.
     proxy.setProperty(LocalBlobstoreService.NO_STORAGE_PROPERTY, "true");
@@ -145,6 +149,7 @@ public class ShufflerServletTest {
       Thread.sleep(1000);
     }
     helper.tearDown();
+    storageIntegrationTestHelper.tearDown();
   }
 
   private int getQueueDepth() {
@@ -198,14 +203,15 @@ public class ShufflerServletTest {
     assertTrue(expected.isEmpty());
   }
 
-  static List<KeyValue<ByteBuffer, List<ByteBuffer>>> validateOrdered(ShufflerParams shufflerParams,
+  List<KeyValue<ByteBuffer, List<ByteBuffer>>> validateOrdered(ShufflerParams shufflerParams,
       ShuffleMapReduce mr, String pipelineId) throws IOException {
     List<KeyValue<ByteBuffer, List<ByteBuffer>>> result = new ArrayList<>();
     String outputNamePattern = mr.getOutputNamePattern(pipelineId);
     for (int shard = 0; shard < shufflerParams.getOutputShards(); shard++) {
       String fileName = String.format(outputNamePattern, shard);
       GoogleCloudStorageLevelDbInputReader reader = new GoogleCloudStorageLevelDbInputReader(
-          new GcsFilename(shufflerParams.getGcsBucket(), fileName), 1024 * 1024);
+          new GcsFilename(shufflerParams.getGcsBucket(), fileName), GoogleCloudStorageLineInput.BaseOptions.builder()
+        .bufferSize(1024 * 1024).credentials(storageIntegrationTestHelper.getCredentials()).build());
       reader.beginShard();
       reader.beginSlice();
       try {
@@ -229,6 +235,9 @@ public class ShufflerServletTest {
     }
     return result;
   }
+  GoogleCloudStorageFileOutput.Options outputOptions() {
+    return GoogleCloudStorageFileOutput.BaseOptions.defaults().withCredentials(storageIntegrationTestHelper.getCredentials());
+  }
 
   private TreeMultimap<ByteBuffer, ByteBuffer> writeInputFiles(ShufflerParams shufflerParams,
       Random rand) throws IOException {
@@ -236,7 +245,7 @@ public class ShufflerServletTest {
     TreeMultimap<ByteBuffer, ByteBuffer> result = TreeMultimap.create(comparator, comparator);
     for (String fileName : shufflerParams.getInputFileNames()) {
       LevelDbOutputWriter writer = new LevelDbOutputWriter(new GoogleCloudStorageFileOutputWriter(
-          new GcsFilename(shufflerParams.getGcsBucket(), fileName), "testData", GoogleCloudStorageFileOutput.BaseOptions.defaults()));
+          new GcsFilename(shufflerParams.getGcsBucket(), fileName), "testData", outputOptions()));
       writer.beginShard();
       writer.beginSlice();
       for (int i = 0; i < recordsPerFile; i++) {

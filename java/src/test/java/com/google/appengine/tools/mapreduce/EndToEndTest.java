@@ -135,7 +135,9 @@ public class EndToEndTest extends EndToEndTestCase {
 
   private <I, K, V, O, R> void runTest(MapReduceSpecification<I, K, V, O, R> mrSpec,
       Verifier<R> verifier) throws Exception {
-    runTest(new MapReduceSettings.Builder().build(), mrSpec, verifier);
+    runTest(new MapReduceSettings.Builder()
+      .setStorageCredentials(getStorageTestHelper().getCredentials())
+      .build(), mrSpec, verifier);
   }
 
   private <I, K, V, O, R> void runTest(MapReduceSettings settings,
