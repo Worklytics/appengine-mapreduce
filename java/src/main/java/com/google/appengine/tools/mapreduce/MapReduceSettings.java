@@ -20,6 +20,7 @@ import lombok.ToString;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -194,55 +195,14 @@ public class MapReduceSettings extends MapSettings {
     sortBatchPerEmitBytes = builder.sortBatchPerEmitBytes;
     mergeFanin = builder.mergeFanin;
     storageCredentials = builder.storageCredentials;
-    bucketName = verifyAndSetBucketName(builder.bucketName);
-  }
+    bucketName = Optional.ofNullable(Strings.emptyToNull(builder.bucketName))
+      .orElseGet(AppIdentityServiceFactory.getAppIdentityService()::getDefaultGcsBucketName);
 
-  private String verifyAndSetBucketName(String bucket) {
-    if (Strings.isNullOrEmpty(bucket)) {
-      try {
-        bucket = AppIdentityServiceFactory.getAppIdentityService().getDefaultGcsBucketName();
-        if (Strings.isNullOrEmpty(bucket)) {
-          String message = "The BucketName property was not set in the MapReduceSettings object, "
-              + "and this application does not have a default bucket configured to fall back on.";
-          log.log(Level.SEVERE, message);
-          throw new IllegalArgumentException(message);
-        }
-      } catch (AppIdentityServiceFailureException e) {
-        throw new RuntimeException(
-            "The BucketName property was not set in the MapReduceSettings object, "
-            + "and could not get the default bucket.", e);
-      }
-    }
-    try {
-      verifyBucketIsWritable(bucket);
-    } catch (Exception e) {
-      throw new RuntimeException("Writeable Bucket '" + bucket + "' test failed. See "
-          + "http://developers.google.com/appengine/docs/java/googlecloudstorageclient/activate"
-          + " for more information on how to setup Google Cloude storage.", e);
-    }
-    return bucket;
-  }
-
-  protected Storage getClient() {
-    if (this.storageCredentials == null) {
-      return StorageOptions.getDefaultInstance().getService();
-    } else {
-      return StorageOptions.newBuilder()
-        .setCredentials(this.storageCredentials)
-        .build().getService();
-    }
-  }
-
-  private void verifyBucketIsWritable(String bucket) throws IOException {
-    BlobId blobId = BlobId.of(bucket, UUID.randomUUID() + ".tmp");
-    if (getClient().get(blobId) != null) {
-      log.warning("File '" + blobId.getName() + "' exists. Skipping bucket write test.");
-      return;
-    }
-    try {
-      getClient().create(BlobInfo.newBuilder(blobId).build(), "Delete me!".getBytes(StandardCharsets.UTF_8));
-    } finally {
-      getClient().delete(blobId);
+    if (bucketName == null) {
+      String message = "The BucketName property was not set in the MapReduceSettings object, "
+        + "and this application does not have a default bucket configured to fall back on.";
+      log.log(Level.SEVERE, message);
+      throw new IllegalArgumentException(message);
     }
   }
 }

@@ -39,17 +39,15 @@ import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.PipelineServiceFactory;
 import com.google.appengine.tools.pipeline.PromisedValue;
 import com.google.appengine.tools.pipeline.Value;
+import com.google.cloud.storage.*;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -89,9 +87,35 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
     if (settings.getWorkerQueueName() == null) {
       settings = new MapReduceSettings.Builder(settings).setWorkerQueueName("default").build();
     }
+
+    verifyBucketIsWritable(settings);
+
     PipelineService pipelineService = PipelineServiceFactory.newPipelineService();
     return pipelineService.startNewPipeline(
         new MapReduceJob<>(specification, settings), settings.toJobSettings());
+  }
+
+  private static void verifyBucketIsWritable(MapReduceSettings settings) {
+    Storage client;
+    if (settings.getStorageCredentials() == null) {
+      client = StorageOptions.getDefaultInstance().getService();
+    } else {
+      client = StorageOptions.newBuilder()
+        .setCredentials(settings.getStorageCredentials())
+        .build().getService();
+    }
+    BlobId blobId = BlobId.of(settings.getBucketName(), UUID.randomUUID() + ".tmp");
+    if (client.get(blobId) != null) {
+      log.warning("File '" + blobId.getName() + "' exists. Skipping bucket write test.");
+      return;
+    }
+    try {
+      client.create(BlobInfo.newBuilder(blobId).build(), "Delete me!".getBytes(StandardCharsets.UTF_8));
+    } catch (StorageException e) {
+      throw new IllegalArgumentException("Bucket " + settings.getBucketName() + " is not writeable; MR job needs to write it for sort/shuffle phase of job", e);
+    } finally {
+      client.delete(blobId);
+    }
   }
 
   /**
@@ -355,7 +379,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
           new ExamineStatusAndReturnResult<FilesByShard>(shardedJobId),
           resultAndStatus, settings.toJobSettings(waitFor(shardedJobResult),
               statusConsoleUrl(shardedJobSettings.getMapReduceStatusUrl())));
-      futureCall(new Cleanup(settings), immediate(priorResult), waitFor(finished));
+      futureCall(new MapReduceJob.Cleanup(settings), immediate(priorResult), waitFor(finished));
       return futureCall(new MergeJob(mrJobId, mrSpec, settings, tier + 1), finished,
           settings.toJobSettings(maxAttempts(1)));
     }
