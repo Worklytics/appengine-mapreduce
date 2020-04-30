@@ -92,7 +92,7 @@ public class MapReduceSettings extends MapSettings {
       this.sortReadTimeMillis = settings.sortReadTimeMillis;
       this.sortBatchPerEmitBytes = settings.sortBatchPerEmitBytes;
       this.mergeFanin = settings.mergeFanin;
-      this.storageCredentials = GoogleCredentials.getApplicationDefault();
+      this.storageCredentials = settings.storageCredentials;
     }
 
     public Builder(MapSettings settings) {
