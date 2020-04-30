@@ -95,7 +95,6 @@ public class ShufflerServletTest {
           .setDisableAutoTaskExecution(false).setCallbackClass(TaskRunner.class),
       new LocalMemcacheServiceTestConfig(), new LocalModulesServiceTestConfig());
 
-
   public static class TaskRunner extends ServletInvokingTaskCallback {
 
     private static final Map<String, HttpServlet> servletMap =
@@ -163,7 +162,7 @@ public class ShufflerServletTest {
 
   @Test
   public void testDataIsOrdered() throws InterruptedException, IOException {
-    ShufflerParams shufflerParams = createParams(3, 10);
+    ShufflerParams shufflerParams = createParams(storageIntegrationTestHelper.getBucket(), 3, 10);
     TreeMultimap<ByteBuffer, ByteBuffer> input = writeInputFiles(shufflerParams, new Random(0));
     PipelineService service = PipelineServiceFactory.newPipelineService();
     ShuffleMapReduce mr = new ShuffleMapReduce(shufflerParams);
@@ -176,7 +175,7 @@ public class ShufflerServletTest {
 
   @Test
   public void testJson() throws IOException {
-    ShufflerParams shufflerParams = createParams(3, 10);
+    ShufflerParams shufflerParams = createParams(storageIntegrationTestHelper.getBucket(), 3, 10);
     Marshaller<ShufflerParams> marshaller =
         Marshallers.getGenericJsonMarshaller(ShufflerParams.class);
     ByteBuffer bytes = marshaller.toBytes(shufflerParams);
@@ -270,7 +269,7 @@ public class ShufflerServletTest {
     return keyValue;
   }
 
-  static ShufflerParams createParams(int inputFiles, int outputShards) {
+  static ShufflerParams createParams(String bucket, int inputFiles, int outputShards) {
     ShufflerParams shufflerParams = new ShufflerParams();
     shufflerParams.setCallbackService("default");
     shufflerParams.setCallbackVersion("callbackVersion");
@@ -283,7 +282,7 @@ public class ShufflerServletTest {
     shufflerParams.setInputFileNames(list.toArray(new String[inputFiles]));
     shufflerParams.setOutputShards(outputShards);
     shufflerParams.setShufflerQueue("default");
-    shufflerParams.setGcsBucket("storageBucket");
+    shufflerParams.setGcsBucket(bucket);
     shufflerParams.setOutputDir("storageDir");
     return shufflerParams;
   }

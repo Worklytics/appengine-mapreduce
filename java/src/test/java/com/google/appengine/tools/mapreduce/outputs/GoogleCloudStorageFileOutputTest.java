@@ -32,7 +32,7 @@ public class GoogleCloudStorageFileOutputTest extends TestCase {
   // there will be some left over.
   private static final byte[] LARGE_CONTENT = new byte[(int) (1024 * 1024 * 2.5)];
 
-  CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
+  CloudStorageIntegrationTestHelper storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
 
 
   @Override

@@ -19,7 +19,7 @@ import java.util.List;
 public class BigQueryStoreResultTest extends TestCase {
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper();
-  CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
+  CloudStorageIntegrationTestHelper storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
 
   @Override
   protected void setUp() throws Exception {

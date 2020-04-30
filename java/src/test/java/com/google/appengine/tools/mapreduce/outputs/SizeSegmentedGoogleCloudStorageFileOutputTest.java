@@ -22,7 +22,6 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
 
   CloudStorageIntegrationTestHelper cloudStorageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
 
-  private static final String BUCKET = "test-bigquery-loader";
   private static final String MIME_TYPE = "application/json";
 
   GoogleCloudStorageFileOutput.Options options;
@@ -48,7 +47,7 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
     int segmentSizeLimit = 10;
     String fileNamePattern = String.format(BigQueryConstants.GCS_FILE_NAME_FORMAT, "testJob");
     SizeSegmentedGoogleCloudStorageFileOutput segmenter =
-        new SizeSegmentedGoogleCloudStorageFileOutput(BUCKET, segmentSizeLimit, fileNamePattern,
+        new SizeSegmentedGoogleCloudStorageFileOutput(cloudStorageIntegrationTestHelper.getBucket(), segmentSizeLimit, fileNamePattern,
             BigQueryConstants.MIME_TYPE, options);
     List<? extends OutputWriter<ByteBuffer>> writers = segmenter.createWriters(5);
     List<OutputWriter<ByteBuffer>> finished = new ArrayList<>();
@@ -81,7 +80,7 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
   public void testSegmentation() throws IOException {
     int segmentSizeLimit = 10;
     SizeSegmentedGoogleCloudStorageFileOutput segmenter =
-        new SizeSegmentedGoogleCloudStorageFileOutput(BUCKET, segmentSizeLimit, "testJob",
+        new SizeSegmentedGoogleCloudStorageFileOutput(cloudStorageIntegrationTestHelper.getBucket(), segmentSizeLimit, "testJob",
             BigQueryConstants.MIME_TYPE, options);
     List<? extends OutputWriter<ByteBuffer>> writers = segmenter.createWriters(5);
     int countFiles = 0;
