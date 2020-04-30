@@ -50,6 +50,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+import com.sun.scenario.Settings;
 import lombok.RequiredArgsConstructor;
 import org.easymock.EasyMock;
 import org.junit.After;
@@ -91,6 +92,7 @@ public class EndToEndTest extends EndToEndTestCase {
   CloudStorageIntegrationTestHelper storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
 
   GoogleCloudStorageFileOutput.Options cloudStorageFileOutputOptions;
+  MapReduceSettings testSettings;
 
   @Before
   @Override
@@ -101,7 +103,10 @@ public class EndToEndTest extends EndToEndTestCase {
     cloudStorageFileOutputOptions = GoogleCloudStorageFileOutput.BaseOptions.defaults()
       .withCredentials(storageIntegrationTestHelper.getCredentials())
       .withProjectId(storageIntegrationTestHelper.getProjectId()); //prob not really needed ..
-
+    testSettings = new MapReduceSettings.Builder()
+      .setStorageCredentials(getStorageTestHelper().getCredentials())
+      .setBucketName(getStorageTestHelper().getBucket())
+      .build();
   }
 
   @After
@@ -135,10 +140,7 @@ public class EndToEndTest extends EndToEndTestCase {
 
   private <I, K, V, O, R> void runTest(MapReduceSpecification<I, K, V, O, R> mrSpec,
       Verifier<R> verifier) throws Exception {
-    runTest(new MapReduceSettings.Builder()
-      .setStorageCredentials(getStorageTestHelper().getCredentials())
-      .setBucketName(getStorageTestHelper().getBucket())
-      .build(), mrSpec, verifier);
+    runTest(testSettings, mrSpec, verifier);
   }
 
   private <I, K, V, O, R> void runTest(MapReduceSettings settings,
@@ -372,8 +374,8 @@ public class EndToEndTest extends EndToEndTestCase {
         assertEquals(50000, allOutput.size());
       }
     };
-    runTest(new MapReduceSettings.Builder().setMapFanout(5).build(), spec, verifier);
-    runTest(new MapReduceSettings.Builder().setMapFanout(2).build(), spec, verifier);
+    runTest(new MapReduceSettings.Builder(testSettings).setMapFanout(5).build(), spec, verifier);
+    runTest(new MapReduceSettings.Builder(testSettings).setMapFanout(2).build(), spec, verifier);
   }
 
   @Test
