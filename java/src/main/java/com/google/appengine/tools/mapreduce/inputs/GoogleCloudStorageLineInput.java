@@ -13,6 +13,7 @@ import com.google.cloud.storage.StorageOptions;
 import com.google.common.base.Preconditions;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.With;
 
 import java.util.ArrayList;
@@ -22,6 +23,7 @@ import java.util.Optional;
 /**
  * CloudStorageLineInput shards files in Cloud Storage on separator boundaries.
  */
+@RequiredArgsConstructor
 public class GoogleCloudStorageLineInput extends Input<byte[]> {
 
   private static final long MIN_SHARD_SIZE = 1024L;

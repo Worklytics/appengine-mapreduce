@@ -137,6 +137,7 @@ public class EndToEndTest extends EndToEndTestCase {
       Verifier<R> verifier) throws Exception {
     runTest(new MapReduceSettings.Builder()
       .setStorageCredentials(getStorageTestHelper().getCredentials())
+      .setBucketName(getStorageTestHelper().getBucket())
       .build(), mrSpec, verifier);
   }
 

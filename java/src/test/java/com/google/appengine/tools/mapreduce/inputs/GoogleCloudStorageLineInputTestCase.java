@@ -20,13 +20,13 @@ abstract class GoogleCloudStorageLineInputTestCase extends TestCase  {
   CloudStorageIntegrationTestHelper cloudStorageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper(
-      new CloudStorageIntegrationTestHelper(),
       new LocalDatastoreServiceTestConfig());
 
   @Override
   public void setUp() throws Exception {
     super.setUp();
     helper.setUp();
+    cloudStorageIntegrationTestHelper.setUp();
   }
 
   long createFile(String filename, String record, int recordsCount) throws IOException {
@@ -42,7 +42,7 @@ abstract class GoogleCloudStorageLineInputTestCase extends TestCase  {
   @Override
   public void tearDown() throws Exception {
     helper.tearDown();
-    cloudStorageIntegrationTestHelper.setUp();
+    cloudStorageIntegrationTestHelper.tearDown();
     super.tearDown();
   }
 }

@@ -16,16 +16,18 @@ public class GoogleCloudStorageLineInputTest extends GoogleCloudStorageLineInput
 
   GcsFilename filename;
   long fileSize;
+  GoogleCloudStorageLineInput.BaseOptions inputOptions;
 
   @Override
   public void setUp() throws Exception {
     super.setUp();
     filename = new GcsFilename(cloudStorageIntegrationTestHelper.getBucket(), FILENAME);
     fileSize = createFile(filename.getObjectName(), RECORD, RECORDS_COUNT);
+    inputOptions = GoogleCloudStorageLineInput.BaseOptions.defaults().withCredentials(cloudStorageIntegrationTestHelper.getCredentials());
   }
 
   public void testSplit() throws Exception {
-    GoogleCloudStorageLineInput input = new GoogleCloudStorageLineInput(filename, (byte) '\n', 4);
+    GoogleCloudStorageLineInput input = new GoogleCloudStorageLineInput(filename, (byte) '\n', 4, inputOptions);
     List<? extends InputReader<byte[]>> readers = input.createReaders();
     assertEquals(4, readers.size());
     assertSplitRange(0, 3000, readers.get(0));
@@ -35,7 +37,7 @@ public class GoogleCloudStorageLineInputTest extends GoogleCloudStorageLineInput
   }
 
   public void testUnevenSplit() throws Exception {
-    GoogleCloudStorageLineInput input = new GoogleCloudStorageLineInput(filename, (byte) '\n', 7);
+    GoogleCloudStorageLineInput input = new GoogleCloudStorageLineInput(filename, (byte) '\n', 7, inputOptions);
     List<? extends InputReader<byte[]>> readers = input.createReaders();
     assertEquals(7, readers.size());
     assertSplitRange(0, 1714, readers.get(0));
