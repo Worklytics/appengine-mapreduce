@@ -25,7 +25,9 @@ import com.google.common.base.CharMatcher;
 
 import lombok.Getter;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 
 import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
@@ -62,8 +64,13 @@ public abstract class EndToEndTestCase {
   }
 
   @Getter
-  private CloudStorageIntegrationTestHelper storageTestHelper = new CloudStorageIntegrationTestHelper();
+  private CloudStorageIntegrationTestHelper storageTestHelper;
 
+  @BeforeClass
+  public void setupStorage() {
+    storageTestHelper = new CloudStorageIntegrationTestHelper();
+    storageTestHelper.setUp();
+  }
   @Before
   public void setUp() throws Exception {
     helper.setUp();
@@ -81,6 +88,10 @@ public abstract class EndToEndTestCase {
   @After
   public void tearDown() throws Exception {
     helper.tearDown();
+  }
+
+  @AfterClass
+  public void tearDownStorage() {
     storageTestHelper.tearDown();
   }
 

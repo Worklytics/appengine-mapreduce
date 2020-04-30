@@ -9,6 +9,8 @@ import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 
 import com.google.cloud.storage.Blob;
 import junit.framework.TestCase;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -20,17 +22,22 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper();
 
-  CloudStorageIntegrationTestHelper cloudStorageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
+  CloudStorageIntegrationTestHelper cloudStorageIntegrationTestHelper;
 
   private static final String MIME_TYPE = "application/json";
 
   GoogleCloudStorageFileOutput.Options options;
 
+  @BeforeClass
+  public void setupStorage() {
+    cloudStorageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
+    cloudStorageIntegrationTestHelper.setUp();
+  }
+
   @Override
   protected void setUp() throws Exception {
     super.setUp();
     helper.setUp();
-    cloudStorageIntegrationTestHelper.setUp();
     options = GoogleCloudStorageFileOutput.BaseOptions.defaults().withCredentials(cloudStorageIntegrationTestHelper.getCredentials()).withProjectId(cloudStorageIntegrationTestHelper.getProjectId());
 
   }
@@ -39,9 +46,13 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
   protected void tearDown() throws Exception {
     super.tearDown();
     helper.tearDown();
-    cloudStorageIntegrationTestHelper.tearDown();
-
   }
+
+  @AfterClass
+  protected void tearDownStorage() throws Exception {
+    cloudStorageIntegrationTestHelper.tearDown();
+  }
+
 
   public void testFilesWritten() throws IOException {
     int segmentSizeLimit = 10;

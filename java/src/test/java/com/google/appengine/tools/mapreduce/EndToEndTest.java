@@ -50,11 +50,11 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-import com.sun.scenario.Settings;
 import lombok.RequiredArgsConstructor;
 import org.easymock.EasyMock;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.BlockJUnit4ClassRunner;
@@ -89,29 +89,27 @@ public class EndToEndTest extends EndToEndTestCase {
 
   private PipelineService pipelineService;
 
-  CloudStorageIntegrationTestHelper storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
 
   GoogleCloudStorageFileOutput.Options cloudStorageFileOutputOptions;
   MapReduceSettings testSettings;
+
+  @BeforeClass
+  public void storageSetup() {
+
+  }
 
   @Before
   @Override
   public void setUp() throws Exception {
     super.setUp();
     pipelineService = PipelineServiceFactory.newPipelineService();
-    storageIntegrationTestHelper.setUp();
     cloudStorageFileOutputOptions = GoogleCloudStorageFileOutput.BaseOptions.defaults()
-      .withCredentials(storageIntegrationTestHelper.getCredentials())
-      .withProjectId(storageIntegrationTestHelper.getProjectId()); //prob not really needed ..
+      .withCredentials(getStorageTestHelper().getCredentials())
+      .withProjectId(getStorageTestHelper().getProjectId()); //prob not really needed ..
     testSettings = new MapReduceSettings.Builder()
       .setStorageCredentials(getStorageTestHelper().getCredentials())
       .setBucketName(getStorageTestHelper().getBucket())
       .build();
-  }
-
-  @After
-  public void tearDown() {
-    storageIntegrationTestHelper.tearDown();
   }
 
   private interface Verifier<R> {

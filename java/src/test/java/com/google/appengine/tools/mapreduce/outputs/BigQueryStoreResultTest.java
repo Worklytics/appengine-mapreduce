@@ -11,6 +11,8 @@ import com.google.common.collect.Lists;
 
 import junit.framework.TestCase;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -19,19 +21,28 @@ import java.util.List;
 public class BigQueryStoreResultTest extends TestCase {
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper();
-  CloudStorageIntegrationTestHelper storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
+  CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
+
+  @BeforeClass
+  public void setupStorage() {
+    storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
+    storageIntegrationTestHelper.setUp();
+  }
 
   @Override
   protected void setUp() throws Exception {
     super.setUp();
     helper.setUp();
-    storageIntegrationTestHelper.setUp();
   }
 
   @Override
   protected void tearDown() throws Exception {
     super.tearDown();
     helper.tearDown();
+  }
+
+  @AfterClass
+  public void tearDownStorage() {
     storageIntegrationTestHelper.tearDown();
   }
 

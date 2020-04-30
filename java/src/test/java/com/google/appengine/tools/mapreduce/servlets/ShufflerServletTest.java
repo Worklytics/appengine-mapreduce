@@ -42,9 +42,7 @@ import com.google.apphosting.api.ApiProxy;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.TreeMultimap;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.BlockJUnit4ClassRunner;
 
@@ -126,17 +124,24 @@ public class ShufflerServletTest {
     }
   }
 
-  CloudStorageIntegrationTestHelper storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
+  CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
+
+  @BeforeClass
+  public void setupStorage() {
+    storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
+    storageIntegrationTestHelper.setUp();
+  }
 
   @Before
   public void setUp() throws Exception {
     helper.setUp();
-    storageIntegrationTestHelper.setUp();
     ApiProxyLocal proxy = (ApiProxyLocal) ApiProxy.getDelegate();
     // Creating files is not allowed in some test execution environments, so don't.
     proxy.setProperty(LocalBlobstoreService.NO_STORAGE_PROPERTY, "true");
     WAIT_ON.drainPermits();
   }
+
+
 
   @After
   public void tearDown() throws Exception {
@@ -148,6 +153,10 @@ public class ShufflerServletTest {
       Thread.sleep(1000);
     }
     helper.tearDown();
+  }
+
+  @AfterClass
+  public void teardownStorage() {
     storageIntegrationTestHelper.tearDown();
   }
 

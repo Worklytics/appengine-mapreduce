@@ -8,6 +8,7 @@ import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.impl.MapReduceConstants;
 import com.google.auth.Credentials;
 import com.google.cloud.ReadChannel;
+import com.google.cloud.RestorableState;
 import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.*;
 import com.google.common.base.Preconditions;

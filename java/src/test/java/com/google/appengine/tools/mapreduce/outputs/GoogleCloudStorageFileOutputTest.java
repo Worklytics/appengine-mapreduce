@@ -8,6 +8,8 @@ import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import junit.framework.TestCase;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -32,13 +34,16 @@ public class GoogleCloudStorageFileOutputTest extends TestCase {
   // there will be some left over.
   private static final byte[] LARGE_CONTENT = new byte[(int) (1024 * 1024 * 2.5)];
 
-  CloudStorageIntegrationTestHelper storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
+  CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
 
-
+  @BeforeClass
+  public void setupStorage() {
+    storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
+    storageIntegrationTestHelper.setUp();
+  }
   @Override
   protected void setUp() throws Exception {
     super.setUp();
-    storageIntegrationTestHelper.setUp();
     // Filling the large_content buffer with a non-repeating but consistent pattern.
     Random r = new Random(0);
     r.nextBytes(LARGE_CONTENT);
@@ -51,6 +56,10 @@ public class GoogleCloudStorageFileOutputTest extends TestCase {
     super.tearDown();
   }
 
+  @AfterClass
+  protected void tearDownStorage() throws Exception {
+    storageIntegrationTestHelper.tearDown();
+  }
 
   public void testFilesAreWritten() throws IOException {
     GoogleCloudStorageFileOutput creator =
