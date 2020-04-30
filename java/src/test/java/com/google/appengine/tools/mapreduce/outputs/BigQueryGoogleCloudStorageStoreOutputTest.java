@@ -15,7 +15,6 @@ import com.google.common.collect.Lists;
 import junit.framework.TestCase;
 
 import lombok.Getter;
-import org.junit.AfterClass;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -56,6 +55,7 @@ public class BigQueryGoogleCloudStorageStoreOutputTest extends TestCase {
       writer.beginShard();
       writer.beginSlice();
       writer = SerializationUtil.clone(writer);
+      writer.beginSlice(); //30 Apr 2020: added beginSlice() here, not at all clear whether omission was intentional or bug
       writer.write(new Father(true, "Father",
           Lists.newArrayList(new Child("Childone", 1), new Child("childtwo", 2))));
       writer.endSlice();
