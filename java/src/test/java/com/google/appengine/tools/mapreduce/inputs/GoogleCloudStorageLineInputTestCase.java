@@ -17,7 +17,7 @@ import java.nio.ByteBuffer;
  */
 abstract class GoogleCloudStorageLineInputTestCase extends TestCase  {
 
-  CloudStorageIntegrationTestHelper cloudStorageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
+  CloudStorageIntegrationTestHelper cloudStorageIntegrationTestHelper;
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper(
       new LocalDatastoreServiceTestConfig());
@@ -26,6 +26,7 @@ abstract class GoogleCloudStorageLineInputTestCase extends TestCase  {
   public void setUp() throws Exception {
     super.setUp();
     helper.setUp();
+    cloudStorageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
     cloudStorageIntegrationTestHelper.setUp();
   }
 

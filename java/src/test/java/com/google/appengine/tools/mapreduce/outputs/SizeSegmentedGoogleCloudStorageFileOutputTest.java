@@ -10,8 +10,6 @@ import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.cloud.storage.Blob;
 import junit.framework.TestCase;
 import lombok.Getter;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -30,16 +28,12 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
 
   GoogleCloudStorageFileOutput.Options options;
 
-  @BeforeClass
-  public static void setupStorage() {
-    cloudStorageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
-    cloudStorageIntegrationTestHelper.setUp();
-  }
-
   @Override
   protected void setUp() throws Exception {
     super.setUp();
     helper.setUp();
+    cloudStorageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
+    cloudStorageIntegrationTestHelper.setUp();
     options = GoogleCloudStorageFileOutput.BaseOptions.defaults().withCredentials(cloudStorageIntegrationTestHelper.getCredentials()).withProjectId(cloudStorageIntegrationTestHelper.getProjectId());
 
   }
@@ -49,12 +43,6 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
     super.tearDown();
     helper.tearDown();
   }
-
-  @AfterClass
-  public static void tearDownStorage() throws Exception {
-    cloudStorageIntegrationTestHelper.tearDown();
-  }
-
 
   public void testFilesWritten() throws IOException {
     int segmentSizeLimit = 10;

@@ -36,16 +36,18 @@ public class GoogleCloudStorageFileOutputTest extends TestCase {
   private static final byte[] LARGE_CONTENT = new byte[(int) (1024 * 1024 * 2.5)];
 
   @Getter
-  static CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
+  CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
 
   @BeforeClass
   public static void setupStorage() {
-    storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
-    storageIntegrationTestHelper.setUp();
+
   }
   @Override
   protected void setUp() throws Exception {
     super.setUp();
+    storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
+    storageIntegrationTestHelper.setUp();
+
     // Filling the large_content buffer with a non-repeating but consistent pattern.
     Random r = new Random(0);
     r.nextBytes(LARGE_CONTENT);
@@ -56,11 +58,6 @@ public class GoogleCloudStorageFileOutputTest extends TestCase {
   protected void tearDown() throws Exception {
     storageIntegrationTestHelper.tearDown();
     super.tearDown();
-  }
-
-  @AfterClass
-  public static void tearDownStorage() throws Exception {
-    storageIntegrationTestHelper.tearDown();
   }
 
   public void testFilesAreWritten() throws IOException {

@@ -32,7 +32,7 @@ public class GoogleCloudStorageLevelDbInputReaderTest extends TestCase {
   private static final int BLOCK_SIZE = LevelDbConstants.BLOCK_SIZE;
   GcsFilename filename;
 
-  private static final CloudStorageIntegrationTestHelper storageHelper = new CloudStorageIntegrationTestHelper();
+  private CloudStorageIntegrationTestHelper storageHelper;
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper(
       new LocalTaskQueueTestConfig(),
@@ -44,6 +44,7 @@ public class GoogleCloudStorageLevelDbInputReaderTest extends TestCase {
   public void setUp() throws Exception {
     super.setUp();
     helper.setUp();
+    storageHelper = new CloudStorageIntegrationTestHelper();
     storageHelper.setUp();
     filename = new GcsFilename(storageHelper.getBucket(), "GoogleCloudStorageLevelDbInputReaderTest");
   }

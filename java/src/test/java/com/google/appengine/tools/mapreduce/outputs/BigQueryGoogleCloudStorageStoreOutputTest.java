@@ -16,7 +16,6 @@ import junit.framework.TestCase;
 
 import lombok.Getter;
 import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -30,26 +29,18 @@ public class BigQueryGoogleCloudStorageStoreOutputTest extends TestCase {
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper();
 
   @Getter
-  static CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
+  CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
 
-  @BeforeClass
-  public static void setupStorage() {
+  @Override
+  protected void setUp() throws Exception {
+    helper.setUp();
     storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
     storageIntegrationTestHelper.setUp();
   }
 
   @Override
-  protected void setUp() throws Exception {
-    helper.setUp();
-  }
-
-  @Override
   protected void tearDown() throws Exception {
     helper.tearDown();
-  }
-
-  @AfterClass
-  public static void tearDownStorage(){
     storageIntegrationTestHelper.tearDown();
   }
 

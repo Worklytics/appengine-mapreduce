@@ -64,13 +64,8 @@ public abstract class EndToEndTestCase {
   }
 
   @Getter
-  private static CloudStorageIntegrationTestHelper storageTestHelper;
+  private CloudStorageIntegrationTestHelper storageTestHelper;
 
-  @BeforeClass
-  static public void setupStorage() {
-    storageTestHelper = new CloudStorageIntegrationTestHelper();
-    storageTestHelper.setUp();
-  }
   @Before
   public void setUp() throws Exception {
     helper.setUp();
@@ -82,16 +77,13 @@ public abstract class EndToEndTestCase {
     ApiProxyLocal proxy = (ApiProxyLocal) ApiProxy.getDelegate();
     // Creating files is not allowed in some test execution environments, so don't.
     proxy.setProperty(LocalBlobstoreService.NO_STORAGE_PROPERTY, "true");
+    storageTestHelper = new CloudStorageIntegrationTestHelper();
     storageTestHelper.setUp();
   }
 
   @After
   public void tearDown() throws Exception {
     helper.tearDown();
-  }
-
-  @AfterClass
-  public static void tearDownStorage() {
     storageTestHelper.tearDown();
   }
 

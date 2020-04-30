@@ -13,6 +13,8 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.Base64;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * sets up storage bucket for tests
@@ -38,7 +40,7 @@ public class CloudStorageIntegrationTestHelper implements LocalServiceTestConfig
   @Getter
   Storage storage;
   @Getter
-  String bucket;
+  static String bucket;
   @Getter
   String projectId;
   @Getter
@@ -61,13 +63,25 @@ public class CloudStorageIntegrationTestHelper implements LocalServiceTestConfig
     InputStream keyStream = new ByteArrayInputStream(jsonKey.getBytes());
     RemoteStorageHelper helper = RemoteStorageHelper.create(projectId, keyStream);
     storage = helper.getOptions().getService();
-    bucket = RemoteStorageHelper.generateBucketName();
-    storage.create(BucketInfo.of(bucket));
+    if (bucket == null) {
+      bucket = RemoteStorageHelper.generateBucketName();
+      storage.create(BucketInfo.of(bucket));
+
+      //delete bucket at shutdown
+
+      Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        try {
+          RemoteStorageHelper.forceDelete(storage, bucket, 5, TimeUnit.SECONDS);
+        } catch (Throwable e) {
+          Logger.getAnonymousLogger().log(Level.WARNING, "Failed to cleanup bucket: " + bucket);
+        }
+      }));
+    }
   }
 
+  @Deprecated //attach delete to global runtime shutdown
   @SneakyThrows
   @Override
   public void tearDown() {
-    RemoteStorageHelper.forceDelete(storage, bucket, 5, TimeUnit.SECONDS);
   }
 }

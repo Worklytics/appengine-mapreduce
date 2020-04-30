@@ -126,12 +126,11 @@ public class ShufflerServletTest {
   }
 
   @Getter
-  static CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
+  CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
 
   @BeforeClass
   public static void setupStorage() {
-    storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
-    storageIntegrationTestHelper.setUp();
+
   }
 
   @Before
@@ -141,6 +140,8 @@ public class ShufflerServletTest {
     // Creating files is not allowed in some test execution environments, so don't.
     proxy.setProperty(LocalBlobstoreService.NO_STORAGE_PROPERTY, "true");
     WAIT_ON.drainPermits();
+    storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
+    storageIntegrationTestHelper.setUp();
   }
 
 
@@ -155,12 +156,9 @@ public class ShufflerServletTest {
       Thread.sleep(1000);
     }
     helper.tearDown();
-  }
-
-  @AfterClass
-  public static void teardownStorage() {
     storageIntegrationTestHelper.tearDown();
   }
+
 
   private int getQueueDepth() {
     return LocalTaskQueueTestConfig
