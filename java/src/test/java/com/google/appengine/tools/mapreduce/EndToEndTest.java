@@ -1191,11 +1191,12 @@ public class EndToEndTest extends EndToEndTestCase {
   static class SideOutputMapper extends Mapper<Long, GcsFilename, Void> {
     transient GoogleCloudStorageFileOutputWriter sideOutput;
 
+    final String bucket;
     final GoogleCloudStorageFileOutput.Options options;
 
     @Override
     public void beginSlice() {
-      GcsFilename filename = new GcsFilename("bucket", UUID.randomUUID().toString());
+      GcsFilename filename = new GcsFilename(bucket, UUID.randomUUID().toString());
       sideOutput = new GoogleCloudStorageFileOutputWriter(filename, "application/octet-stream", options);
       try {
         sideOutput.beginShard();
@@ -1232,7 +1233,7 @@ public class EndToEndTest extends EndToEndTestCase {
   public void testSideOutput() throws Exception {
 
     runTest(new MapReduceSpecification.Builder<>(new ConsecutiveLongInput(0, 6, 6),
-        new SideOutputMapper(cloudStorageFileOutputOptions), KeyProjectionReducer.<GcsFilename, Void>create(),
+        new SideOutputMapper(getStorageTestHelper().getBucket(), cloudStorageFileOutputOptions), KeyProjectionReducer.<GcsFilename, Void>create(),
         new InMemoryOutput<GcsFilename>())
         .setKeyMarshaller(Marshallers.<GcsFilename>getSerializationMarshaller())
         .setValueMarshaller(Marshallers.getVoidMarshaller())
