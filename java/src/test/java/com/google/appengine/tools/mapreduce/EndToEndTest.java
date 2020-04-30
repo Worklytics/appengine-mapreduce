@@ -100,7 +100,7 @@ public class EndToEndTest extends EndToEndTestCase {
     storageIntegrationTestHelper.setUp();
     cloudStorageFileOutputOptions = GoogleCloudStorageFileOutput.BaseOptions.defaults()
       .withCredentials(storageIntegrationTestHelper.getCredentials())
-      .withProjectId(storageIntegrationTestHelper.getProjectId());
+      .withProjectId(storageIntegrationTestHelper.getProjectId()); //prob not really needed ..
 
   }
 
@@ -711,8 +711,7 @@ public class EndToEndTest extends EndToEndTestCase {
     final RandomLongInput input = new RandomLongInput(10, 1);
     input.setSeed(0L);
     runTest(new MapReduceSpecification.Builder<>(input, new Mod37Mapper(), ValueProjectionReducer
-        .<String, Long>create(), new StringOutput<Long, GoogleCloudStorageFileSet>(",",
-        new GoogleCloudStorageFileOutput("bucket", "Foo-%02d", "testType")))
+        .<String, Long>create(), new StringOutput<>(",", new GoogleCloudStorageFileOutput(storageIntegrationTestHelper.getBucket(), "Foo-%02d", "text/plain", cloudStorageFileOutputOptions)))
         .setKeyMarshaller(Marshallers.getStringMarshaller())
         .setValueMarshaller(Marshallers.getLongMarshaller()).setJobName("TestPassThroughToString")
         .build(), new Verifier<GoogleCloudStorageFileSet>() {
@@ -758,8 +757,8 @@ public class EndToEndTest extends EndToEndTestCase {
     builder.setKeyMarshaller(Marshallers.getByteBufferMarshaller());
     builder.setValueMarshaller(Marshallers.getByteBufferMarshaller());
     builder.setReducer(ValueProjectionReducer.<ByteBuffer, ByteBuffer>create());
-    builder.setOutput(new GoogleCloudStorageFileOutput("bucket", "fileNamePattern-%04d",
-        "application/octet-stream", sliceRetry));
+    builder.setOutput(new GoogleCloudStorageFileOutput(storageIntegrationTestHelper.getBucket(), "fileNamePattern-%04d",
+        "application/octet-stream", (GoogleCloudStorageFileOutput.Options) cloudStorageFileOutputOptions.withSupportSliceRetries(sliceRetry)));
     builder.setNumReducers(2);
     runTest(builder.build(), new Verifier<GoogleCloudStorageFileSet>() {
       @Override
@@ -910,7 +909,9 @@ public class EndToEndTest extends EndToEndTestCase {
     output.setContext(anyObject(Context.class));
     expect(output.finish(isA(Collection.class))).andReturn(null);
     replay(input, inputReader, output, outputWriter);
-    runWithPipeline(new MapReduceSettings.Builder().build(), new MapReduceSpecification.Builder<>(
+    runWithPipeline(new MapReduceSettings.Builder()
+      .setStorageCredentials(storageIntegrationTestHelper.getCredentials())
+      .setBucketName(storageIntegrationTestHelper.getBucket()).build(), new MapReduceSpecification.Builder<>(
         new TestInput<>(input), new LongToBytesMapper(),
         ValueProjectionReducer.<ByteBuffer, ByteBuffer>create(), new TestOutput<>(output))
         .setKeyMarshaller(Marshallers.getByteBufferMarshaller())
@@ -1140,7 +1141,10 @@ public class EndToEndTest extends EndToEndTestCase {
     builder.setOutput(new InMemoryOutput<Long>());
     builder.setNumReducers(1);
     runWithPipeline(
-        new MapReduceSettings.Builder().setMaxSortMemory(sortMem).setMergeFanin(2).build(),
+        new MapReduceSettings.Builder().setMaxSortMemory(sortMem).setMergeFanin(2)
+          .setBucketName(storageIntegrationTestHelper.getBucket())
+          .setStorageCredentials(storageIntegrationTestHelper.getCredentials())
+          .build(),
         builder.build(), new Verifier<List<List<Long>>>() {
           @Override
           public void verify(MapReduceResult<List<List<Long>>> result) throws Exception {
@@ -1169,7 +1173,7 @@ public class EndToEndTest extends EndToEndTestCase {
     builder.setReducer(KeyProjectionReducer.<String, Long>create());
     builder.setOutput(new InMemoryOutput<String>());
     builder.setNumReducers(5);
-    runTest(new MapReduceSettings.Builder().setMillisPerSlice(0).build(), builder.build(),
+    runTest(new MapReduceSettings.Builder().setMillisPerSlice(0).setStorageCredentials(storageIntegrationTestHelper.getCredentials()).setBucketName(storageIntegrationTestHelper.getBucket()).build(), builder.build(),
         new Verifier<List<List<String>>>() {
           @Override
           public void verify(MapReduceResult<List<List<String>>> result) throws Exception {
