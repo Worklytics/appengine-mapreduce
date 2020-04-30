@@ -346,13 +346,13 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       }
 
       GoogleCloudStorageMergeInput input =
-          new GoogleCloudStorageMergeInput(sortFiles, settings.getMergeFanin());
+          new GoogleCloudStorageMergeInput(sortFiles, settings.getMergeFanin(), GoogleCloudStorageLineInput.BaseOptions.defaults().withCredentials(settings.getStorageCredentials()));
       ((Input<?>) input).setContext(context);
       List<? extends InputReader<KeyValue<ByteBuffer, Iterator<ByteBuffer>>>> readers =
           input.createReaders();
 
       Output<KeyValue<ByteBuffer, List<ByteBuffer>>, FilesByShard> output =
-          new GoogleCloudStorageMergeOutput(settings.getBucketName(), mrJobId, tier);
+          new GoogleCloudStorageMergeOutput(settings.getBucketName(), mrJobId, tier, GoogleCloudStorageFileOutput.BaseOptions.defaults().withCredentials(settings.getStorageCredentials()));
       output.setContext(context);
 
       List<? extends OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>>> writers =
@@ -383,7 +383,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());
 
       FutureValue<MapReduceResult<FilesByShard>> finished = futureCall(
-          new ExamineStatusAndReturnResult<FilesByShard>(shardedJobId),
+          new ExamineStatusAndReturnResult<>(shardedJobId),
           resultAndStatus, settings.toJobSettings(waitFor(shardedJobResult),
               statusConsoleUrl(shardedJobSettings.getMapReduceStatusUrl())));
       futureCall(new MapReduceJob.Cleanup(settings), immediate(priorResult), waitFor(finished));
@@ -443,7 +443,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       Output<O, R> output = mrSpec.getOutput();
       output.setContext(context);
       GoogleCloudStorageReduceInput<K, V> input = new GoogleCloudStorageReduceInput<>(
-          mergeResult.getOutputResult(), mrSpec.getKeyMarshaller(), mrSpec.getValueMarshaller());
+          mergeResult.getOutputResult(), mrSpec.getKeyMarshaller(), mrSpec.getValueMarshaller(), GoogleCloudStorageLineInput.BaseOptions.defaults().withCredentials(settings.getStorageCredentials()));
       ((Input<?>) input).setContext(context);
       List<? extends InputReader<KeyValue<K, Iterator<V>>>> readers = input.createReaders();
 

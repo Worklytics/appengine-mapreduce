@@ -42,6 +42,7 @@ public class GoogleCloudStorageLevelDbInputReaderTest extends TestCase {
   @Override
   @Before
   public void setUp() throws Exception {
+    super.setUp();
     helper.setUp();
     storageHelper.setUp();
     filename = new GcsFilename(storageHelper.getBucket(), "GoogleCloudStorageLevelDbInputReaderTest");

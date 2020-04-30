@@ -7,6 +7,8 @@ import com.google.appengine.tools.mapreduce.impl.sort.LexicographicalComparator;
 import com.google.appengine.tools.mapreduce.impl.util.SerializableValue;
 import com.google.appengine.tools.mapreduce.outputs.*;
 import com.google.common.collect.ImmutableList;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -19,27 +21,19 @@ import java.util.List;
  * sort output).
  *
  */
+@RequiredArgsConstructor
 public class GoogleCloudStorageMergeOutput extends
     Output<KeyValue<ByteBuffer, List<ByteBuffer>>, FilesByShard> {
 
   private static final long serialVersionUID = 2L;
 
+  @NonNull
   private final String bucket;
+  @NonNull
   private final String mrJobId;
+  @NonNull
   private final Integer tier;
   private final GoogleCloudStorageFileOutputWriter.Options options;
-
-  public GoogleCloudStorageMergeOutput(String bucket, String mrJobId, Integer tier) {
-   this(bucket, mrJobId, tier, GoogleCloudStorageFileOutput.BaseOptions.defaults());
-  }
-
-  public GoogleCloudStorageMergeOutput(String bucket, String mrJobId, Integer tier, GoogleCloudStorageFileOutput.Options options) {
-    super();
-    this.tier = checkNotNull(tier, "Null tier");
-    this.bucket = checkNotNull(bucket, "Null bucket");
-    this.mrJobId = checkNotNull(mrJobId, "Null mrJobId");
-    this.options = options;
-  }
 
   private static class OrderSlicingOutputWriter extends
       ItemSegmentingOutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>> {

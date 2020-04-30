@@ -101,7 +101,7 @@ public class GoogleCloudStorageSortOutput extends
       // unneeded as the file is being finalized.
       return new MarshallingOutputWriter<>(
           new LevelDbOutputWriter(new GoogleCloudStorageFileOutputWriter(
-              new GcsFilename(bucket, fileName), MapReduceConstants.REDUCE_INPUT_MIME_TYPE, GoogleCloudStorageFileOutput.BaseOptions.defaults().withSupportSliceRetries(false))),
+              new GcsFilename(bucket, fileName), MapReduceConstants.REDUCE_INPUT_MIME_TYPE, options.withSupportSliceRetries(false))),
           Marshallers.getKeyValuesMarshaller(identity, identity));
     }
 

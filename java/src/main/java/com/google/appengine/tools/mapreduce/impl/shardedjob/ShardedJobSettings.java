@@ -31,6 +31,8 @@ public final class ShardedJobSettings implements Serializable {
 
   public static final int DEFAULT_SLICE_TIMEOUT_MILLIS = 11 * 60000;
 
+  //q: does this need to get bucketName / credentials?
+
   /*Nullable*/ private final String backend;
   /*Nullable*/ private final String module;
   /*Nullable*/ private final String version;

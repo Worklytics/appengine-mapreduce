@@ -12,8 +12,11 @@ import com.google.appengine.tools.mapreduce.KeyValue;
 import com.google.appengine.tools.mapreduce.Marshaller;
 import com.google.appengine.tools.mapreduce.Marshallers;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInput;
+import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
 import com.google.appengine.tools.mapreduce.inputs.PeekingInputReader;
 import com.google.common.collect.ImmutableList;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -31,19 +34,18 @@ import java.util.List;
  * @param <K> type of intermediate keys
  * @param <V> type of intermediate values
  */
+@RequiredArgsConstructor
 public class GoogleCloudStorageReduceInput<K, V> extends Input<KeyValue<K, Iterator<V>>> {
 
-  private static final long serialVersionUID = 8877197357362096382L;
-  private final Marshaller<K> keyMarshaller;
-  private final Marshaller<V> valueMarshaller;
-  private final FilesByShard filesByShard;
+  private static final long serialVersionUID = 2L;
 
-  public GoogleCloudStorageReduceInput(FilesByShard files,
-      Marshaller<K> keyMarshaller, Marshaller<V> valueMarshaller) {
-    this.filesByShard = checkNotNull(files, "Null files");
-    this.keyMarshaller = checkNotNull(keyMarshaller, "Null keyMarshaller");
-    this.valueMarshaller = checkNotNull(valueMarshaller, "Null valueMarshaller");
-  }
+  @NonNull
+  private final FilesByShard filesByShard;
+  @NonNull
+  private final Marshaller<K> keyMarshaller;
+  @NonNull
+  private final Marshaller<V> valueMarshaller;
+  private final GoogleCloudStorageLineInput.Options options;
 
   @Override
   public List<? extends InputReader<KeyValue<K, Iterator<V>>>> createReaders() {
@@ -74,7 +76,7 @@ public class GoogleCloudStorageReduceInput<K, V> extends Input<KeyValue<K, Itera
     ArrayList<PeekingInputReader<KeyValue<ByteBuffer, ? extends Iterable<V>>>> inputFiles =
         new ArrayList<>();
     GoogleCloudStorageLevelDbInput reducerInput =
-        new GoogleCloudStorageLevelDbInput(reducerInputFileSet, DEFAULT_IO_BUFFER_SIZE);
+        new GoogleCloudStorageLevelDbInput(reducerInputFileSet, options);
     for (InputReader<ByteBuffer> in : reducerInput.createReaders()) {
       inputFiles.add(new PeekingInputReader<>(in, marshaller));
     }
