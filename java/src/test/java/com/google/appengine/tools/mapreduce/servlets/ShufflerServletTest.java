@@ -39,6 +39,7 @@ import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.PipelineServiceFactory;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.apphosting.api.ApiProxy;
+import com.google.auth.Credentials;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.TreeMultimap;
 
@@ -171,7 +172,7 @@ public class ShufflerServletTest {
 
   @Test
   public void testDataIsOrdered() throws InterruptedException, IOException {
-    ShufflerParams shufflerParams = createParams(storageIntegrationTestHelper.getBucket(), 3, 10);
+    ShufflerParams shufflerParams = createParams(storageIntegrationTestHelper.getCredentials(), storageIntegrationTestHelper.getBucket(), 3, 10);
     TreeMultimap<ByteBuffer, ByteBuffer> input = writeInputFiles(shufflerParams, new Random(0));
     PipelineService service = PipelineServiceFactory.newPipelineService();
     ShuffleMapReduce mr = new ShuffleMapReduce(shufflerParams);
@@ -184,7 +185,7 @@ public class ShufflerServletTest {
 
   @Test
   public void testJson() throws IOException {
-    ShufflerParams shufflerParams = createParams(storageIntegrationTestHelper.getBucket(), 3, 10);
+    ShufflerParams shufflerParams = createParams(storageIntegrationTestHelper.getCredentials(), storageIntegrationTestHelper.getBucket(), 3, 10);
     Marshaller<ShufflerParams> marshaller =
         Marshallers.getGenericJsonMarshaller(ShufflerParams.class);
     ByteBuffer bytes = marshaller.toBytes(shufflerParams);
@@ -199,6 +200,7 @@ public class ShufflerServletTest {
     assertEquals(shufflerParams.getCallbackService(), readShufflerParams.getCallbackService());
     assertEquals(shufflerParams.getCallbackVersion(), readShufflerParams.getCallbackVersion());
     assertEquals(shufflerParams.getCallbackPath(), readShufflerParams.getCallbackPath());
+    assertEquals(shufflerParams.getCredentials(), readShufflerParams.getCredentials());
   }
 
   private void assertExpectedOutput(TreeMultimap<ByteBuffer, ByteBuffer> expected,
@@ -278,7 +280,7 @@ public class ShufflerServletTest {
     return keyValue;
   }
 
-  static ShufflerParams createParams(String bucket, int inputFiles, int outputShards) {
+  static ShufflerParams createParams(Credentials credentials, String bucket, int inputFiles, int outputShards) {
     ShufflerParams shufflerParams = new ShufflerParams();
     shufflerParams.setCallbackService("default");
     shufflerParams.setCallbackVersion("callbackVersion");
@@ -293,6 +295,7 @@ public class ShufflerServletTest {
     shufflerParams.setShufflerQueue("default");
     shufflerParams.setGcsBucket(bucket);
     shufflerParams.setOutputDir("storageDir");
+    shufflerParams.setCredentials(credentials);
     return shufflerParams;
   }
 
