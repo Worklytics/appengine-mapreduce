@@ -14,6 +14,7 @@ import com.google.common.collect.Lists;
 
 import junit.framework.TestCase;
 
+import lombok.Getter;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -28,10 +29,11 @@ public class BigQueryGoogleCloudStorageStoreOutputTest extends TestCase {
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper();
 
-  CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
+  @Getter
+  static CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
 
   @BeforeClass
-  public void setupStorage() {
+  public static void setupStorage() {
     storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
     storageIntegrationTestHelper.setUp();
   }
@@ -47,7 +49,7 @@ public class BigQueryGoogleCloudStorageStoreOutputTest extends TestCase {
   }
 
   @AfterClass
-  public void tearDownStorage(){
+  public static void tearDownStorage(){
     storageIntegrationTestHelper.tearDown();
   }
 

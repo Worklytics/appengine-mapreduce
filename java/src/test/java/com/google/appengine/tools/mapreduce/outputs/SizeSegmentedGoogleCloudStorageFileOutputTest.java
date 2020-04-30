@@ -9,6 +9,7 @@ import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 
 import com.google.cloud.storage.Blob;
 import junit.framework.TestCase;
+import lombok.Getter;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
@@ -22,14 +23,15 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper();
 
-  CloudStorageIntegrationTestHelper cloudStorageIntegrationTestHelper;
+  @Getter
+  static CloudStorageIntegrationTestHelper cloudStorageIntegrationTestHelper;
 
   private static final String MIME_TYPE = "application/json";
 
   GoogleCloudStorageFileOutput.Options options;
 
   @BeforeClass
-  public void setupStorage() {
+  public static void setupStorage() {
     cloudStorageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
     cloudStorageIntegrationTestHelper.setUp();
   }
@@ -49,7 +51,7 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
   }
 
   @AfterClass
-  protected void tearDownStorage() throws Exception {
+  public static void tearDownStorage() throws Exception {
     cloudStorageIntegrationTestHelper.tearDown();
   }
 

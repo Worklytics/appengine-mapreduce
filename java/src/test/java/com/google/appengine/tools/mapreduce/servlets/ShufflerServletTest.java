@@ -42,6 +42,7 @@ import com.google.apphosting.api.ApiProxy;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.TreeMultimap;
 
+import lombok.Getter;
 import org.junit.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.BlockJUnit4ClassRunner;
@@ -124,10 +125,11 @@ public class ShufflerServletTest {
     }
   }
 
-  CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
+  @Getter
+  static CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
 
   @BeforeClass
-  public void setupStorage() {
+  public static void setupStorage() {
     storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
     storageIntegrationTestHelper.setUp();
   }
@@ -156,7 +158,7 @@ public class ShufflerServletTest {
   }
 
   @AfterClass
-  public void teardownStorage() {
+  public static void teardownStorage() {
     storageIntegrationTestHelper.tearDown();
   }
 

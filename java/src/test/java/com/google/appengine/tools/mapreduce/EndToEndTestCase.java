@@ -64,10 +64,10 @@ public abstract class EndToEndTestCase {
   }
 
   @Getter
-  private CloudStorageIntegrationTestHelper storageTestHelper;
+  private static CloudStorageIntegrationTestHelper storageTestHelper;
 
   @BeforeClass
-  public void setupStorage() {
+  static public void setupStorage() {
     storageTestHelper = new CloudStorageIntegrationTestHelper();
     storageTestHelper.setUp();
   }
@@ -91,7 +91,7 @@ public abstract class EndToEndTestCase {
   }
 
   @AfterClass
-  public void tearDownStorage() {
+  public static void tearDownStorage() {
     storageTestHelper.tearDown();
   }
 

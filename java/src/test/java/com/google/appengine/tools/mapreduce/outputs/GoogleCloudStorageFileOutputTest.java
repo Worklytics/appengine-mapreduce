@@ -8,6 +8,7 @@ import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import junit.framework.TestCase;
+import lombok.Getter;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
@@ -34,10 +35,11 @@ public class GoogleCloudStorageFileOutputTest extends TestCase {
   // there will be some left over.
   private static final byte[] LARGE_CONTENT = new byte[(int) (1024 * 1024 * 2.5)];
 
-  CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
+  @Getter
+  static CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
 
   @BeforeClass
-  public void setupStorage() {
+  public static void setupStorage() {
     storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
     storageIntegrationTestHelper.setUp();
   }
@@ -57,7 +59,7 @@ public class GoogleCloudStorageFileOutputTest extends TestCase {
   }
 
   @AfterClass
-  protected void tearDownStorage() throws Exception {
+  public static void tearDownStorage() throws Exception {
     storageIntegrationTestHelper.tearDown();
   }
 
