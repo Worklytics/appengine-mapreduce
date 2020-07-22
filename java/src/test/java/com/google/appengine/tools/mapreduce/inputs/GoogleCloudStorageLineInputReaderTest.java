@@ -26,7 +26,7 @@ public class GoogleCloudStorageLineInputReaderTest extends GoogleCloudStorageLin
     super.setUp();
     filename = new GcsFilename(cloudStorageIntegrationTestHelper.getBucket(), FILENAME);
     fileSize = createFile(filename.getObjectName(), RECORD, RECORDS_COUNT);
-    inputOptions = GoogleCloudStorageLineInput.BaseOptions.defaults().withCredentials(cloudStorageIntegrationTestHelper.getCredentials());
+    inputOptions = GoogleCloudStorageLineInput.BaseOptions.defaults().withServiceAccountKey(cloudStorageIntegrationTestHelper.getBase64EncodedServiceAccountKey());
   }
 
   public void testSingleSplitPoint() throws Exception {

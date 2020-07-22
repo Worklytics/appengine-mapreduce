@@ -7,6 +7,7 @@ import com.google.appengine.api.appidentity.AppIdentityServiceFailureException;
 
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
@@ -35,7 +36,7 @@ import java.util.logging.Logger;
  * @author ohler@google.com (Christian Ohler)
  */
 @ToString
-public class MapReduceSettings extends MapSettings {
+public class MapReduceSettings extends MapSettings implements GcpCredentialOptions {
 
   private static final long serialVersionUID = 610088354289299175L;
   private static final Logger log = Logger.getLogger(MapReduceSettings.class.getName());
@@ -68,7 +69,7 @@ public class MapReduceSettings extends MapSettings {
    * some risk of exposure.
    */
   @Getter
-  private final Credentials storageCredentials;
+  private final String serviceAccountKey;
 
   public static class Builder extends BaseBuilder<Builder> {
 
@@ -79,7 +80,7 @@ public class MapReduceSettings extends MapSettings {
     private int sortBatchPerEmitBytes = DEFAULT_SORT_BATCH_PER_EMIT_BYTES;
     private int mergeFanin = DEFAULT_MERGE_FANIN;
     @Getter
-    private Credentials storageCredentials;
+    private String serviceAccountKey;
 
     public Builder() {}
 
@@ -92,7 +93,7 @@ public class MapReduceSettings extends MapSettings {
       this.sortReadTimeMillis = settings.sortReadTimeMillis;
       this.sortBatchPerEmitBytes = settings.sortBatchPerEmitBytes;
       this.mergeFanin = settings.mergeFanin;
-      this.storageCredentials = settings.storageCredentials;
+      this.serviceAccountKey = settings.serviceAccountKey;
     }
 
     public Builder(MapSettings settings) {
@@ -177,8 +178,8 @@ public class MapReduceSettings extends MapSettings {
     /**
      * credentials to use when accessing storage for sort/shuffle phases of this MR j
      */
-    public Builder setStorageCredentials(Credentials credentials) {
-      this.storageCredentials = credentials;
+    public Builder setServiceAccountKey(String serviceAccountKey) {
+      this.serviceAccountKey = serviceAccountKey;
       return this;
     }
 
@@ -194,7 +195,7 @@ public class MapReduceSettings extends MapSettings {
     sortReadTimeMillis = builder.sortReadTimeMillis;
     sortBatchPerEmitBytes = builder.sortBatchPerEmitBytes;
     mergeFanin = builder.mergeFanin;
-    storageCredentials = builder.storageCredentials;
+    serviceAccountKey = builder.serviceAccountKey;
     bucketName = Optional.ofNullable(Strings.emptyToNull(builder.bucketName))
       .orElseGet(AppIdentityServiceFactory.getAppIdentityService()::getDefaultGcsBucketName);
 

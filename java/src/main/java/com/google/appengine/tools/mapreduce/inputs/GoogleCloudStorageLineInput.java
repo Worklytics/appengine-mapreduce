@@ -2,6 +2,7 @@ package com.google.appengine.tools.mapreduce.inputs;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.appengine.tools.mapreduce.GcpCredentialOptions;
 import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.Input;
 import com.google.appengine.tools.mapreduce.InputReader;
@@ -16,6 +17,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.With;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -53,16 +55,11 @@ public class GoogleCloudStorageLineInput extends Input<byte[]> {
     @Builder.Default
     Integer bufferSize = DEFAULT_BUFFER_SIZE;
 
-    private Credentials credentials;
+    private String serviceAccountKey;
 
     public static BaseOptions defaults() {
       return BaseOptions.builder().build();
     }
-
-    public Optional<Credentials> getCredentials() {
-      return Optional.ofNullable(this.credentials);
-    }
-
   }
 
   public GoogleCloudStorageLineInput(GcsFilename file, byte separator, int shardCount) {
@@ -78,11 +75,8 @@ public class GoogleCloudStorageLineInput extends Input<byte[]> {
   }
 
   @Override
-  public List<? extends InputReader<byte[]>> createReaders() {
-
-    Storage client = StorageOptions.newBuilder()
-      .setCredentials(this.options.getCredentials().get())
-      .build().getService();
+  public List<? extends InputReader<byte[]>> createReaders() throws IOException {
+    Storage client = GcpCredentialOptions.getStorageClient(this.options);
     try {
       Blob blob = client.get(file.asBlobId());
       if (blob == null) {

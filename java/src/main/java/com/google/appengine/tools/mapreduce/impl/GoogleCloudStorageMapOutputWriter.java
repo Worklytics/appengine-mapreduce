@@ -5,10 +5,7 @@ import static com.google.appengine.tools.mapreduce.impl.MapReduceConstants.MAP_O
 import static com.google.common.base.Preconditions.checkNotNull;
 
 
-import com.google.appengine.tools.mapreduce.KeyValue;
-import com.google.appengine.tools.mapreduce.Marshaller;
-import com.google.appengine.tools.mapreduce.OutputWriter;
-import com.google.appengine.tools.mapreduce.Sharder;
+import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.outputs.*;
 import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.*;
@@ -105,6 +102,7 @@ public class GoogleCloudStorageMapOutputWriter<K, V>
         + ".impl.GoogleCloudStorageMapOutputWriter.MAX_COMPONENTS_PER_COMPOSE";
     private static final String MAX_FILES_PER_COMPOSE = "com.google.appengine.tools.mapreduce.impl"
         + ".GoogleCloudStorageMapOutputWriter.MAX_FILES_PER_COMPOSE";
+    @ToString.Exclude
     private transient Storage client;
 
     private static final long MEMORY_REQUIRED = MapReduceConstants.DEFAULT_IO_BUFFER_SIZE * 2;
@@ -117,11 +115,14 @@ public class GoogleCloudStorageMapOutputWriter<K, V>
     private final Set<String> toDelete = new HashSet<>();
     private final Set<String> sliceParts = new LinkedHashSet();
     private final Set<String> compositeParts = new LinkedHashSet<>();
-    @NonNull private final GoogleCloudStorageFileOutput.Options options;
+    @NonNull
+    private final GoogleCloudStorageFileOutput.Options options;
     private String filePrefix;
     private int fileCount;
 
+    @ToString.Exclude
     private transient WriteChannel channel;
+    @ToString.Exclude
     private transient Blob sliceBlob;
 
     public GcsFileOutputWriter(String bucket, String namePrefix, GoogleCloudStorageFileOutput.Options options) {
@@ -135,18 +136,12 @@ public class GoogleCloudStorageMapOutputWriter<K, V>
       this.options = options;
     }
 
+
     protected Storage getClient() {
       if (client == null) {
         //TODO: set retry param (GCS_RETRY_PARAMETERS)
         //TODO: set User-Agent to "App Engine MR"?
-        if (this.options.getCredentials().isPresent()) {
-          client = StorageOptions.newBuilder()
-            .setCredentials(this.options.getCredentials().get())
-            .setProjectId(this.options.getProjectId())
-            .build().getService();
-        } else {
-          client = StorageOptions.getDefaultInstance().getService();
-        }
+        client = GcpCredentialOptions.getStorageClient(this.options);
       }
       return client;
     }

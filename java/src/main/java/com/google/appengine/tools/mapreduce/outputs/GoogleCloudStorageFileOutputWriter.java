@@ -3,12 +3,11 @@ package com.google.appengine.tools.mapreduce.outputs;
 import static com.google.appengine.tools.mapreduce.impl.MapReduceConstants.DEFAULT_IO_BUFFER_SIZE;
 
 
+import com.google.appengine.tools.mapreduce.GcpCredentialOptions;
 import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.impl.MapReduceConstants;
-import com.google.auth.Credentials;
 import com.google.cloud.ReadChannel;
-import com.google.cloud.RestorableState;
 import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.*;
 import com.google.common.base.Preconditions;
@@ -21,7 +20,6 @@ import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -48,18 +46,20 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
   @Getter
   @NonNull private final GcsFilename file;
   @NonNull private final String mimeType;
+
+  @ToString.Exclude //hack, to avoid compiler complaints ...
   @NonNull private final Options options;
 
+  @ToString.Exclude
   private transient Storage client;
   private BlobId shardBlobId;
   private BlobId sliceBlobId;
+  @ToString.Exclude
   private transient WriteChannel sliceChannel;
   private List<BlobId> toDelete = new ArrayList<>();
 
-  public interface Options extends Serializable {
+  public interface Options extends Serializable, GcpCredentialOptions {
     Boolean getSupportSliceRetries();
-
-    Optional<Credentials> getCredentials();
 
     String getProjectId(); //think only needed if creating bucket? which this shouldn't be ..
 
@@ -71,7 +71,7 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
     for (BlobId id : toDelete) {
       try {
         getClient().delete(id);
-      } catch (StorageException ex) {
+      } catch (StorageException | IOException ex) {
         logger.log(Level.WARNING, "Could not cleanup temporary file " + id.getName(), ex);
       }
     }
@@ -80,13 +80,13 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
 
 
 
-  protected Storage getClient() {
+  protected Storage getClient() throws IOException {
     if (client == null) {
       //TODO: set retry param (GCS_RETRY_PARAMETERS)
       //TODO: set User-Agent to "App Engine MR"?
-      if (this.options.getCredentials().isPresent()) {
+      if (this.options.getServiceAccountCredentials().isPresent()) {
         client = StorageOptions.newBuilder()
-          .setCredentials(this.options.getCredentials().get())
+          .setCredentials(this.options.getServiceAccountCredentials().get())
           .setProjectId(this.options.getProjectId())
           .build().getService();
       } else {
@@ -98,11 +98,11 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
 
   @Override
   public void beginShard() throws IOException {
-
-    BlobInfo blobInfo = BlobInfo.newBuilder(file.getBucketName(), file.getObjectName() + "~")
-      .setContentType(mimeType)
-      .build();
-    Blob shardBlob = getClient().create(blobInfo);
+    BlobInfo.Builder builder = BlobInfo.newBuilder(file.getBucketName(), file.getObjectName() + "~");
+    if (mimeType != null) {
+      builder = builder.setContentType(mimeType);
+    }
+    Blob shardBlob = getClient().create(builder.build());
     shardBlobId = BlobId.of(shardBlob.getBucket(), shardBlob.getName());
     sliceChannel = null;
     toDelete.clear();

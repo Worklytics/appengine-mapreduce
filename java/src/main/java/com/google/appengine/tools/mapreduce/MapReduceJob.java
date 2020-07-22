@@ -97,14 +97,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   }
 
   private static void verifyBucketIsWritable(MapReduceSettings settings) {
-    Storage client;
-    if (settings.getStorageCredentials() == null) {
-      client = StorageOptions.getDefaultInstance().getService();
-    } else {
-      client = StorageOptions.newBuilder()
-        .setCredentials(settings.getStorageCredentials())
-        .build().getService();
-    }
+   Storage client = GcpCredentialOptions.getStorageClient(settings);
     BlobId blobId = BlobId.of(settings.getBucketName(), UUID.randomUUID() + ".tmp");
     if (client.get(blobId) != null) {
       log.warning("File '" + blobId.getName() + "' exists. Skipping bucket write test.");
@@ -167,7 +160,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
               mrSpec.getValueMarshaller(),
               new HashingSharder(getNumOutputFiles(readers.size())),
               GoogleCloudStorageFileOutput.BaseOptions.builder()
-                .credentials(settings.getStorageCredentials())
+                .serviceAccountKey(settings.getServiceAccountKey())
                 .build()
       );
       output.setContext(context);
@@ -249,9 +242,9 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       filesByShard.splitShards(Math.max(mapShards, reduceShards));
       GoogleCloudStorageLineInput.BaseOptions inputOptions = GoogleCloudStorageLineInput.BaseOptions.defaults();
       GoogleCloudStorageFileOutput.BaseOptions outputOptions = GoogleCloudStorageFileOutput.BaseOptions.defaults();
-      if (settings.getStorageCredentials() != null) {
-        inputOptions = inputOptions.withCredentials(settings.getStorageCredentials());
-        outputOptions = outputOptions.withCredentials(settings.getStorageCredentials());
+      if (settings.getServiceAccountKey() != null) {
+        inputOptions = inputOptions.withServiceAccountKey(settings.getServiceAccountKey());
+        outputOptions = outputOptions.withServiceAccountKey(settings.getServiceAccountKey());
       }
       GoogleCloudStorageSortInput input = new GoogleCloudStorageSortInput(filesByShard, inputOptions);
       ((Input<?>) input).setContext(context);
@@ -346,13 +339,13 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       }
 
       GoogleCloudStorageMergeInput input =
-          new GoogleCloudStorageMergeInput(sortFiles, settings.getMergeFanin(), GoogleCloudStorageLineInput.BaseOptions.defaults().withCredentials(settings.getStorageCredentials()));
+          new GoogleCloudStorageMergeInput(sortFiles, settings.getMergeFanin(), GoogleCloudStorageLineInput.BaseOptions.defaults().withServiceAccountKey(settings.getServiceAccountKey()));
       ((Input<?>) input).setContext(context);
       List<? extends InputReader<KeyValue<ByteBuffer, Iterator<ByteBuffer>>>> readers =
           input.createReaders();
 
       Output<KeyValue<ByteBuffer, List<ByteBuffer>>, FilesByShard> output =
-          new GoogleCloudStorageMergeOutput(settings.getBucketName(), mrJobId, tier, GoogleCloudStorageFileOutput.BaseOptions.defaults().withCredentials(settings.getStorageCredentials()));
+          new GoogleCloudStorageMergeOutput(settings.getBucketName(), mrJobId, tier, GoogleCloudStorageFileOutput.BaseOptions.defaults().withServiceAccountKey(settings.getServiceAccountKey()));
       output.setContext(context);
 
       List<? extends OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>>> writers =
@@ -443,7 +436,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       Output<O, R> output = mrSpec.getOutput();
       output.setContext(context);
       GoogleCloudStorageReduceInput<K, V> input = new GoogleCloudStorageReduceInput<>(
-          mergeResult.getOutputResult(), mrSpec.getKeyMarshaller(), mrSpec.getValueMarshaller(), GoogleCloudStorageLineInput.BaseOptions.defaults().withCredentials(settings.getStorageCredentials()));
+          mergeResult.getOutputResult(), mrSpec.getKeyMarshaller(), mrSpec.getValueMarshaller(), GoogleCloudStorageLineInput.BaseOptions.defaults().withServiceAccountKey(settings.getServiceAccountKey()));
       ((Input<?>) input).setContext(context);
       List<? extends InputReader<KeyValue<K, Iterator<V>>>> readers = input.createReaders();
 

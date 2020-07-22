@@ -4,15 +4,14 @@ import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.GoogleCloudStorageFileSet;
 import com.google.appengine.tools.mapreduce.Output;
 import com.google.appengine.tools.mapreduce.OutputWriter;
-import com.google.auth.Credentials;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import lombok.*;
 
+import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * An {@link Output} that writes bytes to a set of Cloud Storage files, one per shard.
@@ -106,16 +105,14 @@ public class GoogleCloudStorageFileOutput extends Output<ByteBuffer, GoogleCloud
     @Builder.Default
     private final Boolean supportSliceRetries = true;
 
-    private Credentials credentials;
-
+    @Nullable
     private String projectId;
+
+    @Nullable
+    private String serviceAccountKey;
 
     public static BaseOptions defaults() {
       return BaseOptions.builder().build();
-    }
-
-    public Optional<Credentials> getCredentials() {
-      return Optional.ofNullable(this.credentials);
     }
   }
 }

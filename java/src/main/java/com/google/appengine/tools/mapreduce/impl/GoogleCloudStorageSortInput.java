@@ -2,9 +2,6 @@
 
 package com.google.appengine.tools.mapreduce.impl;
 
-import static com.google.appengine.tools.mapreduce.impl.MapReduceConstants.DEFAULT_IO_BUFFER_SIZE;
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.inputs.*;
 import com.google.common.collect.ImmutableList;

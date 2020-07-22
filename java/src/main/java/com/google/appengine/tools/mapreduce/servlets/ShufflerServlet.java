@@ -24,16 +24,10 @@ import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.tools.cloudstorage.ExceptionHandler;
 import com.google.appengine.tools.cloudstorage.RetryHelper;
 import com.google.appengine.tools.cloudstorage.RetryParams;
-import com.google.appengine.tools.mapreduce.GoogleCloudStorageFileSet;
-import com.google.appengine.tools.mapreduce.KeyValue;
-import com.google.appengine.tools.mapreduce.MapReduceJob;
-import com.google.appengine.tools.mapreduce.MapReduceResult;
-import com.google.appengine.tools.mapreduce.MapReduceSettings;
-import com.google.appengine.tools.mapreduce.MapReduceSpecification;
-import com.google.appengine.tools.mapreduce.Marshaller;
-import com.google.appengine.tools.mapreduce.Marshallers;
+import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.impl.MapReduceConstants;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInput;
+import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
 import com.google.appengine.tools.mapreduce.inputs.UnmarshallingInput;
 import com.google.appengine.tools.mapreduce.mappers.IdentityMapper;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
@@ -54,7 +48,6 @@ import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.ByteStreams;
 
@@ -129,7 +122,7 @@ public class ShufflerServlet extends HttpServlet {
       return new MapReduceSettings.Builder()
           .setBucketName(shufflerParams.getGcsBucket())
           .setWorkerQueueName(shufflerParams.getShufflerQueue())
-          .setStorageCredentials(shufflerParams.getCredentials())
+          .setServiceAccountKey(shufflerParams.getServiceAccountKey())
           .build();
     }
 
@@ -155,7 +148,8 @@ public class ShufflerServlet extends HttpServlet {
         GoogleCloudStorageFileSet> createOutput() {
       String jobId = getPipelineKey().getName();
 
-      GoogleCloudStorageFileOutput.Options gcsOutputOptions = GoogleCloudStorageFileOutput.BaseOptions.defaults().withCredentials(shufflerParams.getCredentials());
+      GoogleCloudStorageFileOutput.Options gcsOutputOptions = GoogleCloudStorageFileOutput.BaseOptions.defaults()
+        .withServiceAccountKey(shufflerParams.getServiceAccountKey());
 
       return new MarshallingOutput<>(
         new GoogleCloudStorageLevelDbOutput(shufflerParams.getGcsBucket(), getOutputNamePattern(jobId), MIME_TYPE, gcsOutputOptions),
@@ -171,7 +165,7 @@ public class ShufflerServlet extends HttpServlet {
     private UnmarshallingInput<KeyValue<ByteBuffer, ByteBuffer>> createInput() {
       List<String> fileNames = Arrays.asList(shufflerParams.getInputFileNames());
       return new UnmarshallingInput<>(new GoogleCloudStorageLevelDbInput(
-          new GoogleCloudStorageFileSet(shufflerParams.getGcsBucket(), fileNames)),
+          new GoogleCloudStorageFileSet(shufflerParams.getGcsBucket(), fileNames), GoogleCloudStorageLineInput.BaseOptions.defaults().withServiceAccountKey(shufflerParams.getServiceAccountKey())),
           Marshallers.getKeyValueMarshaller(identityMarshaller, identityMarshaller));
     }
 
@@ -207,15 +201,7 @@ public class ShufflerServlet extends HttpServlet {
 
       log.info("Shuffle job done: jobId=" + jobId + ", results located in " + manifestPath + "]");
 
-
-      Storage client;
-      if (this.shufflerParams.getCredentials() == null) {
-        client = StorageOptions.getDefaultInstance().getService();
-      } else {
-        client = StorageOptions.newBuilder()
-          .setCredentials(this.shufflerParams.getCredentials())
-          .build().getService();
-      }
+      Storage client = GcpCredentialOptions.getStorageClient(this.shufflerParams);
 
       Blob blob = client.create(BlobInfo.newBuilder(shufflerParams.getGcsBucket(), manifestPath).setContentType("text/plain").build());
 

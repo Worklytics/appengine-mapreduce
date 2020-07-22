@@ -59,7 +59,7 @@ public class GoogleCloudStorageLevelDbInputReaderTest extends TestCase {
 
   GoogleCloudStorageLineInput.Options inputOptions() {
     return GoogleCloudStorageLineInput.BaseOptions.builder()
-      .credentials(storageHelper.getCredentials())
+      .serviceAccountKey(storageHelper.getBase64EncodedServiceAccountKey())
       .bufferSize(BLOCK_SIZE * 2)
     .build();
   }
@@ -99,7 +99,7 @@ public class GoogleCloudStorageLevelDbInputReaderTest extends TestCase {
 
   public void writeData(GcsFilename filename, ByteBufferGenerator gen) throws IOException {
     LevelDbOutputWriter writer = new GoogleCloudStorageLevelDbOutputWriter(
-        new GoogleCloudStorageFileOutputWriter(filename, "text/plain", GoogleCloudStorageFileOutput.BaseOptions.defaults().withCredentials(storageHelper.getCredentials())));
+        new GoogleCloudStorageFileOutputWriter(filename, "", GoogleCloudStorageFileOutput.BaseOptions.defaults().withServiceAccountKey(storageHelper.getBase64EncodedServiceAccountKey())));
     writer.beginShard();
     writer.beginSlice();
     while (gen.hasNext()) {

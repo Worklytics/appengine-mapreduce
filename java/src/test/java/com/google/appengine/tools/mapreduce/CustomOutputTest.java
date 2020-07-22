@@ -88,7 +88,7 @@ public class CustomOutputTest extends EndToEndTestCase {
         .setNumReducers(17);
     PipelineService pipelineService = PipelineServiceFactory.newPipelineService();
     MapReduceSettings mrSettings = new MapReduceSettings.Builder()
-      .setStorageCredentials(getStorageTestHelper().getCredentials())
+      .setServiceAccountKey(getStorageTestHelper().getBase64EncodedServiceAccountKey())
       .build();
     String jobId = pipelineService.startNewPipeline(
         new MapReduceJob<>(mrSpecBuilder.build(), mrSettings));

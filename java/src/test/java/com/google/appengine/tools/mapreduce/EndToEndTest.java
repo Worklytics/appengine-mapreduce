@@ -98,10 +98,10 @@ public class EndToEndTest extends EndToEndTestCase {
     super.setUp();
     pipelineService = PipelineServiceFactory.newPipelineService();
     cloudStorageFileOutputOptions = GoogleCloudStorageFileOutput.BaseOptions.defaults()
-      .withCredentials(getStorageTestHelper().getCredentials())
+      .withServiceAccountKey(getStorageTestHelper().getBase64EncodedServiceAccountKey())
       .withProjectId(getStorageTestHelper().getProjectId()); //prob not really needed ..
     testSettings = new MapReduceSettings.Builder()
-      .setStorageCredentials(getStorageTestHelper().getCredentials())
+      .setServiceAccountKey(getStorageTestHelper().getBase64EncodedServiceAccountKey())
       .setBucketName(getStorageTestHelper().getBucket())
       .build();
   }

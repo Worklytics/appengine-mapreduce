@@ -66,7 +66,7 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
   /**
    * @return A Serializable ReadableByteChannel from which data may be read.
    */
-  public abstract ReadableByteChannel createReadableByteChannel();
+  public abstract ReadableByteChannel createReadableByteChannel() throws IOException;
 
   private int read(ByteBuffer result) throws IOException {
     int totalRead = 0;
@@ -90,7 +90,7 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
   }
 
   @Override
-  public void beginShard() {
+  public void beginShard() throws IOException {
     offset = 0;
     bytesRead = 0;
     in = createReadableByteChannel();

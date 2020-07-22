@@ -34,7 +34,7 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
     helper.setUp();
     cloudStorageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
     cloudStorageIntegrationTestHelper.setUp();
-    options = GoogleCloudStorageFileOutput.BaseOptions.defaults().withCredentials(cloudStorageIntegrationTestHelper.getCredentials()).withProjectId(cloudStorageIntegrationTestHelper.getProjectId());
+    options = GoogleCloudStorageFileOutput.BaseOptions.defaults().withServiceAccountKey(cloudStorageIntegrationTestHelper.getBase64EncodedServiceAccountKey()).withProjectId(cloudStorageIntegrationTestHelper.getProjectId());
 
   }
 

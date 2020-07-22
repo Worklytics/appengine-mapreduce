@@ -108,9 +108,11 @@ public class GoogleCloudStorageMapOutputTest extends TestCase {
   }
 
   private void writeAndVerifyContent(SliceData... sliceData) throws IOException  {
-    GoogleCloudStorageFileOutput.BaseOptions outputOptions = GoogleCloudStorageFileOutput.BaseOptions.builder().credentials(cloudStorageIntegrationTestHelper.getCredentials()).projectId(cloudStorageIntegrationTestHelper.getProjectId()).build();
+    GoogleCloudStorageFileOutput.BaseOptions outputOptions = GoogleCloudStorageFileOutput.BaseOptions.builder()
+      .serviceAccountKey(cloudStorageIntegrationTestHelper.getBase64EncodedServiceAccountKey())
+      .projectId(cloudStorageIntegrationTestHelper.getProjectId()).build();
     GoogleCloudStorageLineInput.BaseOptions inputOptions = GoogleCloudStorageLineInput.BaseOptions.builder()
-      .credentials(cloudStorageIntegrationTestHelper.getCredentials())
+      .serviceAccountKey(cloudStorageIntegrationTestHelper.getBase64EncodedServiceAccountKey())
       .build();
 
     GoogleCloudStorageMapOutput<Long, String> output = new GoogleCloudStorageMapOutput<>(cloudStorageIntegrationTestHelper.getBucket(),

@@ -1,5 +1,6 @@
 package com.google.appengine.tools.mapreduce.inputs;
 
+import com.google.appengine.tools.mapreduce.GcpCredentialOptions;
 import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants;
 import com.google.cloud.ReadChannel;
@@ -7,6 +8,7 @@ import com.google.cloud.storage.*;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
+import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 
 @RequiredArgsConstructor
@@ -34,17 +36,11 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
     this(file, GoogleCloudStorageLineInput.BaseOptions.defaults().withBufferSize(bufferSize));
   }
 
-  protected Storage getClient() {
+  protected Storage getClient() throws IOException {
     if (client == null) {
       //TODO: set retry param (GCS_RETRY_PARAMETERS)
       //TODO: set User-Agent to "App Engine MR"?
-      if (this.options.getCredentials().isPresent()) {
-        client = StorageOptions.newBuilder()
-          .setCredentials(this.options.getCredentials().get())
-          .build().getService();
-      } else {
-        client = StorageOptions.getDefaultInstance().getService();
-      }
+      client = GcpCredentialOptions.getStorageClient(this.options);
     }
     return client;
   }
@@ -55,7 +51,7 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
       Blob blob = null;
       try {
         blob = getClient().get(file.asBlobId());
-      } catch (StorageException e) {
+      } catch (StorageException | IOException e) {
         // It is just an estimate so it's probably not worth throwing.
       }
       if (blob == null) {
@@ -70,7 +66,7 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
   }
 
   @Override
-  public ReadableByteChannel createReadableByteChannel() {
+  public ReadableByteChannel createReadableByteChannel() throws IOException {
     length = -1;
     ReadChannel reader = getClient().reader(file.asBlobId());
     reader.setChunkSize(options.getBufferSize());

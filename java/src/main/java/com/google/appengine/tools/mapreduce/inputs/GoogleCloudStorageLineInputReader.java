@@ -2,6 +2,7 @@ package com.google.appengine.tools.mapreduce.inputs;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.appengine.tools.mapreduce.GcpCredentialOptions;
 import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.InputReader;
 import com.google.auth.Credentials;
@@ -25,11 +26,9 @@ import java.util.Optional;
 class GoogleCloudStorageLineInputReader extends InputReader<byte[]> {
   private static final long serialVersionUID = 2L;
 
-  public interface Options extends Serializable {
+  public interface Options extends Serializable, GcpCredentialOptions {
 
     Integer getBufferSize();
-
-    Optional<Credentials> getCredentials();
 
   }
 
@@ -47,17 +46,13 @@ class GoogleCloudStorageLineInputReader extends InputReader<byte[]> {
   GoogleCloudStorageLineInputReader(GcsFilename file, long startOffset, long endOffset,
       byte separator) {
     this(file, startOffset, endOffset, separator, GoogleCloudStorageLineInput.BaseOptions.defaults());
-  }  protected Storage getClient() {
+  }
+
+  protected Storage getClient() throws IOException {
     if (client == null) {
       //TODO: set retry param (GCS_RETRY_PARAMETERS)
       //TODO: set User-Agent to "App Engine MR"?
-      if (this.options.getCredentials().isPresent()) {
-        client = StorageOptions.newBuilder()
-          .setCredentials(this.options.getCredentials().get())
-          .build().getService();
-      } else {
-        client = StorageOptions.getDefaultInstance().getService();
-      }
+      client = GcpCredentialOptions.getStorageClient(this.options);
     }
     return client;
   }

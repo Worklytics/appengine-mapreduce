@@ -62,7 +62,7 @@ public class GoogleCloudStorageFileOutputTest extends TestCase {
 
   public void testFilesAreWritten() throws IOException {
     GoogleCloudStorageFileOutput creator =
-        new GoogleCloudStorageFileOutput(storageIntegrationTestHelper.getBucket(), FILE_NAME_PATTERN, MIME_TYPE, GoogleCloudStorageFileOutput.BaseOptions.defaults().withCredentials(storageIntegrationTestHelper.getCredentials()).withProjectId(getProjectId()));
+        new GoogleCloudStorageFileOutput(storageIntegrationTestHelper.getBucket(), FILE_NAME_PATTERN, MIME_TYPE, GoogleCloudStorageFileOutput.BaseOptions.defaults().withServiceAccountKey(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey()).withProjectId(getProjectId()));
     List<? extends OutputWriter<ByteBuffer>> writers = creator.createWriters(NUM_SHARDS);
     assertEquals(NUM_SHARDS, writers.size());
     beginShard(writers);
@@ -99,7 +99,7 @@ public class GoogleCloudStorageFileOutputTest extends TestCase {
 
   private void testSlicing(byte[] content) throws IOException, ClassNotFoundException {
     GoogleCloudStorageFileOutput creator =
-      new GoogleCloudStorageFileOutput(storageIntegrationTestHelper.getBucket(), FILE_NAME_PATTERN, MIME_TYPE, GoogleCloudStorageFileOutput.BaseOptions.defaults().withCredentials(storageIntegrationTestHelper.getCredentials()).withProjectId(getProjectId()));
+      new GoogleCloudStorageFileOutput(storageIntegrationTestHelper.getBucket(), FILE_NAME_PATTERN, MIME_TYPE, GoogleCloudStorageFileOutput.BaseOptions.defaults().withServiceAccountKey(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey()).withProjectId(getProjectId()));
     List<? extends OutputWriter<ByteBuffer>> writers = creator.createWriters(NUM_SHARDS);
     assertEquals(NUM_SHARDS, writers.size());
     beginShard(writers);

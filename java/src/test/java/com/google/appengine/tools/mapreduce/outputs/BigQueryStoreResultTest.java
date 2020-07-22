@@ -44,7 +44,7 @@ public class BigQueryStoreResultTest extends TestCase {
     BigQueryGoogleCloudStorageStoreOutput<Father> creator =
         new BigQueryGoogleCloudStorageStoreOutput<Father>(
             new BigQueryMarshallerByType<Father>(Father.class), storageIntegrationTestHelper.getBucket(), "testJob", GoogleCloudStorageFileOutput.BaseOptions.defaults()
-        .withCredentials(storageIntegrationTestHelper.getCredentials())
+        .withServiceAccountKey(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey())
         .withProjectId(storageIntegrationTestHelper.getProjectId()));
 
     List<MarshallingOutputWriter<Father>> writers = creator.createWriters(5);

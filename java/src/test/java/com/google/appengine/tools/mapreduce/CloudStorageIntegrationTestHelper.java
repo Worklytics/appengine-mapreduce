@@ -46,6 +46,9 @@ public class CloudStorageIntegrationTestHelper implements LocalServiceTestConfig
   @Getter
   Credentials credentials;
 
+  @Getter
+  String base64EncodedServiceAccountKey;
+
   @SneakyThrows
   @Override
   public void setUp() {
@@ -54,8 +57,8 @@ public class CloudStorageIntegrationTestHelper implements LocalServiceTestConfig
     if (keyVar == null) {
       throw new IllegalStateException("Must set environment variable " + KEY_ENV_VAR + " as base64 encoded service account key to use for storage integration tests");
     }
-    keyVar = keyVar.trim();
-    String jsonKey = new String(Base64.getDecoder().decode(keyVar.getBytes()));
+    base64EncodedServiceAccountKey = keyVar.trim();
+    String jsonKey = new String(Base64.getDecoder().decode(base64EncodedServiceAccountKey.getBytes()));
 
     credentials = ServiceAccountCredentials.fromStream(new ByteArrayInputStream(jsonKey.getBytes()));
     projectId = ((ServiceAccountCredentials) credentials).getProjectId();

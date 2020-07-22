@@ -14,17 +14,22 @@
 
 package com.google.appengine.tools.mapreduce.servlets;
 
-import com.google.auth.Credentials;
+import com.google.appengine.tools.mapreduce.GcpCredentialOptions;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.Serializable;
+import java.util.Base64;
+import java.util.Optional;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
-class ShufflerParams implements Serializable {
+class ShufflerParams implements Serializable, GcpCredentialOptions {
 
   private static final long serialVersionUID = 2L;
 
@@ -32,11 +37,7 @@ class ShufflerParams implements Serializable {
   private String gcsBucket;
   private String[] inputFileNames;
   private String outputDir;
-
-  /**
-   * credentials to use when accessing GCS bucket for shuffling
-   */
-  private Credentials credentials;
+  private String serviceAccountKey;
 
   private int outputShards;
   private String callbackQueue;
