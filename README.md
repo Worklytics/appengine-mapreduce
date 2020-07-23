@@ -27,10 +27,17 @@ Library for running MapReduce on Google App Engine
 
 Only Maven is currently supported.
 
-To test the library:
+### Testing
+First, set up an env variable `APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY` as base64-encoded copy of a GCP Service
+ Account key. The service account must have admin permissions for GCS in a project for which GCS APIs are enabled. 
+   - in IntelliJ, can be set via your Run Configurations for JUnit
+   - in CI, we use a GitHub secret for this; see [.github/workflows/test-java.yml]
+ 
+Then, too test the library:
 ```shell script
 mvn test
 ```
+### Distribution
 
 To build binary for distribution:
 ```shell script
