@@ -90,9 +90,11 @@ public class ShufflerServletTest {
   private static final Semaphore WAIT_ON = new Semaphore(0);
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper(
-      new LocalDatastoreServiceTestConfig(), new LocalTaskQueueTestConfig()
-          .setDisableAutoTaskExecution(false).setCallbackClass(TaskRunner.class),
-      new LocalMemcacheServiceTestConfig(), new LocalModulesServiceTestConfig());
+      new LocalDatastoreServiceTestConfig(),
+      new LocalTaskQueueTestConfig().setDisableAutoTaskExecution(false).setCallbackClass(TaskRunner.class),
+      new LocalMemcacheServiceTestConfig(),
+      new LocalModulesServiceTestConfig()
+  );
 
   public static class TaskRunner extends ServletInvokingTaskCallback {
 
