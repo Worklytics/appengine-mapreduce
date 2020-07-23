@@ -282,7 +282,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
           new ShardedJob<>(shardedJobId, sortTasks.build(), workerController, shardedJobSettings);
       FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());
 
-      return futureCall(new ExamineStatusAndReturnResult<FilesByShard>(shardedJobId),
+      return futureCall(new ExamineStatusAndReturnResult<>(shardedJobId),
           resultAndStatus, settings.toJobSettings(waitFor(shardedJobResult),
               statusConsoleUrl(shardedJobSettings.getMapReduceStatusUrl())));
     }
@@ -335,6 +335,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       FilesByShard sortFiles = priorResult.getOutputResult();
       int maxFilesPerShard = findMaxFilesPerShard(sortFiles);
       if (maxFilesPerShard <= settings.getMergeFanin()) {
+        //no merge needed
         return immediate(priorResult);
       }
 
