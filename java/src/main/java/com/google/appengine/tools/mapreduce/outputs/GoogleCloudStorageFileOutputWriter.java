@@ -52,7 +52,9 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
 
   @ToString.Exclude
   private transient Storage client;
+  // working location for this writer; temporary location to which it's writing, while in progress
   private BlobId shardBlobId;
+  // working location for this slice for this writer, if any; to which it's writing while in pgroess
   private BlobId sliceBlobId;
   @ToString.Exclude
   private transient WriteChannel sliceChannel;
@@ -98,11 +100,7 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
 
   @Override
   public void beginShard() throws IOException {
-    BlobInfo.Builder builder = BlobInfo.newBuilder(file.getBucketName(), file.getObjectName() + "~");
-    if (mimeType != null) {
-      builder = builder.setContentType(mimeType);
-    }
-    Blob shardBlob = getClient().create(builder.build());
+    Blob shardBlob = getClient().create(getWorkingLocation());
     shardBlobId = BlobId.of(shardBlob.getBucket(), shardBlob.getName());
     sliceChannel = null;
     toDelete.clear();
@@ -116,16 +114,14 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
         //append latest version of previous slice's file to shard's file
         // q: why not do this in endSlice??
         // q: why are we doing this as part of every slice? why not just do a big compose of all slices
-        // into shard at endShard?
-        BlobId latestSliceBlobId = BlobId.of(sliceBlobId.getBucket(), sliceBlobId.getName());
+        // into shard at endShard? a: bc may
+        BlobId lastSliceBlobId = BlobId.of(sliceBlobId.getBucket(), sliceBlobId.getName());
 
         //q: race condition here? what if this append() doesn't really see the 'latest' copy of blob?
-        append(latestSliceBlobId, shardBlobId);
-        toDelete.add(latestSliceBlobId);
+        append(lastSliceBlobId, shardBlobId);
+        toDelete.add(lastSliceBlobId);
       }
-      String name = file.getObjectName() + "~" + Math.abs(RND.nextLong());
-      Blob sliceBlob = getClient().create(BlobInfo.newBuilder(file.getBucketName(), name)
-        .setContentType(mimeType).build());
+      Blob sliceBlob = getClient().create(getSliceWorkingLocation());
       sliceBlobId = BlobId.of(sliceBlob.getBucket(), sliceBlob.getName());
       sliceChannel = sliceBlob.writer();
     } else {
@@ -168,34 +164,59 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
 
   @Override
   public void endShard() throws IOException {
-    if (sliceBlobId == null) {
-      return;
-    }
     if (options.getSupportSliceRetries() && sliceChannel != null) {
       // compose temporary destination and last slice to final destination
       List<String> source = ImmutableList.of(shardBlobId.getName(), sliceBlobId.getName());
-      BlobInfo dest = BlobInfo.newBuilder(file.getBucketName(), file.getObjectName())
-        .setContentType(this.mimeType)
-        .build();
       // unclear that we can "compose" if also using customer-managed encryption keys because:
       // https://cloud.google.com/storage/docs/encryption/customer-managed-keys#key-resources
       // "when one or more of the source objects are encrypted with a customer-managed encryption key."
       // but https://cloud.google.com/storage/docs/json_api/v1/objects/compose
       // says "To compose objects encrypted by a customer-supplied encryption key, use the headers listed on the Encryption page in your request."
-      getClient().compose(Storage.ComposeRequest.of(source, dest));
+      getClient().compose(Storage.ComposeRequest.of(source, getFinalDest()));
     } else {
       // rename temporary destination to final destination
       //q: race condition here? what if this copy() doesn't really see the 'latest' copy of sliceBlob?
       // is there a way to get the latest generation number from our last write, so that we can make
       // this copy request contingent upon seeing that??
 
-      getClient().copy(Storage.CopyRequest.of(BlobId.of(sliceBlobId.getBucket(), sliceBlobId.getName()), BlobInfo.newBuilder(file.getBucketName(), file.getObjectName()).build()));
+      getClient().copy(Storage.CopyRequest.of(
+        BlobId.of(shardBlobId.getBucket(), shardBlobId.getName()),
+        getFinalDest()
+      ));
     }
 
     //queue blob for deletion
     toDelete.add(BlobId.of(shardBlobId.getBucket(), shardBlobId.getName()));
     shardBlobId = null;
     sliceChannel = null;
+  }
+
+  //final location that this output writer will write to
+  private BlobInfo getFinalDest() {
+    BlobInfo.Builder builder = BlobInfo.newBuilder(file.getBucketName(), file.getObjectName());
+    if (this.mimeType != null) {
+      builder.setContentType(mimeType);
+    }
+    return builder.build();
+  }
+
+  //working location for shard; this will filled after each endSlice() is called
+  private BlobInfo getWorkingLocation() {
+    BlobInfo.Builder builder = BlobInfo.newBuilder(file.getBucketName(), file.getObjectName() + "~");
+    if (mimeType != null) {
+      builder = builder.setContentType(mimeType);
+    }
+    return builder.build();
+  }
+
+  //working location for slice; only used for writers that support slice retries
+  private BlobInfo getSliceWorkingLocation() {
+    String name = file.getObjectName() + "~" + Math.abs(RND.nextLong());
+    BlobInfo.Builder builder = BlobInfo.newBuilder(file.getBucketName(), name);
+    if (mimeType != null) {
+      builder = builder.setContentType(mimeType);
+    }
+    return builder.build();
   }
 
   @Override
