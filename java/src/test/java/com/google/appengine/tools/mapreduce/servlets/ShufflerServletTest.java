@@ -171,7 +171,7 @@ public class ShufflerServletTest {
 
   @Test
   public void testDataIsOrdered() throws InterruptedException, IOException {
-    ShufflerParams shufflerParams = createParams(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey(), storageIntegrationTestHelper.getBucket(), 3, 10);
+    ShufflerParams shufflerParams = createParams(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey(), storageIntegrationTestHelper.getBucket(), 3, 2);
     TreeMultimap<ByteBuffer, ByteBuffer> input = writeInputFiles(shufflerParams, new Random(0));
     PipelineService service = PipelineServiceFactory.newPipelineService();
     ShuffleMapReduce mr = new ShuffleMapReduce(shufflerParams);
@@ -184,7 +184,7 @@ public class ShufflerServletTest {
 
   @Test
   public void testJson() throws IOException {
-    ShufflerParams shufflerParams = createParams(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey(), storageIntegrationTestHelper.getBucket(), 3, 10);
+    ShufflerParams shufflerParams = createParams(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey(), storageIntegrationTestHelper.getBucket(), 3, 2);
     Marshaller<ShufflerParams> marshaller =
         Marshallers.getGenericJsonMarshaller(ShufflerParams.class);
     ByteBuffer bytes = marshaller.toBytes(shufflerParams);
