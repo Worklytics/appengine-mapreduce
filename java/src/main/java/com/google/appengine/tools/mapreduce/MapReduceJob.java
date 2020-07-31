@@ -339,14 +339,21 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
         return immediate(priorResult);
       }
 
+      GoogleCloudStorageLineInput.BaseOptions inputOptions = GoogleCloudStorageLineInput.BaseOptions.defaults();
+      GoogleCloudStorageFileOutput.BaseOptions outputOptions = GoogleCloudStorageFileOutput.BaseOptions.defaults();
+      if (settings.getServiceAccountKey() != null) {
+        inputOptions = inputOptions.withServiceAccountKey(settings.getServiceAccountKey());
+        outputOptions = outputOptions.withServiceAccountKey(settings.getServiceAccountKey());
+      }
+
       GoogleCloudStorageMergeInput input =
-          new GoogleCloudStorageMergeInput(sortFiles, settings.getMergeFanin(), GoogleCloudStorageLineInput.BaseOptions.defaults().withServiceAccountKey(settings.getServiceAccountKey()));
+          new GoogleCloudStorageMergeInput(sortFiles, settings.getMergeFanin(), inputOptions);
       ((Input<?>) input).setContext(context);
       List<? extends InputReader<KeyValue<ByteBuffer, Iterator<ByteBuffer>>>> readers =
           input.createReaders();
 
       Output<KeyValue<ByteBuffer, List<ByteBuffer>>, FilesByShard> output =
-          new GoogleCloudStorageMergeOutput(settings.getBucketName(), mrJobId, tier, GoogleCloudStorageFileOutput.BaseOptions.defaults().withServiceAccountKey(settings.getServiceAccountKey()));
+          new GoogleCloudStorageMergeOutput(settings.getBucketName(), mrJobId, tier, outputOptions);
       output.setContext(context);
 
       List<? extends OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>>> writers =

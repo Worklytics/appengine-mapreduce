@@ -115,11 +115,10 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
         // q: why not do this in endSlice??
         // q: why are we doing this as part of every slice? why not just do a big compose of all slices
         // into shard at endShard? a: bc may
-        BlobId lastSliceBlobId = BlobId.of(sliceBlobId.getBucket(), sliceBlobId.getName());
 
         //q: race condition here? what if this append() doesn't really see the 'latest' copy of blob?
-        append(lastSliceBlobId, shardBlobId);
-        toDelete.add(lastSliceBlobId);
+        append(sliceBlobId, shardBlobId);
+        toDelete.add(sliceBlobId);
       }
       Blob sliceBlob = getClient().create(getSliceWorkingLocation());
       sliceBlobId = BlobId.of(sliceBlob.getBucket(), sliceBlob.getName());
@@ -179,14 +178,11 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
       // is there a way to get the latest generation number from our last write, so that we can make
       // this copy request contingent upon seeing that??
 
-      getClient().copy(Storage.CopyRequest.of(
-        BlobId.of(shardBlobId.getBucket(), shardBlobId.getName()),
-        getFinalDest()
-      ));
+      getClient().copy(Storage.CopyRequest.of(shardBlobId, getFinalDest()));
     }
 
     //queue blob for deletion
-    toDelete.add(BlobId.of(shardBlobId.getBucket(), shardBlobId.getName()));
+    toDelete.add(shardBlobId);
     shardBlobId = null;
     sliceChannel = null;
   }
