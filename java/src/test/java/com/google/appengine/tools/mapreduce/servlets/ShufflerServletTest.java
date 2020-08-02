@@ -20,7 +20,6 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.appengine.api.blobstore.dev.LocalBlobstoreService;
 import com.google.appengine.api.taskqueue.QueueFactory;
-import com.google.appengine.tools.cloudstorage.GcsFilename;
 import com.google.appengine.tools.development.ApiProxyLocal;
 import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalMemcacheServiceTestConfig;
@@ -28,12 +27,11 @@ import com.google.appengine.tools.development.testing.LocalModulesServiceTestCon
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig.ServletInvokingTaskCallback;
-import com.google.appengine.tools.mapreduce.KeyValue;
-import com.google.appengine.tools.mapreduce.MapReduceServlet;
-import com.google.appengine.tools.mapreduce.Marshaller;
-import com.google.appengine.tools.mapreduce.Marshallers;
+import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.impl.sort.LexicographicalComparator;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInputReader;
+import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
+import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutputWriter;
 import com.google.appengine.tools.mapreduce.outputs.LevelDbOutputWriter;
 import com.google.appengine.tools.mapreduce.servlets.ShufflerServlet.ShuffleMapReduce;
@@ -44,9 +42,8 @@ import com.google.apphosting.api.ApiProxy;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.TreeMultimap;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import lombok.Getter;
+import org.junit.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.BlockJUnit4ClassRunner;
 
@@ -93,10 +90,11 @@ public class ShufflerServletTest {
   private static final Semaphore WAIT_ON = new Semaphore(0);
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper(
-      new LocalDatastoreServiceTestConfig(), new LocalTaskQueueTestConfig()
-          .setDisableAutoTaskExecution(false).setCallbackClass(TaskRunner.class),
-      new LocalMemcacheServiceTestConfig(), new LocalModulesServiceTestConfig());
-
+      new LocalDatastoreServiceTestConfig(),
+      new LocalTaskQueueTestConfig().setDisableAutoTaskExecution(false).setCallbackClass(TaskRunner.class),
+      new LocalMemcacheServiceTestConfig(),
+      new LocalModulesServiceTestConfig()
+  );
 
   public static class TaskRunner extends ServletInvokingTaskCallback {
 
@@ -129,6 +127,14 @@ public class ShufflerServletTest {
     }
   }
 
+  @Getter
+  CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
+
+  @BeforeClass
+  public static void setupStorage() {
+
+  }
+
   @Before
   public void setUp() throws Exception {
     helper.setUp();
@@ -136,7 +142,11 @@ public class ShufflerServletTest {
     // Creating files is not allowed in some test execution environments, so don't.
     proxy.setProperty(LocalBlobstoreService.NO_STORAGE_PROPERTY, "true");
     WAIT_ON.drainPermits();
+    storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
+    storageIntegrationTestHelper.setUp();
   }
+
+
 
   @After
   public void tearDown() throws Exception {
@@ -148,7 +158,9 @@ public class ShufflerServletTest {
       Thread.sleep(1000);
     }
     helper.tearDown();
+    storageIntegrationTestHelper.tearDown();
   }
+
 
   private int getQueueDepth() {
     return LocalTaskQueueTestConfig
@@ -161,7 +173,7 @@ public class ShufflerServletTest {
 
   @Test
   public void testDataIsOrdered() throws InterruptedException, IOException {
-    ShufflerParams shufflerParams = createParams(3, 10);
+    ShufflerParams shufflerParams = createParams(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey(), storageIntegrationTestHelper.getBucket(), 3, 2);
     TreeMultimap<ByteBuffer, ByteBuffer> input = writeInputFiles(shufflerParams, new Random(0));
     PipelineService service = PipelineServiceFactory.newPipelineService();
     ShuffleMapReduce mr = new ShuffleMapReduce(shufflerParams);
@@ -174,7 +186,7 @@ public class ShufflerServletTest {
 
   @Test
   public void testJson() throws IOException {
-    ShufflerParams shufflerParams = createParams(3, 10);
+    ShufflerParams shufflerParams = createParams(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey(), storageIntegrationTestHelper.getBucket(), 3, 2);
     Marshaller<ShufflerParams> marshaller =
         Marshallers.getGenericJsonMarshaller(ShufflerParams.class);
     ByteBuffer bytes = marshaller.toBytes(shufflerParams);
@@ -186,9 +198,10 @@ public class ShufflerServletTest {
     assertEquals(shufflerParams.getOutputDir(), readShufflerParams.getOutputDir());
     assertEquals(shufflerParams.getOutputShards(), readShufflerParams.getOutputShards());
     assertEquals(shufflerParams.getCallbackQueue(), readShufflerParams.getCallbackQueue());
-    assertEquals(shufflerParams.getCallbackModule(), readShufflerParams.getCallbackModule());
+    assertEquals(shufflerParams.getCallbackService(), readShufflerParams.getCallbackService());
     assertEquals(shufflerParams.getCallbackVersion(), readShufflerParams.getCallbackVersion());
     assertEquals(shufflerParams.getCallbackPath(), readShufflerParams.getCallbackPath());
+    assertEquals(shufflerParams.getServiceAccountKey(), readShufflerParams.getServiceAccountKey());
   }
 
   private void assertExpectedOutput(TreeMultimap<ByteBuffer, ByteBuffer> expected,
@@ -201,14 +214,17 @@ public class ShufflerServletTest {
     assertTrue(expected.isEmpty());
   }
 
-  static List<KeyValue<ByteBuffer, List<ByteBuffer>>> validateOrdered(ShufflerParams shufflerParams,
+  List<KeyValue<ByteBuffer, List<ByteBuffer>>> validateOrdered(ShufflerParams shufflerParams,
       ShuffleMapReduce mr, String pipelineId) throws IOException {
     List<KeyValue<ByteBuffer, List<ByteBuffer>>> result = new ArrayList<>();
     String outputNamePattern = mr.getOutputNamePattern(pipelineId);
     for (int shard = 0; shard < shufflerParams.getOutputShards(); shard++) {
       String fileName = String.format(outputNamePattern, shard);
       GoogleCloudStorageLevelDbInputReader reader = new GoogleCloudStorageLevelDbInputReader(
-          new GcsFilename(shufflerParams.getGcsBucket(), fileName), 1024 * 1024);
+          new GcsFilename(shufflerParams.getGcsBucket(), fileName), GoogleCloudStorageLineInput.BaseOptions.builder()
+        .bufferSize(1024 * 1024)
+        .serviceAccountKey(shufflerParams.getServiceAccountKey())
+        .build());
       reader.beginShard();
       reader.beginSlice();
       try {
@@ -222,7 +238,7 @@ public class ShufflerServletTest {
           for (ByteBuffer item : keyValue.getValue()) {
             list.add(item);
           }
-          result.add(new KeyValue<ByteBuffer, List<ByteBuffer>>(keyValue.getKey(), list));
+          result.add(new KeyValue<>(keyValue.getKey(), list));
         }
       } catch (NoSuchElementException e) {
         // reader has no more values
@@ -232,6 +248,10 @@ public class ShufflerServletTest {
     }
     return result;
   }
+  GoogleCloudStorageFileOutput.Options outputOptions() {
+    return GoogleCloudStorageFileOutput.BaseOptions.defaults()
+      .withServiceAccountKey(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey());
+  }
 
   private TreeMultimap<ByteBuffer, ByteBuffer> writeInputFiles(ShufflerParams shufflerParams,
       Random rand) throws IOException {
@@ -239,7 +259,7 @@ public class ShufflerServletTest {
     TreeMultimap<ByteBuffer, ByteBuffer> result = TreeMultimap.create(comparator, comparator);
     for (String fileName : shufflerParams.getInputFileNames()) {
       LevelDbOutputWriter writer = new LevelDbOutputWriter(new GoogleCloudStorageFileOutputWriter(
-          new GcsFilename(shufflerParams.getGcsBucket(), fileName), "testData"));
+          new GcsFilename(shufflerParams.getGcsBucket(), fileName), "text/plain; charset=UTF-8", outputOptions()));
       writer.beginShard();
       writer.beginSlice();
       for (int i = 0; i < recordsPerFile; i++) {
@@ -264,9 +284,9 @@ public class ShufflerServletTest {
     return keyValue;
   }
 
-  static ShufflerParams createParams(int inputFiles, int outputShards) {
+  static ShufflerParams createParams(String serviceAccountKey, String bucket, int inputFiles, int outputShards) {
     ShufflerParams shufflerParams = new ShufflerParams();
-    shufflerParams.setCallbackModule("default");
+    shufflerParams.setCallbackService("default");
     shufflerParams.setCallbackVersion("callbackVersion");
     shufflerParams.setCallbackPath(CALLBACK_PATH);
     shufflerParams.setCallbackQueue("default");
@@ -277,8 +297,9 @@ public class ShufflerServletTest {
     shufflerParams.setInputFileNames(list.toArray(new String[inputFiles]));
     shufflerParams.setOutputShards(outputShards);
     shufflerParams.setShufflerQueue("default");
-    shufflerParams.setGcsBucket("storageBucket");
+    shufflerParams.setGcsBucket(bucket);
     shufflerParams.setOutputDir("storageDir");
+    shufflerParams.setServiceAccountKey(serviceAccountKey);
     return shufflerParams;
   }
 

@@ -1,13 +1,16 @@
 package com.google.appengine.tools.mapreduce.outputs;
 
-import com.google.appengine.tools.cloudstorage.GcsFileMetadata;
-import com.google.appengine.tools.cloudstorage.GcsService;
-import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
-import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
+
+import com.google.appengine.tools.mapreduce.CloudStorageIntegrationTestHelper;
 import com.google.appengine.tools.mapreduce.GoogleCloudStorageFileSet;
 import com.google.appengine.tools.mapreduce.OutputWriter;
 
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobId;
 import junit.framework.TestCase;
+import lombok.Getter;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -19,43 +22,47 @@ import java.nio.channels.ReadableByteChannel;
 import java.util.List;
 import java.util.Random;
 
-/**
- *
- */
+import static com.google.cloud.MetadataConfig.getProjectId;
+
 public class GoogleCloudStorageFileOutputTest extends TestCase {
 
-  private final LocalServiceTestHelper helper = new LocalServiceTestHelper();
-
-  private final GcsService gcsService = GcsServiceFactory.createGcsService();
-
-  private static final String BUCKET = "GCSFileOutputTest";
   private static final String FILE_NAME_PATTERN = "shard-%02x";
   private static final String MIME_TYPE = "text/ascii";
-  private static final int NUM_SHARDS = 10;
-  private static final byte[] SMALL_CONTENT = new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+  private static final int NUM_SHARDS = 3; //let's not go crazy
+  private static final byte[] SMALL_CONTENT = "content".getBytes();
 
   // This size chosen so that it is larger than the buffer and on the first and second buffer fills
   // there will be some left over.
   private static final byte[] LARGE_CONTENT = new byte[(int) (1024 * 1024 * 2.5)];
 
+  @Getter
+  CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
+
+  @BeforeClass
+  public static void setupStorage() {
+
+  }
   @Override
   protected void setUp() throws Exception {
     super.setUp();
-    helper.setUp();
+    storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
+    storageIntegrationTestHelper.setUp();
+
     // Filling the large_content buffer with a non-repeating but consistent pattern.
     Random r = new Random(0);
     r.nextBytes(LARGE_CONTENT);
   }
 
+
   @Override
   protected void tearDown() throws Exception {
-    helper.tearDown();
+    storageIntegrationTestHelper.tearDown();
     super.tearDown();
   }
 
   public void testFilesAreWritten() throws IOException {
     GoogleCloudStorageFileOutput creator =
-        new GoogleCloudStorageFileOutput(BUCKET, FILE_NAME_PATTERN, MIME_TYPE);
+        new GoogleCloudStorageFileOutput(storageIntegrationTestHelper.getBucket(), FILE_NAME_PATTERN, MIME_TYPE, GoogleCloudStorageFileOutput.BaseOptions.defaults().withServiceAccountKey(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey()).withProjectId(getProjectId()));
     List<? extends OutputWriter<ByteBuffer>> writers = creator.createWriters(NUM_SHARDS);
     assertEquals(NUM_SHARDS, writers.size());
     beginShard(writers);
@@ -69,10 +76,10 @@ public class GoogleCloudStorageFileOutputTest extends TestCase {
     GoogleCloudStorageFileSet files = creator.finish(writers);
     assertEquals(NUM_SHARDS, files.getNumFiles());
     for (int i = 0; i < NUM_SHARDS; i++) {
-      GcsFileMetadata metadata = gcsService.getMetadata(files.getFile(i));
-      assertNotNull(metadata);
-      assertEquals(SMALL_CONTENT.length, metadata.getLength());
-      assertEquals(MIME_TYPE, metadata.getOptions().getMimeType());
+      Blob blob = storageIntegrationTestHelper.getStorage().get(BlobId.of(files.getFile(i).getBucketName(), files.getFile(i).getObjectName()));
+      assertNotNull(blob);
+      assertEquals(SMALL_CONTENT.length, (long) blob.getSize());
+      assertEquals(MIME_TYPE, blob.getContentType());
     }
   }
 
@@ -92,7 +99,7 @@ public class GoogleCloudStorageFileOutputTest extends TestCase {
 
   private void testSlicing(byte[] content) throws IOException, ClassNotFoundException {
     GoogleCloudStorageFileOutput creator =
-        new GoogleCloudStorageFileOutput(BUCKET, FILE_NAME_PATTERN, MIME_TYPE);
+      new GoogleCloudStorageFileOutput(storageIntegrationTestHelper.getBucket(), FILE_NAME_PATTERN, MIME_TYPE, GoogleCloudStorageFileOutput.BaseOptions.defaults().withServiceAccountKey(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey()).withProjectId(getProjectId()));
     List<? extends OutputWriter<ByteBuffer>> writers = creator.createWriters(NUM_SHARDS);
     assertEquals(NUM_SHARDS, writers.size());
     beginShard(writers);
@@ -115,11 +122,12 @@ public class GoogleCloudStorageFileOutputTest extends TestCase {
     for (int i = 0; i < NUM_SHARDS; i++) {
       expectedContent.rewind();
       ByteBuffer actualContent = ByteBuffer.allocate(content.length * 2 + 1);
-      GcsFileMetadata metadata = gcsService.getMetadata(files.getFile(i));
-      assertNotNull(metadata);
-      assertEquals(expectedContent.capacity(), metadata.getLength());
-      assertEquals(MIME_TYPE, metadata.getOptions().getMimeType());
-      try (ReadableByteChannel readChannel = gcsService.openReadChannel(files.getFile(i), 0)) {
+      BlobId blobId = BlobId.of(files.getFile(i).getBucketName(), files.getFile(i).getObjectName());
+      Blob blob = storageIntegrationTestHelper.getStorage().get(BlobId.of(files.getFile(i).getBucketName(), files.getFile(i).getObjectName()));
+      assertNotNull(blob);
+      assertEquals(expectedContent.capacity(), (long) blob.getSize());
+      assertEquals(MIME_TYPE, blob.getContentType());
+      try (ReadableByteChannel readChannel = storageIntegrationTestHelper.getStorage().reader(blobId)) {
         int read = readChannel.read(actualContent);
         assertEquals(read, content.length * 2);
         actualContent.limit(actualContent.position());

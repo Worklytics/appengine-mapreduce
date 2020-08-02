@@ -1,6 +1,6 @@
 package com.google.appengine.tools.mapreduce.impl;
 
-import com.google.appengine.tools.cloudstorage.GcsFilename;
+import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.GoogleCloudStorageFileSet;
 
 import junit.framework.TestCase;

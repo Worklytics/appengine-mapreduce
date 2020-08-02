@@ -2,10 +2,10 @@ package com.google.appengine.tools.mapreduce.impl.pipeline;
 
 import static com.google.appengine.tools.mapreduce.impl.MapReduceConstants.GCS_RETRY_PARAMETERS;
 
-import com.google.appengine.tools.cloudstorage.GcsFilename;
 import com.google.appengine.tools.cloudstorage.GcsService;
 import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
 import com.google.appengine.tools.cloudstorage.RetriesExhaustedException;
+import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.pipeline.Job1;
 import com.google.appengine.tools.pipeline.Value;
 
@@ -30,7 +30,7 @@ public class DeleteFilesJob extends Job1<Void, List<GcsFilename>> {
   public Value<Void> run(List<GcsFilename> files) throws Exception {
     for (GcsFilename file : files) {
       try {
-        gcs.delete(file);
+        gcs.delete(new com.google.appengine.tools.cloudstorage.GcsFilename(file.getBucketName(), file.getObjectName()));
       } catch (RetriesExhaustedException | IOException e) {
         log.log(Level.WARNING, "Failed to cleanup file: " + file, e);
       }

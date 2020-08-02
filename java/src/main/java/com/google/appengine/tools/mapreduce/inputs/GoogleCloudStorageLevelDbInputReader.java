@@ -1,60 +1,63 @@
 package com.google.appengine.tools.mapreduce.inputs;
 
-import static com.google.appengine.tools.mapreduce.impl.MapReduceConstants.GCS_RETRY_PARAMETERS;
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import com.google.appengine.tools.cloudstorage.GcsFileMetadata;
-import com.google.appengine.tools.cloudstorage.GcsFilename;
-import com.google.appengine.tools.cloudstorage.GcsService;
-import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
-import com.google.appengine.tools.cloudstorage.GcsServiceOptions;
+import com.google.appengine.tools.mapreduce.GcpCredentialOptions;
+import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants;
-import com.google.common.collect.ImmutableMap;
+import com.google.cloud.ReadChannel;
+import com.google.cloud.storage.*;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 
+@RequiredArgsConstructor
 /**
  * A simple wrapper of LevelDb wrapper for GCS to provide getProgress() and do lazy initialization.
  */
 public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputReader {
 
-  private static final GcsService gcsService = GcsServiceFactory.createGcsService(
-      new GcsServiceOptions.Builder()
-          .setRetryParams(GCS_RETRY_PARAMETERS)
-          .setHttpHeaders(ImmutableMap.of("User-Agent", "App Engine MR"))
-          .build());
+  private static final long serialVersionUID = 2L;
 
-  private static final long serialVersionUID = 1014960525070958327L;
-
+  @NonNull
   private final GcsFilename file;
-  private final int bufferSize;
+  @NonNull
+  private final GoogleCloudStorageLineInputReader.Options options;
   private double length = -1;
+
+  private transient Storage client;
+
 
   /**
    * @param file File to be read.
    * @param bufferSize The buffersize to be used by the Gcs prefetching read channel.
    */
   public GoogleCloudStorageLevelDbInputReader(GcsFilename file, int bufferSize) {
-    this.file = checkNotNull(file, "Null file");
-    this.bufferSize = bufferSize;
-    checkArgument(bufferSize > 0, "Buffersize must be > 0");
+    this(file, GoogleCloudStorageLineInput.BaseOptions.defaults().withBufferSize(bufferSize));
+  }
+
+  protected Storage getClient() throws IOException {
+    if (client == null) {
+      //TODO: set retry param (GCS_RETRY_PARAMETERS)
+      //TODO: set User-Agent to "App Engine MR"?
+      client = GcpCredentialOptions.getStorageClient(this.options);
+    }
+    return client;
   }
 
   @Override
   public Double getProgress() {
     if (length == -1) {
-      GcsFileMetadata metadata = null;
+      Blob blob = null;
       try {
-        metadata = gcsService.getMetadata(file);
-      } catch (IOException e) {
+        blob = getClient().get(file.asBlobId());
+      } catch (StorageException | IOException e) {
         // It is just an estimate so it's probably not worth throwing.
       }
-      if (metadata == null) {
+      if (blob == null) {
         return null;
       }
-      length = metadata.getLength();
+      length = blob.getSize();
     }
     if (length == 0f) {
       return null;
@@ -63,13 +66,15 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
   }
 
   @Override
-  public ReadableByteChannel createReadableByteChannel() {
+  public ReadableByteChannel createReadableByteChannel() throws IOException {
     length = -1;
-    return gcsService.openPrefetchingReadChannel(file, 0, bufferSize);
+    ReadChannel reader = getClient().reader(file.asBlobId());
+    reader.setChunkSize(options.getBufferSize());
+    return reader;
   }
 
   @Override
   public long estimateMemoryRequirement() {
-    return LevelDbConstants.BLOCK_SIZE + bufferSize * 2; // Double buffered
+    return LevelDbConstants.BLOCK_SIZE + options.getBufferSize() * 2; // Double buffered
   }
 }

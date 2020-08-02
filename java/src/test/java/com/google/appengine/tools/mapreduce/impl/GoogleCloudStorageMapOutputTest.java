@@ -2,13 +2,10 @@
 package com.google.appengine.tools.mapreduce.impl;
 
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
-import com.google.appengine.tools.mapreduce.InputReader;
-import com.google.appengine.tools.mapreduce.KeyValue;
-import com.google.appengine.tools.mapreduce.Marshaller;
-import com.google.appengine.tools.mapreduce.Marshallers;
-import com.google.appengine.tools.mapreduce.OutputWriter;
-import com.google.appengine.tools.mapreduce.Sharder;
+import com.google.appengine.tools.mapreduce.*;
 
+import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
+import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
 import junit.framework.TestCase;
 
 import java.io.IOException;
@@ -27,7 +24,6 @@ import java.util.Random;
  */
 public class GoogleCloudStorageMapOutputTest extends TestCase {
 
-  private static final String BUCKET = "GoogleCloudStorageMapOutputTest";
   private static final String JOB = "JOB1";
   private static final Marshaller<Long> KEY_MARSHALLER = Marshallers.getLongMarshaller();
   private static final Marshaller<String> VALUE_MARSHALLER = Marshallers.getStringMarshaller();
@@ -38,17 +34,20 @@ public class GoogleCloudStorageMapOutputTest extends TestCase {
   private static final Random RND = new SecureRandom();
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper();
+  private final CloudStorageIntegrationTestHelper cloudStorageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
 
   @Override
   public void setUp() {
     helper.setUp();
     System.setProperty(COMPONENTS_PER_COMPOSE_PROPERTY, String.valueOf(COMPONENTS_PER_COMPOSE));
+    cloudStorageIntegrationTestHelper.setUp();
   }
 
   @Override
   public void tearDown() {
     helper.tearDown();
     System.clearProperty(COMPONENTS_PER_COMPOSE_PROPERTY);
+    cloudStorageIntegrationTestHelper.tearDown();
   }
 
   public void testNoContent() throws IOException {
@@ -109,7 +108,14 @@ public class GoogleCloudStorageMapOutputTest extends TestCase {
   }
 
   private void writeAndVerifyContent(SliceData... sliceData) throws IOException  {
-    GoogleCloudStorageMapOutput<Long, String> output = new GoogleCloudStorageMapOutput<>(BUCKET,
+    GoogleCloudStorageFileOutput.BaseOptions outputOptions = GoogleCloudStorageFileOutput.BaseOptions.builder()
+      .serviceAccountKey(cloudStorageIntegrationTestHelper.getBase64EncodedServiceAccountKey())
+      .projectId(cloudStorageIntegrationTestHelper.getProjectId()).build();
+    GoogleCloudStorageLineInput.BaseOptions inputOptions = GoogleCloudStorageLineInput.BaseOptions.builder()
+      .serviceAccountKey(cloudStorageIntegrationTestHelper.getBase64EncodedServiceAccountKey())
+      .build();
+
+    GoogleCloudStorageMapOutput<Long, String> output = new GoogleCloudStorageMapOutput<>(cloudStorageIntegrationTestHelper.getBucket(),
         JOB, KEY_MARSHALLER, VALUE_MARSHALLER, new Sharder() {
           private static final long serialVersionUID = 1L;
 
@@ -122,7 +128,7 @@ public class GoogleCloudStorageMapOutputTest extends TestCase {
           public int getShardForKey(ByteBuffer key) {
             return 0;
           }
-        });
+        }, outputOptions);
     List<? extends OutputWriter<KeyValue<Long, String>>> writers = output.createWriters(1);
     assertEquals(1, writers.size());
     List<KeyValue<Long, String>> values = new ArrayList<>();
@@ -148,7 +154,7 @@ public class GoogleCloudStorageMapOutputTest extends TestCase {
     FilesByShard filesByShard = output.finish(writers);
     assertEquals(1, filesByShard.getShardCount());
     List<? extends InputReader<KeyValue<ByteBuffer, ByteBuffer>>> input =
-        new GoogleCloudStorageSortInput(filesByShard).createReaders();
+        new GoogleCloudStorageSortInput(filesByShard, inputOptions).createReaders();
     assertEquals(1, input.size());
     int expectedFiles = (int) Math.ceil((double) sliceCount / COMPONENTS_PER_COMPOSE);
     assertEquals(expectedFiles, filesByShard.getFilesForShard(0).getNumFiles());

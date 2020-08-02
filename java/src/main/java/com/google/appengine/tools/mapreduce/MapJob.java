@@ -50,6 +50,8 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
     this.settings = settings;
   }
 
+  public static final String DEFAULT_QUEUE_NAME = "default";
+
   /**
    * Starts a {@link MapJob} with the given parameters in a new Pipeline.
    * Returns the pipeline id.
@@ -57,7 +59,7 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
   public static <I, O, R> String start(MapSpecification<I, O, R> specification,
       MapSettings settings) {
     if (settings.getWorkerQueueName() == null) {
-      settings = new MapSettings.Builder(settings).setWorkerQueueName("default").build();
+      settings = new MapSettings.Builder(settings).setWorkerQueueName(DEFAULT_QUEUE_NAME).build();
     }
     PipelineService pipelineService = PipelineServiceFactory.newPipelineService();
     return pipelineService.startNewPipeline(
@@ -72,7 +74,7 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
       if (queue == null) {
         log.warning("workerQueueName is null and current queue is not available in the pipeline"
             + " job, using 'default'");
-        queue = "default";
+        queue = DEFAULT_QUEUE_NAME;
       }
       settings = new MapReduceSettings.Builder().setWorkerQueueName(queue).build();
     }

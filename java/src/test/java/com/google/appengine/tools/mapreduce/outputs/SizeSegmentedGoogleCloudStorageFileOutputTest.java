@@ -1,15 +1,15 @@
 package com.google.appengine.tools.mapreduce.outputs;
 
-import com.google.appengine.tools.cloudstorage.GcsFileMetadata;
-import com.google.appengine.tools.cloudstorage.GcsService;
-import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
+import com.google.appengine.tools.mapreduce.CloudStorageIntegrationTestHelper;
 import com.google.appengine.tools.mapreduce.GoogleCloudStorageFileSet;
 import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.impl.BigQueryConstants;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 
+import com.google.cloud.storage.Blob;
 import junit.framework.TestCase;
+import lombok.Getter;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -20,15 +20,22 @@ import java.util.Random;
 public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper();
-  private final GcsService gcsService = GcsServiceFactory.createGcsService();
 
-  private static final String BUCKET = "test-bigquery-loader";
+  @Getter
+  static CloudStorageIntegrationTestHelper cloudStorageIntegrationTestHelper;
+
   private static final String MIME_TYPE = "application/json";
+
+  GoogleCloudStorageFileOutput.Options options;
 
   @Override
   protected void setUp() throws Exception {
     super.setUp();
     helper.setUp();
+    cloudStorageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
+    cloudStorageIntegrationTestHelper.setUp();
+    options = GoogleCloudStorageFileOutput.BaseOptions.defaults().withServiceAccountKey(cloudStorageIntegrationTestHelper.getBase64EncodedServiceAccountKey()).withProjectId(cloudStorageIntegrationTestHelper.getProjectId());
+
   }
 
   @Override
@@ -41,8 +48,8 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
     int segmentSizeLimit = 10;
     String fileNamePattern = String.format(BigQueryConstants.GCS_FILE_NAME_FORMAT, "testJob");
     SizeSegmentedGoogleCloudStorageFileOutput segmenter =
-        new SizeSegmentedGoogleCloudStorageFileOutput(BUCKET, segmentSizeLimit, fileNamePattern,
-            BigQueryConstants.MIME_TYPE);
+        new SizeSegmentedGoogleCloudStorageFileOutput(cloudStorageIntegrationTestHelper.getBucket(), segmentSizeLimit, fileNamePattern,
+            BigQueryConstants.MIME_TYPE, options);
     List<? extends OutputWriter<ByteBuffer>> writers = segmenter.createWriters(5);
     List<OutputWriter<ByteBuffer>> finished = new ArrayList<>();
     assertEquals(5, writers.size());
@@ -65,17 +72,17 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
     GoogleCloudStorageFileSet filesWritten = segmenter.finish(finished);
     assertEquals(15, filesWritten.getNumFiles());
     for (int i = 0; i < filesWritten.getNumFiles(); i++) {
-      GcsFileMetadata metadata = gcsService.getMetadata(filesWritten.getFile(i));
-      assertNotNull(metadata);
-      assertEquals(MIME_TYPE, metadata.getOptions().getMimeType());
+      Blob blob = cloudStorageIntegrationTestHelper.getStorage().get(filesWritten.getFile(i).asBlobId());
+      assertNotNull(blob);
+      assertEquals(MIME_TYPE, blob.getContentType());
     }
   }
 
   public void testSegmentation() throws IOException {
     int segmentSizeLimit = 10;
     SizeSegmentedGoogleCloudStorageFileOutput segmenter =
-        new SizeSegmentedGoogleCloudStorageFileOutput(BUCKET, segmentSizeLimit, "testJob",
-            BigQueryConstants.MIME_TYPE);
+        new SizeSegmentedGoogleCloudStorageFileOutput(cloudStorageIntegrationTestHelper.getBucket(), segmentSizeLimit, "testJob",
+            BigQueryConstants.MIME_TYPE, options);
     List<? extends OutputWriter<ByteBuffer>> writers = segmenter.createWriters(5);
     int countFiles = 0;
     for (OutputWriter<ByteBuffer> w : writers) {
@@ -85,9 +92,9 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
     GoogleCloudStorageFileSet filesWritten = segmenter.finish(writers);
     assertEquals(countFiles, filesWritten.getNumFiles());
     for (int i = 0; i < filesWritten.getNumFiles(); i++) {
-      GcsFileMetadata metadata = gcsService.getMetadata(filesWritten.getFile(i));
-      assertNotNull(metadata);
-      assertEquals(MIME_TYPE, metadata.getOptions().getMimeType());
+      Blob blob = cloudStorageIntegrationTestHelper.getStorage().get(filesWritten.getFile(i).asBlobId());
+      assertNotNull(blob);
+      assertEquals(MIME_TYPE, blob.getContentType());
     }
   }
 

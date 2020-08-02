@@ -22,6 +22,10 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.common.base.Preconditions;
+import lombok.NoArgsConstructor;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 
 import java.io.Serializable;
 import java.util.concurrent.Callable;
@@ -33,6 +37,8 @@ import java.util.concurrent.Callable;
  * different backends, modules or different base urls have different versions of the code).
  */
 @SuppressWarnings("deprecation")
+@ToString
+@RequiredArgsConstructor
 public class MapSettings implements Serializable {
 
   private static final long serialVersionUID = 51425056338041064L;

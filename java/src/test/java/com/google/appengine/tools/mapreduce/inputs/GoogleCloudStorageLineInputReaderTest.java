@@ -1,6 +1,7 @@
 package com.google.appengine.tools.mapreduce.inputs;
 
-import com.google.appengine.tools.cloudstorage.GcsFilename;
+import com.google.appengine.tools.mapreduce.CloudStorageIntegrationTestHelper;
+import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 
 import java.io.IOException;
@@ -13,40 +14,43 @@ import java.util.NoSuchElementException;
 public class GoogleCloudStorageLineInputReaderTest extends GoogleCloudStorageLineInputTestCase {
 
   private static final String FILENAME = "GoogleCloudStorageLineInputReaderTestFile";
-  private static final String BUCKET = "GoogleCloudStorageInputReaderTestBucket";
   public static final String RECORD = "01234567890\n";
   public static final int RECORDS_COUNT = 10;
 
-  GcsFilename filename = new GcsFilename(BUCKET, FILENAME);
+  GcsFilename filename;
   long fileSize;
+  GoogleCloudStorageLineInput.BaseOptions inputOptions;
 
   @Override
   public void setUp() throws Exception {
     super.setUp();
-    fileSize = createFile(filename, RECORD, RECORDS_COUNT);
+    filename = new GcsFilename(cloudStorageIntegrationTestHelper.getBucket(), FILENAME);
+    fileSize = createFile(filename.getObjectName(), RECORD, RECORDS_COUNT);
+    inputOptions = GoogleCloudStorageLineInput.BaseOptions.defaults().withServiceAccountKey(cloudStorageIntegrationTestHelper.getBase64EncodedServiceAccountKey());
   }
+
   public void testSingleSplitPoint() throws Exception {
     List<GoogleCloudStorageLineInputReader> readers = new ArrayList<>();
-    readers.add(new GoogleCloudStorageLineInputReader(filename, 0, RECORD.length(), (byte) '\n'));
+    readers.add(new GoogleCloudStorageLineInputReader(filename, 0, RECORD.length(), (byte) '\n', inputOptions));
     readers.add(
-        new GoogleCloudStorageLineInputReader(filename, RECORD.length(), fileSize, (byte) '\n'));
+        new GoogleCloudStorageLineInputReader(filename, RECORD.length(), fileSize, (byte) '\n', inputOptions));
     verifyReaders(readers, false);
   }
 
   public void testSingleSplitPointsWithSerialization() throws Exception {
     List<GoogleCloudStorageLineInputReader> readers = new ArrayList<>();
-    readers.add(new GoogleCloudStorageLineInputReader(filename, 0, RECORD.length(), (byte) '\n'));
+    readers.add(new GoogleCloudStorageLineInputReader(filename, 0, RECORD.length(), (byte) '\n', inputOptions));
     readers.add(
-        new GoogleCloudStorageLineInputReader(filename, RECORD.length(), fileSize, (byte) '\n'));
+        new GoogleCloudStorageLineInputReader(filename, RECORD.length(), fileSize, (byte) '\n', inputOptions));
     verifyReaders(readers, true);
   }
 
   public void testAllSplitPoints() throws Exception {
     for (int splitPoint = 1; splitPoint < fileSize - 1; splitPoint++) {
       List<GoogleCloudStorageLineInputReader> readers = new ArrayList<>();
-      readers.add(new GoogleCloudStorageLineInputReader(filename, 0, splitPoint, (byte) '\n'));
+      readers.add(new GoogleCloudStorageLineInputReader(filename, 0, splitPoint, (byte) '\n', inputOptions));
       readers.add(
-          new GoogleCloudStorageLineInputReader(filename, splitPoint, fileSize, (byte) '\n'));
+          new GoogleCloudStorageLineInputReader(filename, splitPoint, fileSize, (byte) '\n', inputOptions));
       verifyReaders(readers, false);
     }
   }
@@ -54,9 +58,9 @@ public class GoogleCloudStorageLineInputReaderTest extends GoogleCloudStorageLin
   public void testAllSplitPointsWithSerialization() throws Exception {
     for (int splitPoint = 1; splitPoint < fileSize - 1; splitPoint++) {
       List<GoogleCloudStorageLineInputReader> readers = new ArrayList<>();
-      readers.add(new GoogleCloudStorageLineInputReader(filename, 0, splitPoint, (byte) '\n'));
+      readers.add(new GoogleCloudStorageLineInputReader(filename, 0, splitPoint, (byte) '\n', inputOptions));
       readers.add(
-          new GoogleCloudStorageLineInputReader(filename, splitPoint, fileSize, (byte) '\n'));
+          new GoogleCloudStorageLineInputReader(filename, splitPoint, fileSize, (byte) '\n', inputOptions));
       verifyReaders(readers, true);
     }
   }

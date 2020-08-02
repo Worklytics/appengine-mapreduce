@@ -14,143 +14,36 @@
 
 package com.google.appengine.tools.mapreduce.servlets;
 
+import com.google.appengine.tools.mapreduce.GcpCredentialOptions;
+import com.google.auth.oauth2.ServiceAccountCredentials;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.Serializable;
-import java.util.Arrays;
+import java.util.Base64;
+import java.util.Optional;
 
-class ShufflerParams implements Serializable {
+@AllArgsConstructor
+@NoArgsConstructor
+@Data
+class ShufflerParams implements Serializable, GcpCredentialOptions {
 
-  private static final long serialVersionUID = 1381831224713193323L;
+  private static final long serialVersionUID = 2L;
 
   private String shufflerQueue;
   private String gcsBucket;
   private String[] inputFileNames;
   private String outputDir;
+  private String serviceAccountKey;
 
   private int outputShards;
   private String callbackQueue;
-  private String callbackModule;
+  private String callbackService;
   private String callbackVersion;
   private String callbackPath;
-
-  ShufflerParams() {} // Needed by json
-
-  /**
-   * @return the shufflerQueue
-   */
-  public String getShufflerQueue() {
-    return shufflerQueue;
-  }
-
-  /**
-   * @param shufflerQueue the shufflerQueue to set
-   */
-  public void setShufflerQueue(String shufflerQueue) {
-    this.shufflerQueue = shufflerQueue;
-  }
-
-  /**
-   * @return the gcsBucket
-   */
-  public String getGcsBucket() {
-    return gcsBucket;
-  }
-
-  /**
-   * @param gcsBucket the gcsBucket to set
-   */
-  public void setGcsBucket(String gcsBucket) {
-    this.gcsBucket = gcsBucket;
-  }
-
-  /**
-   * @return the inputFileNames
-   */
-  public String[] getInputFileNames() {
-    return inputFileNames;
-  }
-
-  /**
-   * @param inputFileNames the inputFileNames to set
-   */
-  public void setInputFileNames(String[] inputFileNames) {
-    this.inputFileNames = inputFileNames;
-  }
-
-  /**
-   * @return the outputDir
-   */
-  public String getOutputDir() {
-    if (outputDir == null) {
-      return "";
-    }
-    if (outputDir.endsWith("/")) {
-      return outputDir.substring(0, outputDir.length() - 1);
-    }
-    return outputDir;
-  }
-
-  /**
-   * @param outputDir the outputDir to set
-   */
-  public void setOutputDir(String outputDir) {
-    this.outputDir = outputDir;
-  }
-
-  /**
-   * @return the outputShards
-   */
-  public int getOutputShards() {
-    return outputShards;
-  }
-
-  /**
-   * @param outputShards the outputShards to set
-   */
-  public void setOutputShards(int outputShards) {
-    this.outputShards = outputShards;
-  }
-
-  /**
-   * @return the callbackQueue
-   */
-  public String getCallbackQueue() {
-    return callbackQueue;
-  }
-
-  /**
-   * @param callbackQueue the callbackQueue to set
-   */
-  public void setCallbackQueue(String callbackQueue) {
-    this.callbackQueue = callbackQueue;
-  }
-
-  /**
-   * @return the callbackModule
-   */
-  public String getCallbackModule() {
-    return callbackModule;
-  }
-
-  /**
-   * @param callbackModule the callbackModule to set
-   */
-  public void setCallbackModule(String callbackModule) {
-    this.callbackModule = callbackModule;
-  }
-
-  /**
-   * @return the callbackVersion
-   */
-  public String getCallbackVersion() {
-    return callbackVersion;
-  }
-
-  /**
-   * @param callbackVersion the callbackVersion to set
-   */
-  public void setCallbackVersion(String callbackVersion) {
-    this.callbackVersion = callbackVersion;
-  }
 
   /**
    * @return the callbackPath
@@ -162,19 +55,4 @@ class ShufflerParams implements Serializable {
     return callbackPath;
   }
 
-  /**
-   * @param callbackPath the callbackPath to set
-   */
-  public void setCallbackPath(String callbackPath) {
-    this.callbackPath = callbackPath;
-  }
-
-  @Override
-  public String toString() {
-    return "ShufflerParams [shufflerQueue=" + shufflerQueue + ", gcsBucket=" + gcsBucket
-        + ", outputDir=" + outputDir + ", inputFileNames=" + Arrays.toString(inputFileNames)
-        + ", outputShards=" + outputShards + ", callbackQueue=" + callbackQueue
-        + ", callbackModule=" + callbackModule + ", callbackVersion=" + callbackVersion
-        + ", callbackPath=" + callbackPath + "]";
-  }
 }

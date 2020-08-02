@@ -2,11 +2,12 @@ package com.google.appengine.tools.mapreduce.outputs;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.appengine.tools.cloudstorage.GcsFilename;
+import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.GoogleCloudStorageFileSet;
 import com.google.appengine.tools.mapreduce.Output;
 import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.common.collect.ImmutableList;
+import lombok.NonNull;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -27,6 +28,9 @@ public final class SizeSegmentedGoogleCloudStorageFileOutput extends
   private final long segmentSizeLimit;
   private final String fileNamePattern;
 
+  @NonNull
+  private final GoogleCloudStorageFileOutput.Options options;
+
   /**
    * @param bucket GCS bucket
    * @param segmentSizeLimit Maximum size of the files to be written to the output
@@ -36,11 +40,12 @@ public final class SizeSegmentedGoogleCloudStorageFileOutput extends
    * @param mimeType The string to be passed as the mimeType to GCS.
    */
   public SizeSegmentedGoogleCloudStorageFileOutput(String bucket, long segmentSizeLimit,
-      String fileNamePattern, String mimeType) {
+      String fileNamePattern, String mimeType, GoogleCloudStorageFileOutput.Options  options) {
     this.bucket = checkNotNull(bucket, "Null bucket");
     this.segmentSizeLimit = segmentSizeLimit;
     this.fileNamePattern = checkNotNull(fileNamePattern, "Null file name pattern");
     this.mimeType = checkNotNull(mimeType, "Null mime type");
+    this.options = options;
   }
 
   private static class SizeSegmentingGoogleCloudStorageFileWriter extends
@@ -51,7 +56,11 @@ public final class SizeSegmentedGoogleCloudStorageFileOutput extends
     private final String fileNamePattern;
     private final String mimeType;
     private final int shardNumber;
+    @NonNull
+    private final GoogleCloudStorageFileOutput.Options options;
     private final List<GoogleCloudStorageFileOutputWriter> delegatedWriters;
+
+
 
     /**
      * @param bucket
@@ -60,20 +69,21 @@ public final class SizeSegmentedGoogleCloudStorageFileOutput extends
      * @param segmentSizeLimit Maximum size of the files to be written out by this writer
      */
     public SizeSegmentingGoogleCloudStorageFileWriter(String bucket, String fileNamePattern,
-        int shardNumber, String mimeType, long segmentSizeLimit) {
+        int shardNumber, String mimeType, long segmentSizeLimit, GoogleCloudStorageFileOutput.Options options) {
       super(segmentSizeLimit);
       this.bucket = checkNotNull(bucket, "Null bucket");
       this.fileNamePattern = checkNotNull(fileNamePattern, "Null fileNamePattern");
       this.mimeType = checkNotNull(mimeType, "Null mime type");
       this.shardNumber = shardNumber;
       delegatedWriters = new ArrayList<>();
+      this.options = options;
     }
 
     @Override
     protected OutputWriter<ByteBuffer> createWriter(int fileNum) {
       String fileName = String.format(fileNamePattern, shardNumber, System.currentTimeMillis());
       GoogleCloudStorageFileOutputWriter toReturn =
-          new GoogleCloudStorageFileOutputWriter(new GcsFilename(bucket, fileName), mimeType);
+          new GoogleCloudStorageFileOutputWriter(new GcsFilename(bucket, fileName), mimeType, this.options);
       delegatedWriters.add(toReturn);
       return toReturn;
     }
@@ -103,7 +113,7 @@ public final class SizeSegmentedGoogleCloudStorageFileOutput extends
         new ImmutableList.Builder<>();
     for (int i = 0; i < numShards; ++i) {
       result.add(new SizeSegmentingGoogleCloudStorageFileWriter(bucket, fileNamePattern, i,
-          mimeType, segmentSizeLimit));
+          mimeType, segmentSizeLimit, options));
     }
     return result.build();
   }

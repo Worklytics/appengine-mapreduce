@@ -1,6 +1,6 @@
 package com.google.appengine.tools.mapreduce.inputs;
 
-import com.google.appengine.tools.cloudstorage.GcsFilename;
+import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.InputReader;
 
 import java.util.List;
@@ -11,21 +11,23 @@ import java.util.List;
 public class GoogleCloudStorageLineInputTest extends GoogleCloudStorageLineInputTestCase {
 
   private static final String FILENAME = "CloudStorageLineInputTestFile";
-  private static final String BUCKET = "CloudStorageLineInputTestBucket";
   public static final String RECORD = "01234567890\n";
   public static final int RECORDS_COUNT = 1000;
 
-  GcsFilename filename = new GcsFilename(BUCKET, FILENAME);
+  GcsFilename filename;
   long fileSize;
+  GoogleCloudStorageLineInput.BaseOptions inputOptions;
 
   @Override
   public void setUp() throws Exception {
     super.setUp();
-    fileSize = createFile(filename, RECORD, RECORDS_COUNT);
+    filename = new GcsFilename(cloudStorageIntegrationTestHelper.getBucket(), FILENAME);
+    fileSize = createFile(filename.getObjectName(), RECORD, RECORDS_COUNT);
+    inputOptions = GoogleCloudStorageLineInput.BaseOptions.defaults().withServiceAccountKey(cloudStorageIntegrationTestHelper.getBase64EncodedServiceAccountKey());
   }
 
   public void testSplit() throws Exception {
-    GoogleCloudStorageLineInput input = new GoogleCloudStorageLineInput(filename, (byte) '\n', 4);
+    GoogleCloudStorageLineInput input = new GoogleCloudStorageLineInput(filename, (byte) '\n', 4, inputOptions);
     List<? extends InputReader<byte[]>> readers = input.createReaders();
     assertEquals(4, readers.size());
     assertSplitRange(0, 3000, readers.get(0));
@@ -35,7 +37,7 @@ public class GoogleCloudStorageLineInputTest extends GoogleCloudStorageLineInput
   }
 
   public void testUnevenSplit() throws Exception {
-    GoogleCloudStorageLineInput input = new GoogleCloudStorageLineInput(filename, (byte) '\n', 7);
+    GoogleCloudStorageLineInput input = new GoogleCloudStorageLineInput(filename, (byte) '\n', 7, inputOptions);
     List<? extends InputReader<byte[]>> readers = input.createReaders();
     assertEquals(7, readers.size());
     assertSplitRange(0, 1714, readers.get(0));

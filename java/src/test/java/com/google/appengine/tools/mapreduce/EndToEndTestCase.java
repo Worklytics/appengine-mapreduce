@@ -23,8 +23,11 @@ import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.apphosting.api.ApiProxy;
 import com.google.common.base.CharMatcher;
 
+import lombok.Getter;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 
 import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
@@ -60,6 +63,9 @@ public abstract class EndToEndTestCase {
     return null;
   }
 
+  @Getter
+  private CloudStorageIntegrationTestHelper storageTestHelper;
+
   @Before
   public void setUp() throws Exception {
     helper.setUp();
@@ -71,11 +77,14 @@ public abstract class EndToEndTestCase {
     ApiProxyLocal proxy = (ApiProxyLocal) ApiProxy.getDelegate();
     // Creating files is not allowed in some test execution environments, so don't.
     proxy.setProperty(LocalBlobstoreService.NO_STORAGE_PROPERTY, "true");
+    storageTestHelper = new CloudStorageIntegrationTestHelper();
+    storageTestHelper.setUp();
   }
 
   @After
   public void tearDown() throws Exception {
     helper.tearDown();
+    storageTestHelper.tearDown();
   }
 
   protected List<QueueStateInfo.TaskStateInfo> getTasks() {

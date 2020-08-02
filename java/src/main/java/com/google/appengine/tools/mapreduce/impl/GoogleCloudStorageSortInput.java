@@ -2,20 +2,11 @@
 
 package com.google.appengine.tools.mapreduce.impl;
 
-import static com.google.appengine.tools.mapreduce.impl.MapReduceConstants.DEFAULT_IO_BUFFER_SIZE;
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import com.google.appengine.tools.cloudstorage.GcsFilename;
-import com.google.appengine.tools.mapreduce.Input;
-import com.google.appengine.tools.mapreduce.InputReader;
-import com.google.appengine.tools.mapreduce.KeyValue;
-import com.google.appengine.tools.mapreduce.Marshaller;
-import com.google.appengine.tools.mapreduce.Marshallers;
-import com.google.appengine.tools.mapreduce.inputs.ConcatenatingInputReader;
-import com.google.appengine.tools.mapreduce.inputs.ForwardingInputReader;
-import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInputReader;
-import com.google.appengine.tools.mapreduce.inputs.UnmarshallingInputReader;
+import com.google.appengine.tools.mapreduce.*;
+import com.google.appengine.tools.mapreduce.inputs.*;
 import com.google.common.collect.ImmutableList;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -27,11 +18,15 @@ import java.util.List;
  * care what the individual values are so they are not deserialized.
  *
  */
+@RequiredArgsConstructor
 public class GoogleCloudStorageSortInput extends Input<KeyValue<ByteBuffer, ByteBuffer>> {
 
-  private static final long serialVersionUID = -3995775161471778634L;
+  private static final long serialVersionUID = 1L;
 
+  @NonNull
   private final FilesByShard files;
+  @NonNull
+  private final GoogleCloudStorageLineInput.Options options;
 
   private static class ReaderImpl extends ForwardingInputReader<KeyValue<ByteBuffer, ByteBuffer>> {
 
@@ -39,12 +34,11 @@ public class GoogleCloudStorageSortInput extends Input<KeyValue<ByteBuffer, Byte
 
     private final InputReader<KeyValue<ByteBuffer, ByteBuffer>> reader;
 
-    private ReaderImpl(GcsFilename file) {
+    private ReaderImpl(GcsFilename file, GoogleCloudStorageLineInput.Options options) {
       Marshaller<ByteBuffer> identity = Marshallers.getByteBufferMarshaller();
       Marshaller<KeyValue<ByteBuffer, ByteBuffer>> marshaller =
           new KeyValueMarshaller<>(identity, identity);
-      GoogleCloudStorageLevelDbInputReader in =
-          new GoogleCloudStorageLevelDbInputReader(file, DEFAULT_IO_BUFFER_SIZE);
+      GoogleCloudStorageLevelDbInputReader in = new GoogleCloudStorageLevelDbInputReader(file, options);
       reader = new UnmarshallingInputReader<>(in, marshaller);
     }
 
@@ -55,7 +49,7 @@ public class GoogleCloudStorageSortInput extends Input<KeyValue<ByteBuffer, Byte
   }
 
   public GoogleCloudStorageSortInput(FilesByShard files) {
-    this.files = checkNotNull(files, "Null files");
+    this(files, GoogleCloudStorageLineInput.BaseOptions.defaults());
   }
 
   @Override
@@ -65,7 +59,7 @@ public class GoogleCloudStorageSortInput extends Input<KeyValue<ByteBuffer, Byte
     for (int shard = 0; shard < files.getShardCount(); shard++) {
       List<ReaderImpl> readersForShard = new ArrayList<>();
       for (GcsFilename file : files.getFilesForShard(shard).getFiles()) {
-        readersForShard.add(new ReaderImpl(file));
+        readersForShard.add(new ReaderImpl(file, options));
       }
       out.add(new ConcatenatingInputReader<>(readersForShard));
     }

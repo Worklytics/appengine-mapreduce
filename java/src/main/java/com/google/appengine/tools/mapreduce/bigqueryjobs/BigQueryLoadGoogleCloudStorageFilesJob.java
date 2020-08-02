@@ -13,9 +13,9 @@ import com.google.api.services.bigquery.BigqueryRequest;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.appengine.tools.cloudstorage.GcsFilename;
 import com.google.appengine.tools.cloudstorage.GcsService;
 import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
+import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.GoogleCloudStorageFileSet;
 import com.google.appengine.tools.mapreduce.Marshallers;
 import com.google.appengine.tools.mapreduce.impl.BigQueryConstants;
@@ -115,7 +115,7 @@ public final class BigQueryLoadGoogleCloudStorageFilesJob extends
     long currentBundleSize = 0;
     GcsService GCS_SERVICE = GcsServiceFactory.createGcsService();
     for (GcsFilename file : files) {
-      long fileSize = GCS_SERVICE.getMetadata(file).getLength();
+      long fileSize = GCS_SERVICE.getMetadata(new com.google.appengine.tools.cloudstorage.GcsFilename(file.getBucketName(), file.getObjectName())).getLength();
       if (currentBundleSize + fileSize > bundleSizeLimit) {
         bundles.add(ImmutableSet.copyOf(currentBundle).asList());
         currentBundle = new ArrayList<>();

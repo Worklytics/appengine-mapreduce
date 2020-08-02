@@ -2,19 +2,13 @@ package com.google.appengine.tools.mapreduce.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.appengine.tools.cloudstorage.GcsFilename;
-import com.google.appengine.tools.mapreduce.KeyValue;
-import com.google.appengine.tools.mapreduce.Marshaller;
-import com.google.appengine.tools.mapreduce.Marshallers;
-import com.google.appengine.tools.mapreduce.Output;
-import com.google.appengine.tools.mapreduce.OutputWriter;
+import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.impl.sort.LexicographicalComparator;
 import com.google.appengine.tools.mapreduce.impl.util.SerializableValue;
-import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutputWriter;
-import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageLevelDbOutputWriter;
-import com.google.appengine.tools.mapreduce.outputs.ItemSegmentingOutputWriter;
-import com.google.appengine.tools.mapreduce.outputs.MarshallingOutputWriter;
+import com.google.appengine.tools.mapreduce.outputs.*;
 import com.google.common.collect.ImmutableList;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -27,39 +21,40 @@ import java.util.List;
  * sort output).
  *
  */
+@RequiredArgsConstructor
 public class GoogleCloudStorageMergeOutput extends
     Output<KeyValue<ByteBuffer, List<ByteBuffer>>, FilesByShard> {
 
-  private static final long serialVersionUID = 8332978108336443982L;
+  private static final long serialVersionUID = 2L;
 
+  @NonNull
   private final String bucket;
+  @NonNull
   private final String mrJobId;
+  @NonNull
   private final Integer tier;
-
-  public GoogleCloudStorageMergeOutput(String bucket, String mrJobId, Integer tier) {
-    this.tier = checkNotNull(tier, "Null tier");
-    this.bucket = checkNotNull(bucket, "Null bucket");
-    this.mrJobId = checkNotNull(mrJobId, "Null mrJobId");
-  }
+  private final GoogleCloudStorageFileOutputWriter.Options options;
 
   private static class OrderSlicingOutputWriter extends
       ItemSegmentingOutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>> {
 
-    private static final long serialVersionUID = -2300946785845673658L;
+    private static final long serialVersionUID = 2L;
     private static final Marshaller<ByteBuffer> MARSHALLER = Marshallers.getByteBufferMarshaller();
     private final String bucket;
     private final String fileNamePattern;
     private final List<String> fileNames;
     private SerializableValue<ByteBuffer> lastKey;
+    private final GoogleCloudStorageFileOutputWriter.Options options;
 
     /**
      * @param fileNamePattern a Java format string {@link java.util.Formatter} containing one int
      *        argument for the slice number.
      */
-    public OrderSlicingOutputWriter(String bucket, String fileNamePattern) {
+    public OrderSlicingOutputWriter(String bucket, String fileNamePattern, GoogleCloudStorageFileOutputWriter.Options options) {
       this.bucket = checkNotNull(bucket, "Null bucket");
       this.fileNamePattern = checkNotNull(fileNamePattern, "Null fileNamePattern");
       this.fileNames = new ArrayList<>();
+      this.options = options;
     }
 
     @Override
@@ -73,7 +68,7 @@ public class GoogleCloudStorageMergeOutput extends
               new GoogleCloudStorageFileOutputWriter(
                   new GcsFilename(bucket, fileName),
                   MapReduceConstants.REDUCE_INPUT_MIME_TYPE,
-                  false)),
+                  options.withSupportSliceRetries(false))),
           Marshallers.getKeyValuesMarshaller(identity, identity));
     }
 
@@ -109,7 +104,7 @@ public class GoogleCloudStorageMergeOutput extends
         new ImmutableList.Builder<>();
     for (int i = 0; i < shards; i++) {
       result.add(new OrderSlicingOutputWriter(bucket,
-          String.format(MapReduceConstants.MERGE_OUTPUT_DIR_FORMAT, mrJobId, tier, i)));
+          String.format(MapReduceConstants.MERGE_OUTPUT_DIR_FORMAT, mrJobId, tier, i), options));
     }
     return result.build();
   }

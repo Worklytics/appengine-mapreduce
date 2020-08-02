@@ -7,9 +7,12 @@ import com.google.appengine.tools.mapreduce.InputReader;
 import com.google.appengine.tools.mapreduce.impl.util.Crc32c;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants.RecordType;
+import com.google.cloud.Restorable;
+import com.google.cloud.RestorableState;
 import com.google.common.annotations.VisibleForTesting;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ReadableByteChannel;
@@ -48,6 +51,7 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
 
   private long bytesRead;
   private ReadableByteChannel in;
+  private RestorableState<? extends ReadableByteChannel> channelState;
 
   public LevelDbInputReader() {
     this(LevelDbConstants.BLOCK_SIZE);
@@ -62,7 +66,7 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
   /**
    * @return A Serializable ReadableByteChannel from which data may be read.
    */
-  public abstract ReadableByteChannel createReadableByteChannel();
+  public abstract ReadableByteChannel createReadableByteChannel() throws IOException;
 
   private int read(ByteBuffer result) throws IOException {
     int totalRead = 0;
@@ -86,10 +90,11 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
   }
 
   @Override
-  public void beginShard() {
+  public void beginShard() throws IOException {
     offset = 0;
     bytesRead = 0;
     in = createReadableByteChannel();
+    prepareForSerialization(); //technically, can serialize after here, before beginSlice()
   }
 
   /**
@@ -97,12 +102,34 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
    */
   @Override
   public void endShard() throws IOException {
-    in.close();
+    if (in != null) {
+      in.close();
+    }
   }
 
   @Override
   public void beginSlice() {
     tmpBuffer = allocate(blockSize);
+    if (in == null) {
+      in = channelState.restore();
+      channelState = null;
+    }
+  }
+
+  @Override
+  public void endSlice() throws IOException {
+    prepareForSerialization();
+    super.endSlice();
+  }
+
+  private void prepareForSerialization() {
+    //hacky, but maintains legacy implementation of LevelDbInputReader, which didn't require createReadableByteChannel()
+    // to return something serializable, but in practice expected it. This supports Restorable<> as alternative to serializable
+    if (!(in instanceof Serializable) && in instanceof Restorable<?>) {
+      channelState = ((Restorable<? extends ReadableByteChannel>) in).capture();
+      //q: should we close channel here??
+      in = null;
+    }
   }
 
   private static ByteBuffer allocate(int size) {

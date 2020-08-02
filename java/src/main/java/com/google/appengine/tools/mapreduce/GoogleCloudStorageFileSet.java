@@ -1,6 +1,5 @@
 package com.google.appengine.tools.mapreduce;
 
-import com.google.appengine.tools.cloudstorage.GcsFilename;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 

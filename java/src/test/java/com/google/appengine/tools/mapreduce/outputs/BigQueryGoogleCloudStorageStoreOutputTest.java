@@ -4,6 +4,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.mapreduce.BigQueryFieldMode;
+import com.google.appengine.tools.mapreduce.CloudStorageIntegrationTestHelper;
 import com.google.appengine.tools.mapreduce.GoogleCloudStorageFileSet;
 import com.google.appengine.tools.mapreduce.impl.BigQueryMarshallerByType;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
@@ -13,6 +14,7 @@ import com.google.common.collect.Lists;
 
 import junit.framework.TestCase;
 
+import lombok.Getter;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -22,25 +24,32 @@ import java.util.List;
 import java.util.Map;
 
 public class BigQueryGoogleCloudStorageStoreOutputTest extends TestCase {
-  private static final String BUCKET = "test-bigquery-loader";
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper();
+
+  @Getter
+  CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
 
   @Override
   protected void setUp() throws Exception {
     helper.setUp();
+    storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
+    storageIntegrationTestHelper.setUp();
   }
 
   @Override
   protected void tearDown() throws Exception {
     helper.tearDown();
+    storageIntegrationTestHelper.tearDown();
   }
 
   @Test
   public void testBigQueryResult() throws IOException {
     BigQueryGoogleCloudStorageStoreOutput<Father> creator =
         new BigQueryGoogleCloudStorageStoreOutput<Father>(
-            new BigQueryMarshallerByType<Father>(Father.class), BUCKET, "testJob");
+            new BigQueryMarshallerByType<Father>(Father.class), storageIntegrationTestHelper.getBucket(), "testJob", GoogleCloudStorageFileOutput.BaseOptions.defaults()
+          .withServiceAccountKey(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey())
+          .withProjectId(storageIntegrationTestHelper.getProjectId()));
 
     List<MarshallingOutputWriter<Father>> writers = creator.createWriters(5);
     List<MarshallingOutputWriter<Father>> finished = new ArrayList<>();
@@ -48,6 +57,7 @@ public class BigQueryGoogleCloudStorageStoreOutputTest extends TestCase {
       writer.beginShard();
       writer.beginSlice();
       writer = SerializationUtil.clone(writer);
+      writer.beginSlice(); //30 Apr 2020: added beginSlice() here, not at all clear whether omission was intentional or bug
       writer.write(new Father(true, "Father",
           Lists.newArrayList(new Child("Childone", 1), new Child("childtwo", 2))));
       writer.endSlice();

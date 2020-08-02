@@ -1,59 +1,75 @@
 package com.google.appengine.tools.mapreduce.inputs;
 
-import static com.google.appengine.tools.mapreduce.impl.MapReduceConstants.GCS_RETRY_PARAMETERS;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.appengine.tools.cloudstorage.GcsFilename;
-import com.google.appengine.tools.cloudstorage.GcsService;
-import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
-import com.google.appengine.tools.cloudstorage.GcsServiceOptions;
+import com.google.appengine.tools.mapreduce.GcpCredentialOptions;
+import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.InputReader;
+import com.google.auth.Credentials;
+import com.google.cloud.ReadChannel;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 
 /**
  * CloudStorageLineInputReader reads files from Cloud Storage one line at a time.
  *
  */
 class GoogleCloudStorageLineInputReader extends InputReader<byte[]> {
-  private static final long serialVersionUID = -762091129798691745L;
+  private static final long serialVersionUID = 2L;
 
-  private static final GcsService GCS_SERVICE = GcsServiceFactory.createGcsService(
-      new GcsServiceOptions.Builder()
-          .setRetryParams(GCS_RETRY_PARAMETERS)
-          .setHttpHeaders(ImmutableMap.of("User-Agent", "App Engine MR"))
-          .build());
+  public interface Options extends Serializable, GcpCredentialOptions {
 
-  private static final int DEFAULT_BUFFER_SIZE = 1024 * 1024;
+    Integer getBufferSize();
+
+  }
 
   @VisibleForTesting final long startOffset;
   @VisibleForTesting final long endOffset;
   private final GcsFilename file;
   private long offset;
-  private final int bufferSize;
-  private transient LineInputStream in;
   private final byte separator;
+  private Options options;
+
+  private transient LineInputStream in;
+  private transient Storage client;
+
 
   GoogleCloudStorageLineInputReader(GcsFilename file, long startOffset, long endOffset,
       byte separator) {
-    this(file, startOffset, endOffset, separator, DEFAULT_BUFFER_SIZE);
+    this(file, startOffset, endOffset, separator, GoogleCloudStorageLineInput.BaseOptions.defaults());
+  }
+
+  protected Storage getClient() throws IOException {
+    if (client == null) {
+      //TODO: set retry param (GCS_RETRY_PARAMETERS)
+      //TODO: set User-Agent to "App Engine MR"?
+      client = GcpCredentialOptions.getStorageClient(this.options);
+    }
+    return client;
   }
 
   GoogleCloudStorageLineInputReader(GcsFilename file, long startOffset, long endOffset,
-      byte separator, int bufferSize) {
+      byte separator, Options options) {
     this.separator = separator;
     this.file = checkNotNull(file, "Null file");
     Preconditions.checkArgument(endOffset >= startOffset);
     this.startOffset = startOffset;
     this.endOffset = endOffset;
-    this.bufferSize = (bufferSize > 0) ? bufferSize : DEFAULT_BUFFER_SIZE;
+    Preconditions.checkArgument(options.getBufferSize() > 0, "buffersize must be > 0");
+    this.options = options;
   }
+
+
+
 
   @Override
   public Double getProgress() {
@@ -72,11 +88,15 @@ class GoogleCloudStorageLineInputReader extends InputReader<byte[]> {
   }
 
   @Override
-  public void beginSlice() {
+  public void beginSlice() throws IOException {
     Preconditions.checkState(in == null, "%s: Already initialized: %s", this, in);
+
+    ReadChannel reader = getClient().reader(file.asBlobId());
+    reader.setChunkSize(options.getBufferSize());
+    reader.seek(startOffset + offset);
+
     @SuppressWarnings("resource")
-    InputStream inputStream = Channels.newInputStream(
-        GCS_SERVICE.openPrefetchingReadChannel(file, startOffset + offset, bufferSize));
+    InputStream inputStream = Channels.newInputStream(reader);
     in = new LineInputStream(inputStream, endOffset - startOffset - offset, separator);
     skipRecordReadByPreviousShard();
   }
@@ -109,6 +129,6 @@ class GoogleCloudStorageLineInputReader extends InputReader<byte[]> {
 
   @Override
   public long estimateMemoryRequirement() {
-    return bufferSize * 2; // Double buffered
+    return options.getBufferSize() * 2; // Double buffered
   }
 }

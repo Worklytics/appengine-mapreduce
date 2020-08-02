@@ -6,6 +6,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.appengine.api.backends.BackendServiceFactory;
 import com.google.appengine.api.modules.ModulesServiceFactory;
+import lombok.Getter;
+import lombok.ToString;
 
 import static com.google.appengine.tools.mapreduce.MapSettings.DEFAULT_BASE_URL;
 import static com.google.appengine.tools.mapreduce.MapSettings.WORKER_PATH;
@@ -21,11 +23,15 @@ import java.io.Serializable;
  *
  * @author ohler@google.com (Christian Ohler)
  */
+@Getter
+@ToString
 public final class ShardedJobSettings implements Serializable {
 
   private static final long serialVersionUID = 286995366653078363L;
 
   public static final int DEFAULT_SLICE_TIMEOUT_MILLIS = 11 * 60000;
+
+  //q: does this need to get bucketName / credentials?
 
   /*Nullable*/ private final String backend;
   /*Nullable*/ private final String module;
@@ -156,60 +162,6 @@ public final class ShardedJobSettings implements Serializable {
     return mrStatusUrl;
   }
 
-  /*Nullable*/ public String getPipelineStatusUrl() {
-    return pipelineStatusUrl;
-  }
 
-  /*Nullable*/ public String getBackend() {
-    return backend;
-  }
 
-  public String getModule() {
-    return module;
-  }
-
-  public String getVersion() {
-    return version;
-  }
-
-  public String getControllerPath() {
-    return controllerPath;
-  }
-
-  public String getWorkerPath() {
-    return workerPath;
-  }
-
-  public String getQueueName() {
-    return queueName;
-  }
-
-  public int getMaxShardRetries() {
-    return maxShardRetries;
-  }
-
-  public int getMaxSliceRetries() {
-    return maxSliceRetries;
-  }
-
-  public int getSliceTimeoutMillis() {
-    return sliceTimeoutMillis;
-  }
-
-  @Override
-  public String toString() {
-    return getClass().getSimpleName() + "("
-        + backend + ", "
-        + mrStatusUrl + ", "
-        + pipelineStatusUrl + ", "
-        + controllerPath + ", "
-        + workerPath + ", "
-        + queueName + ", "
-        + maxShardRetries + ", "
-        + maxSliceRetries + ", "
-        + module + ", "
-        + version + ", "
-        + target + ", "
-        + sliceTimeoutMillis + ")";
-  }
 }

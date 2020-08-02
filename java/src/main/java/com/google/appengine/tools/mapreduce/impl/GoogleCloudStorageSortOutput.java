@@ -3,18 +3,8 @@ package com.google.appengine.tools.mapreduce.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.appengine.tools.cloudstorage.GcsFilename;
-import com.google.appengine.tools.mapreduce.KeyValue;
-import com.google.appengine.tools.mapreduce.Marshaller;
-import com.google.appengine.tools.mapreduce.Marshallers;
-import com.google.appengine.tools.mapreduce.Output;
-import com.google.appengine.tools.mapreduce.OutputWriter;
-import com.google.appengine.tools.mapreduce.Sharder;
-import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutputWriter;
-import com.google.appengine.tools.mapreduce.outputs.LevelDbOutputWriter;
-import com.google.appengine.tools.mapreduce.outputs.MarshallingOutputWriter;
-import com.google.appengine.tools.mapreduce.outputs.ShardingOutputWriter;
-import com.google.appengine.tools.mapreduce.outputs.SliceSegmentingOutputWriter;
+import com.google.appengine.tools.mapreduce.*;
+import com.google.appengine.tools.mapreduce.outputs.*;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -33,32 +23,36 @@ import java.util.Map.Entry;
 public class GoogleCloudStorageSortOutput extends
     Output<KeyValue<ByteBuffer, List<ByteBuffer>>, FilesByShard> {
 
-  private static final long serialVersionUID = 8332978108336443982L;
+  private static final long serialVersionUID = 2L;
 
   private final String bucket;
   private final String mrJobId;
   private final Sharder sharder;
+  private final GoogleCloudStorageFileOutputWriter.Options options;
 
   private static class ShardingOutputWriterImpl extends
       ShardingOutputWriter<ByteBuffer, List<ByteBuffer>, SlicingOutputWriterImpl> {
 
-    private static final long serialVersionUID = -8890301705089321212L;
+    private static final long serialVersionUID = 2L;
+
     private final String mrJobId;
     private final int shard;
     private final String bucket;
+    private final GoogleCloudStorageFileOutputWriter.Options options;
 
-    ShardingOutputWriterImpl(String mrJobId, String bucket, int shard, Sharder sharder) {
+    ShardingOutputWriterImpl(String mrJobId, String bucket, int shard, Sharder sharder, GoogleCloudStorageFileOutputWriter.Options options) {
       super(Marshallers.getByteBufferMarshaller(), sharder);
       this.mrJobId = mrJobId;
       this.bucket = bucket;
       this.shard = shard;
+      this.options = options;
     }
 
     @Override
     public SlicingOutputWriterImpl createWriter(int number) {
       String formatStringForShard =
           String.format(MapReduceConstants.SORT_OUTPUT_DIR_FORMAT, mrJobId, shard, number);
-      return new SlicingOutputWriterImpl(bucket, formatStringForShard);
+      return new SlicingOutputWriterImpl(bucket, formatStringForShard, options);
     }
 
     @Override
@@ -82,15 +76,17 @@ public class GoogleCloudStorageSortOutput extends
     private final String bucket;
     private final String fileNamePattern;
     private final List<String> fileNames;
+    private final GoogleCloudStorageFileOutputWriter.Options options;
 
     /**
      * @param fileNamePattern a Java format string {@link java.util.Formatter} containing one int
      *        argument for the slice number.
      */
-    public SlicingOutputWriterImpl(String bucket, String fileNamePattern) {
+    SlicingOutputWriterImpl(String bucket, String fileNamePattern, GoogleCloudStorageFileOutputWriter.Options options) {
       this.bucket = checkNotNull(bucket, "Null bucket");
       this.fileNamePattern = checkNotNull(fileNamePattern, "Null fileNamePattern");
       this.fileNames = new ArrayList<>();
+      this.options = options;
     }
 
     @Override
@@ -105,7 +101,7 @@ public class GoogleCloudStorageSortOutput extends
       // unneeded as the file is being finalized.
       return new MarshallingOutputWriter<>(
           new LevelDbOutputWriter(new GoogleCloudStorageFileOutputWriter(
-              new GcsFilename(bucket, fileName), MapReduceConstants.REDUCE_INPUT_MIME_TYPE, false)),
+              new GcsFilename(bucket, fileName), MapReduceConstants.REDUCE_INPUT_MIME_TYPE, options.withSupportSliceRetries(false))),
           Marshallers.getKeyValuesMarshaller(identity, identity));
     }
 
@@ -119,10 +115,12 @@ public class GoogleCloudStorageSortOutput extends
     }
   }
 
-  public GoogleCloudStorageSortOutput(String bucket, String mrJobId, Sharder sharder) {
+  public GoogleCloudStorageSortOutput(String bucket, String mrJobId, Sharder sharder, GoogleCloudStorageFileOutput.Options options) {
+    super();
     this.bucket = checkNotNull(bucket, "Null bucket");
     this.mrJobId = checkNotNull(mrJobId, "Null mrJobId");
     this.sharder = checkNotNull(sharder, "Null sharder");
+    this.options = options;
   }
 
   @Override
@@ -131,7 +129,7 @@ public class GoogleCloudStorageSortOutput extends
     List<OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>>> result = new ArrayList<>(shards);
     for (int i = 0; i < shards; i++) {
       OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>> shardingWriter =
-          new ShardingOutputWriterImpl(mrJobId, bucket, i, sharder);
+          new ShardingOutputWriterImpl(mrJobId, bucket, i, sharder, options);
       result.add(shardingWriter);
     }
     return result;

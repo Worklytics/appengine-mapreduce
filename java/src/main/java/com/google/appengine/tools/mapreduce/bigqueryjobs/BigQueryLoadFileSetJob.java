@@ -6,7 +6,7 @@ import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.appengine.tools.cloudstorage.GcsFilename;
+import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.impl.BigQueryConstants;
 import com.google.appengine.tools.mapreduce.impl.util.SerializableValue;
 import com.google.appengine.tools.pipeline.ImmediateValue;
@@ -24,7 +24,7 @@ import java.util.logging.Logger;
  * status and retries or cleans up the files based on the status of the load job.
  */
 final class BigQueryLoadFileSetJob extends Job1<BigQueryLoadJobReference, Integer> {
-  private static final long serialVersionUID = 6405179047095627345L;
+  private static final long serialVersionUID = 2L;
   private static final Logger log = Logger.getLogger(BigQueryLoadFileSetJob.class.getName());
   private final String dataset;
   private final String tableName;

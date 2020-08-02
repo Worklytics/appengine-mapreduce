@@ -27,7 +27,11 @@ public class GoogleCloudStorageLevelDbOutput extends Output<ByteBuffer, GoogleCl
    * @param mimeType The string to be passed as the mimeType to GCS.
    */
   public GoogleCloudStorageLevelDbOutput(String bucket, String fileNamePattern, String mimeType) {
-    output = new GoogleCloudStorageFileOutput(bucket, fileNamePattern, mimeType);
+    output = new GoogleCloudStorageFileOutput(bucket, fileNamePattern, mimeType, GoogleCloudStorageFileOutput.BaseOptions.defaults());
+  }
+
+  public GoogleCloudStorageLevelDbOutput(String bucket, String fileNamePattern, String mimeType, GoogleCloudStorageFileOutput.Options options) {
+    output = new GoogleCloudStorageFileOutput(bucket, fileNamePattern, mimeType, options);
   }
 
   /**
@@ -38,10 +42,11 @@ public class GoogleCloudStorageLevelDbOutput extends Output<ByteBuffer, GoogleCl
    * @param mimeType The string to be passed as the mimeType to GCS.
    * @param supportSliceRetries indicates if slice retries should be supported by this writer.
    */
+  @Deprecated //use Options version
   public GoogleCloudStorageLevelDbOutput(String bucket, String fileNamePattern, String mimeType,
       boolean supportSliceRetries) {
     output =
-        new GoogleCloudStorageFileOutput(bucket, fileNamePattern, mimeType, supportSliceRetries);
+        new GoogleCloudStorageFileOutput(bucket, fileNamePattern, mimeType, GoogleCloudStorageFileOutput.BaseOptions.defaults().withSupportSliceRetries(supportSliceRetries));
   }
 
   @Override

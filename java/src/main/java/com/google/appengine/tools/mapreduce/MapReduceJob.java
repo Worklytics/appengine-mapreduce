@@ -6,7 +6,6 @@ package com.google.appengine.tools.mapreduce;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.appengine.tools.cloudstorage.GcsFilename;
 import com.google.appengine.tools.mapreduce.impl.BaseContext;
 import com.google.appengine.tools.mapreduce.impl.CountersImpl;
 import com.google.appengine.tools.mapreduce.impl.FilesByShard;
@@ -32,6 +31,8 @@ import com.google.appengine.tools.mapreduce.impl.sort.MergeShardTask;
 import com.google.appengine.tools.mapreduce.impl.sort.SortContext;
 import com.google.appengine.tools.mapreduce.impl.sort.SortShardTask;
 import com.google.appengine.tools.mapreduce.impl.sort.SortWorker;
+import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
+import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
 import com.google.appengine.tools.pipeline.FutureValue;
 import com.google.appengine.tools.pipeline.Job0;
 import com.google.appengine.tools.pipeline.Job1;
@@ -39,17 +40,15 @@ import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.PipelineServiceFactory;
 import com.google.appengine.tools.pipeline.PromisedValue;
 import com.google.appengine.tools.pipeline.Value;
+import com.google.cloud.storage.*;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -89,9 +88,28 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
     if (settings.getWorkerQueueName() == null) {
       settings = new MapReduceSettings.Builder(settings).setWorkerQueueName("default").build();
     }
+
+    verifyBucketIsWritable(settings);
+
     PipelineService pipelineService = PipelineServiceFactory.newPipelineService();
     return pipelineService.startNewPipeline(
         new MapReduceJob<>(specification, settings), settings.toJobSettings());
+  }
+
+  private static void verifyBucketIsWritable(MapReduceSettings settings) {
+   Storage client = GcpCredentialOptions.getStorageClient(settings);
+    BlobId blobId = BlobId.of(settings.getBucketName(), UUID.randomUUID() + ".tmp");
+    if (client.get(blobId) != null) {
+      log.warning("File '" + blobId.getName() + "' exists. Skipping bucket write test.");
+      return;
+    }
+    try {
+      client.create(BlobInfo.newBuilder(blobId).build(), "Delete me!".getBytes(StandardCharsets.UTF_8));
+    } catch (StorageException e) {
+      throw new IllegalArgumentException("Bucket " + settings.getBucketName() + " is not writeable; MR job needs to write it for sort/shuffle phase of job", e);
+    } finally {
+      client.delete(blobId);
+    }
   }
 
   /**
@@ -140,7 +158,11 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
               mrJobId,
               mrSpec.getKeyMarshaller(),
               mrSpec.getValueMarshaller(),
-              new HashingSharder(getNumOutputFiles(readers.size())));
+              new HashingSharder(getNumOutputFiles(readers.size())),
+              GoogleCloudStorageFileOutput.BaseOptions.builder()
+                .serviceAccountKey(settings.getServiceAccountKey())
+                .build()
+      );
       output.setContext(context);
 
       List<? extends OutputWriter<KeyValue<K, V>>> writers = output.createWriters(readers.size());
@@ -218,12 +240,18 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       int reduceShards = mrSpec.getNumReducers();
       FilesByShard filesByShard = mapResult.getOutputResult();
       filesByShard.splitShards(Math.max(mapShards, reduceShards));
-      GoogleCloudStorageSortInput input = new GoogleCloudStorageSortInput(filesByShard);
+      GoogleCloudStorageLineInput.BaseOptions inputOptions = GoogleCloudStorageLineInput.BaseOptions.defaults();
+      GoogleCloudStorageFileOutput.BaseOptions outputOptions = GoogleCloudStorageFileOutput.BaseOptions.defaults();
+      if (settings.getServiceAccountKey() != null) {
+        inputOptions = inputOptions.withServiceAccountKey(settings.getServiceAccountKey());
+        outputOptions = outputOptions.withServiceAccountKey(settings.getServiceAccountKey());
+      }
+      GoogleCloudStorageSortInput input = new GoogleCloudStorageSortInput(filesByShard, inputOptions);
       ((Input<?>) input).setContext(context);
       List<? extends InputReader<KeyValue<ByteBuffer, ByteBuffer>>> readers = input.createReaders();
       Output<KeyValue<ByteBuffer, List<ByteBuffer>>, FilesByShard> output =
           new GoogleCloudStorageSortOutput(settings.getBucketName(), mrJobId,
-              new HashingSharder(reduceShards));
+              new HashingSharder(reduceShards), outputOptions);
       output.setContext(context);
 
       List<? extends OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>>> writers =
@@ -254,7 +282,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
           new ShardedJob<>(shardedJobId, sortTasks.build(), workerController, shardedJobSettings);
       FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());
 
-      return futureCall(new ExamineStatusAndReturnResult<FilesByShard>(shardedJobId),
+      return futureCall(new ExamineStatusAndReturnResult<>(shardedJobId),
           resultAndStatus, settings.toJobSettings(waitFor(shardedJobResult),
               statusConsoleUrl(shardedJobSettings.getMapReduceStatusUrl())));
     }
@@ -307,17 +335,25 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       FilesByShard sortFiles = priorResult.getOutputResult();
       int maxFilesPerShard = findMaxFilesPerShard(sortFiles);
       if (maxFilesPerShard <= settings.getMergeFanin()) {
+        //no merge needed
         return immediate(priorResult);
       }
 
+      GoogleCloudStorageLineInput.BaseOptions inputOptions = GoogleCloudStorageLineInput.BaseOptions.defaults();
+      GoogleCloudStorageFileOutput.BaseOptions outputOptions = GoogleCloudStorageFileOutput.BaseOptions.defaults();
+      if (settings.getServiceAccountKey() != null) {
+        inputOptions = inputOptions.withServiceAccountKey(settings.getServiceAccountKey());
+        outputOptions = outputOptions.withServiceAccountKey(settings.getServiceAccountKey());
+      }
+
       GoogleCloudStorageMergeInput input =
-          new GoogleCloudStorageMergeInput(sortFiles, settings.getMergeFanin());
+          new GoogleCloudStorageMergeInput(sortFiles, settings.getMergeFanin(), inputOptions);
       ((Input<?>) input).setContext(context);
       List<? extends InputReader<KeyValue<ByteBuffer, Iterator<ByteBuffer>>>> readers =
           input.createReaders();
 
       Output<KeyValue<ByteBuffer, List<ByteBuffer>>, FilesByShard> output =
-          new GoogleCloudStorageMergeOutput(settings.getBucketName(), mrJobId, tier);
+          new GoogleCloudStorageMergeOutput(settings.getBucketName(), mrJobId, tier, outputOptions);
       output.setContext(context);
 
       List<? extends OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>>> writers =
@@ -348,10 +384,10 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());
 
       FutureValue<MapReduceResult<FilesByShard>> finished = futureCall(
-          new ExamineStatusAndReturnResult<FilesByShard>(shardedJobId),
+          new ExamineStatusAndReturnResult<>(shardedJobId),
           resultAndStatus, settings.toJobSettings(waitFor(shardedJobResult),
               statusConsoleUrl(shardedJobSettings.getMapReduceStatusUrl())));
-      futureCall(new Cleanup(settings), immediate(priorResult), waitFor(finished));
+      futureCall(new MapReduceJob.Cleanup(settings), immediate(priorResult), waitFor(finished));
       return futureCall(new MergeJob(mrJobId, mrSpec, settings, tier + 1), finished,
           settings.toJobSettings(maxAttempts(1)));
     }
@@ -408,7 +444,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       Output<O, R> output = mrSpec.getOutput();
       output.setContext(context);
       GoogleCloudStorageReduceInput<K, V> input = new GoogleCloudStorageReduceInput<>(
-          mergeResult.getOutputResult(), mrSpec.getKeyMarshaller(), mrSpec.getValueMarshaller());
+          mergeResult.getOutputResult(), mrSpec.getKeyMarshaller(), mrSpec.getValueMarshaller(), GoogleCloudStorageLineInput.BaseOptions.defaults().withServiceAccountKey(settings.getServiceAccountKey()));
       ((Input<?>) input).setContext(context);
       List<? extends InputReader<KeyValue<K, Iterator<V>>>> readers = input.createReaders();
 
