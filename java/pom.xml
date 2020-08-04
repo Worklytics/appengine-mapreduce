@@ -11,7 +11,7 @@
   </organization>
   <!-- follow semver for fork of OSS -->
   <!-- https://gofore.com/en/best-practices-for-forking-a-git-repo/ -->
-  <version>0.10+worklytics.2-SNAPSHOT</version>
+  <version>0.10+worklytics.2</version>
   <packaging>jar</packaging>
   <scm>
     <connection>scm:git:git@github.com:Worklytics/appengine-mapreduce.git</connection>
@@ -35,7 +35,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <github.global.server>github</github.global.server>
-    <jackson.version>(2.7,2.99)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
+    <jackson.version>[2.7,3.0)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
   </properties>
   <repositories>
     <repository>
