@@ -311,7 +311,13 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
      * method will invoke itself recursively.
      */
     @Override
-    public Value<MapReduceResult<FilesByShard>> run(@NonNull MapReduceResult<FilesByShard> priorResult) {
+    public Value<MapReduceResult<FilesByShard>> run(MapReduceResult<FilesByShard> priorResult) {
+
+      //preempt NPE for priorResult; not sure how this happens exactly, but seems like we probably have a bug rolling
+      // up empty collections of FilesByShard somehow
+      if (priorResult == null) {
+        throw new Error("Prior result passed to " + getShardedJobId() + " was null");
+      }
 
       Context context = new BaseContext(mrJobId);
       FilesByShard sortFiles = priorResult.getOutputResult();
@@ -359,8 +365,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       PromisedValue<ResultAndStatus<FilesByShard>> resultAndStatus = newPromise();
       WorkerController<KeyValue<ByteBuffer, Iterator<ByteBuffer>>,
           KeyValue<ByteBuffer, List<ByteBuffer>>, FilesByShard, MergeContext> workerController =
-          new WorkerController<>(mrJobId, priorResult.getCounters(), output,
-              resultAndStatus.getHandle());
+          new WorkerController<>(mrJobId, priorResult.getCounters(), output, resultAndStatus.getHandle());
       ShardedJob<?> shardedJob =
           new ShardedJob<>(getShardedJobId(), mergeTasks.build(), workerController, shardedJobSettings);
       FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());
@@ -495,21 +500,18 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
         new MapJob<>(mrJobId, specification, settings), settings.toJobSettings(maxAttempts(1)));
 
     FutureValue<MapReduceResult<FilesByShard>> sortResult = futureCall(
-        new SortJob(mrJobId, specification, settings), mapResult,
-        settings.toJobSettings(maxAttempts(1)));
+        new SortJob(mrJobId, specification, settings), mapResult, settings.toJobSettings(maxAttempts(1)));
     FutureValue<MapReduceResult<FilesByShard>> mergeResult = futureCall(
-        new MergeJob(mrJobId, specification, settings, 1), sortResult,
-        settings.toJobSettings(maxAttempts(1)));
+        new MergeJob(mrJobId, specification, settings, 1), sortResult, settings.toJobSettings(maxAttempts(1)));
     FutureValue<MapReduceResult<R>> reduceResult = futureCall(
-        new ReduceJob<>(mrJobId, specification, settings), mergeResult,
-        settings.toJobSettings(maxAttempts(1)));
+        new ReduceJob<>(mrJobId, specification, settings), mergeResult, settings.toJobSettings(maxAttempts(1)));
     futureCall(new Cleanup(settings), mapResult, waitFor(sortResult));
     futureCall(new Cleanup(settings), mergeResult, waitFor(reduceResult));
     return reduceResult;
   }
 
   public Value<MapReduceResult<R>> handleException(Throwable t) throws Throwable {
-    log.log(Level.SEVERE, "MapReduce job failed because of: ", t);
+    log.log(Level.SEVERE, "MapReduce job " + getJobKey().getName() + " failed because of: ", t);
     throw t;
   }
 

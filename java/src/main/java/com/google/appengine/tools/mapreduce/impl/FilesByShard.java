@@ -17,6 +17,7 @@ import java.util.Objects;
 public final class FilesByShard implements Serializable {
 
   private static final long serialVersionUID = -4160169134959332304L;
+
   private final String bucket;
   private List<List<String>> allFiles;
   private int shardCount;
@@ -74,8 +75,7 @@ public final class FilesByShard implements Serializable {
 
   @Override
   public String toString() {
-    return "FilesByShard [bucket=" + getBucket() + ", allFiles=" + allFiles + ", shardCount="
-        + shardCount + "]";
+    return "FilesByShard [bucket=" + getBucket() + ", allFiles=" + allFiles + ", shardCount=" + shardCount + "]";
   }
 
   public String getBucket() {
@@ -110,7 +110,7 @@ public final class FilesByShard implements Serializable {
   private static ArrayList<List<String>> initAllFiles(int shardCount) {
     ArrayList<List<String>> result = new ArrayList<>(shardCount);
     for (int i = 0; i < shardCount; i++) {
-      result.add(new ArrayList<String>(1));
+      result.add(new ArrayList<>(1));
     }
     return result;
   }
