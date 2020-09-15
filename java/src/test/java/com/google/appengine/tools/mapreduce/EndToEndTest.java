@@ -812,7 +812,7 @@ public class EndToEndTest extends EndToEndTestCase {
 
     @Override
     public void setContext(Context context) {
-      this.setContext(context);
+      super.setContext(context);
       delegate.setContext(context);
     }
 
