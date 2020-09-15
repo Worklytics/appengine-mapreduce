@@ -1,6 +1,9 @@
 // Copyright 2011 Google Inc. All Rights Reserved.
 package com.google.appengine.tools.mapreduce;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.NoSuchElementException;
@@ -33,25 +36,15 @@ import java.util.NoSuchElementException;
  *
  * @param <I> type of values produced by this input
  */
-public abstract class InputReader<I> implements Serializable {
+public abstract class InputReader<I> implements Serializable, ShardContextAware {
 
   private static final long serialVersionUID = 680562312715017093L;
 
+  /**
+   * Used internally to get/set the context to be used for the processing that follows.
+   */
+  @Getter @Setter
   private transient ShardContext context;
-
-  /**
-   * Used internally to sets the context to be used for the processing that follows.
-   */
-  public void setContext(ShardContext context) {
-    this.context = context;
-  }
-
-  /**
-   * Returns the current context, or null if none.
-   */
-  public ShardContext getContext() {
-    return context;
-  }
 
   /**
    * Returns the next input value, or throws {@link NoSuchElementException}

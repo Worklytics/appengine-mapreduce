@@ -1,6 +1,9 @@
 // Copyright 2011 Google Inc. All Rights Reserved.
 package com.google.appengine.tools.mapreduce;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
@@ -19,26 +22,15 @@ import java.util.List;
  * @param <O> type of values accepted by this output
  * @param <R> type returned by {@link #finish}
  */
-public abstract class Output<O, R> implements Serializable {
+public abstract class Output<O, R> implements Serializable, ContextAware {
 
   private static final long serialVersionUID = 496243337289553392L;
 
+  /**
+   * execution context of this Output
+   */
+  @Getter @Setter
   private transient Context context;
-
-  /**
-   * Used internally to sets the context to be used for the processing that follows.
-   * @param context to set as context for the output
-   */
-  public void setContext(Context context) {
-    this.context = context;
-  }
-
-  /**
-   * @return the current context, or null if none.
-   */
-  public Context getContext() {
-    return context;
-  }
 
   /**
    * @param numShards The number of shards which should be equal to the number of {@link OutputWriter}s returned.

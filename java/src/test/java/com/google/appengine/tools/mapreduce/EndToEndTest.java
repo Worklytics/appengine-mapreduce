@@ -811,7 +811,8 @@ public class EndToEndTest extends EndToEndTestCase {
     }
 
     @Override
-    void setContext(Context context) {
+    public void setContext(Context context) {
+      this.setContext(context);
       delegate.setContext(context);
     }
 
@@ -1244,7 +1245,7 @@ public class EndToEndTest extends EndToEndTestCase {
     runTest(new MapReduceSpecification.Builder<>(new ConsecutiveLongInput(0, SHARD_COUNT, SHARD_COUNT),
         new SideOutputMapper(getStorageTestHelper().getBucket(), cloudStorageFileOutputOptions), KeyProjectionReducer.<GcsFilename, Void>create(),
         new InMemoryOutput<>())
-        .setKeyMarshaller(Marshallers.<GcsFilename>getSerializationMarshaller())
+        .setKeyMarshaller(Marshallers.getSerializationMarshaller())
         .setValueMarshaller(Marshallers.getVoidMarshaller())
         .setJobName("Test MR")
         .build(),

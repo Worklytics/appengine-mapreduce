@@ -2,6 +2,7 @@ package com.google.appengine.tools.mapreduce.inputs;
 
 import com.google.appengine.tools.mapreduce.InputReader;
 import com.google.appengine.tools.mapreduce.ShardContext;
+import com.google.appengine.tools.mapreduce.ShardContextAware;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
