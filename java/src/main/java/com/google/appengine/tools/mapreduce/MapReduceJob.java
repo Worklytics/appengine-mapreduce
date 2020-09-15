@@ -2,10 +2,6 @@
 
 package com.google.appengine.tools.mapreduce;
 
-
-
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.appengine.tools.mapreduce.impl.BaseContext;
 import com.google.appengine.tools.mapreduce.impl.CountersImpl;
 import com.google.appengine.tools.mapreduce.impl.FilesByShard;
@@ -44,6 +40,8 @@ import com.google.cloud.storage.*;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -65,26 +63,21 @@ import java.util.logging.Logger;
  * @param <O> type of output values
  * @param <R> type of final result
  */
+@RequiredArgsConstructor
 public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
   private static final long serialVersionUID = 723635736794527552L;
   private static final Logger log = Logger.getLogger(MapReduceJob.class.getName());
 
-  private final MapReduceSpecification<I, K, V, O, R> specification;
-  private final MapReduceSettings settings;
-
-  public MapReduceJob(MapReduceSpecification<I, K, V, O, R> specification,
-      MapReduceSettings settings) {
-    this.specification = specification;
-    this.settings = settings;
-  }
+  @NonNull private final MapReduceSpecification<I, K, V, O, R> specification;
+  @NonNull private final MapReduceSettings settings;
 
   /**
    * Starts a {@link MapReduceJob} with the given parameters in a new Pipeline.
    * Returns the pipeline id.
    */
   public static <I, K, V, O, R> String start(
-      MapReduceSpecification<I, K, V, O, R> specification, MapReduceSettings settings) {
+      @NonNull MapReduceSpecification<I, K, V, O, R> specification, @NonNull MapReduceSettings settings) {
     if (settings.getWorkerQueueName() == null) {
       settings = new MapReduceSettings.Builder(settings).setWorkerQueueName("default").build();
     }
@@ -115,20 +108,17 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   /**
    * The pipeline job to execute the Map stage of the MapReduce. (For all shards)
    */
+  @RequiredArgsConstructor
   private static class MapJob<I, K, V> extends Job0<MapReduceResult<FilesByShard>> {
-    private static final long serialVersionUID = 274712180795282822L;
 
-    private final String mrJobId;
-    private final MapReduceSpecification<I, K, V, ?, ?> mrSpec;
-    private final MapReduceSettings settings;
-    private final String shardedJobId;
+    private static final long serialVersionUID = 1L;
 
-    private MapJob(
-        String mrJobId, MapReduceSpecification<I, K, V, ?, ?> mrSpec, MapReduceSettings settings) {
-      this.mrJobId = checkNotNull(mrJobId, "Null mrJobId");
-      this.mrSpec = checkNotNull(mrSpec, "Null mrSpec");
-      this.settings = checkNotNull(settings, "Null settings");
-      shardedJobId = "map-" + mrJobId;
+    @NonNull private final String mrJobId;
+    @NonNull private final MapReduceSpecification<I, K, V, ?, ?> mrSpec;
+    @NonNull private final MapReduceSettings settings;
+
+    private String getShardedJobId() {
+      return "map-" + mrJobId;
     }
 
     @Override
@@ -167,7 +157,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
       List<? extends OutputWriter<KeyValue<K, V>>> writers = output.createWriters(readers.size());
       Preconditions.checkState(readers.size() == writers.size(), "%s: %s readers, %s writers",
-          shardedJobId, readers.size(), writers.size());
+        getShardedJobId(), readers.size(), writers.size());
       ImmutableList.Builder<WorkerShardTask<I, KeyValue<K, V>, MapperContext<K, V>>> mapTasks =
           ImmutableList.builder();
       for (int i = 0; i < readers.size(); i++) {
@@ -175,15 +165,15 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             mrSpec.getMapper(), writers.get(i), settings.getMillisPerSlice()));
       }
       ShardedJobSettings shardedJobSettings =
-          settings.toShardedJobSettings(shardedJobId, getPipelineKey());
+          settings.toShardedJobSettings(getShardedJobId(), getPipelineKey());
 
       PromisedValue<ResultAndStatus<FilesByShard>> resultAndStatus = newPromise();
       WorkerController<I, KeyValue<K, V>, FilesByShard, MapperContext<K, V>> workerController =
           new WorkerController<>(mrJobId, new CountersImpl(), output, resultAndStatus.getHandle());
       ShardedJob<?> shardedJob =
-          new ShardedJob<>(shardedJobId, mapTasks.build(), workerController, shardedJobSettings);
+          new ShardedJob<>(getShardedJobId(), mapTasks.build(), workerController, shardedJobSettings);
       FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());
-      return futureCall(new ExamineStatusAndReturnResult<FilesByShard>(shardedJobId),
+      return futureCall(new ExamineStatusAndReturnResult<>(getShardedJobId()),
           resultAndStatus, settings.toJobSettings(waitFor(shardedJobResult),
               statusConsoleUrl(shardedJobSettings.getMapReduceStatusUrl())));
     }
@@ -195,7 +185,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
     @SuppressWarnings("unused")
     public Value<MapReduceResult<FilesByShard>> handleException(
         CancellationException ex) {
-      ShardedJobServiceFactory.getShardedJobService().abortJob(shardedJobId);
+      ShardedJobServiceFactory.getShardedJobService().abortJob(getShardedJobId());
       return null;
     }
   }
@@ -203,23 +193,19 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   /**
    * The pipeline job to execute the Sort stage of the MapReduce. (For all shards)
    */
+  @RequiredArgsConstructor
   private static class SortJob extends Job1<
       MapReduceResult<FilesByShard>,
       MapReduceResult<FilesByShard>> {
-    private static final long serialVersionUID = 8761355950012542309L;
+    private static final long serialVersionUID = 1L;
     // We don't need the CountersImpl part of the MapResult input here but we
     // accept it to avoid needing an adapter job to connect this job to MapJob's result.
-    private final String mrJobId;
-    private final MapReduceSpecification<?, ?, ?, ?, ?> mrSpec;
-    private final MapReduceSettings settings;
-    private final String shardedJobId;
+    @NonNull private final String mrJobId;
+    @NonNull private final MapReduceSpecification<?, ?, ?, ?, ?> mrSpec;
+    @NonNull private final MapReduceSettings settings;
 
-    private SortJob(
-        String mrJobId, MapReduceSpecification<?, ?, ?, ?, ?> mrSpec, MapReduceSettings settings) {
-      this.mrJobId = checkNotNull(mrJobId, "Null mrJobId");
-      this.mrSpec = checkNotNull(mrSpec, "Null mrSpec");
-      this.settings = checkNotNull(settings, "Null settings");
-      shardedJobId = "sort-" + mrJobId;
+    private String getShardedJobId() {
+      return "sort-" + mrJobId;
     }
 
     @Override
@@ -257,7 +243,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       List<? extends OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>>> writers =
           output.createWriters(readers.size());
       Preconditions.checkState(readers.size() == writers.size(), "%s: %s readers, %s writers",
-          shardedJobId, readers.size(), writers.size());
+        getShardedJobId(), readers.size(), writers.size());
       ImmutableList.Builder<WorkerShardTask<KeyValue<ByteBuffer, ByteBuffer>,
           KeyValue<ByteBuffer, List<ByteBuffer>>, SortContext>> sortTasks =
               ImmutableList.builder();
@@ -271,7 +257,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             settings.getSortReadTimeMillis()));
       }
       ShardedJobSettings shardedJobSettings =
-          settings.toShardedJobSettings(shardedJobId, getPipelineKey());
+          settings.toShardedJobSettings(getShardedJobId(), getPipelineKey());
 
       PromisedValue<ResultAndStatus<FilesByShard>> resultAndStatus = newPromise();
       WorkerController<KeyValue<ByteBuffer, ByteBuffer>, KeyValue<ByteBuffer, List<ByteBuffer>>,
@@ -279,17 +265,17 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
           mapResult.getCounters(), output, resultAndStatus.getHandle());
 
       ShardedJob<?> shardedJob =
-          new ShardedJob<>(shardedJobId, sortTasks.build(), workerController, shardedJobSettings);
+          new ShardedJob<>(getShardedJobId(), sortTasks.build(), workerController, shardedJobSettings);
       FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());
 
-      return futureCall(new ExamineStatusAndReturnResult<>(shardedJobId),
+      return futureCall(new ExamineStatusAndReturnResult<>(getShardedJobId()),
           resultAndStatus, settings.toJobSettings(waitFor(shardedJobResult),
               statusConsoleUrl(shardedJobSettings.getMapReduceStatusUrl())));
     }
 
     @SuppressWarnings("unused")
     public Value<FilesByShard> handleException(CancellationException ex) {
-      ShardedJobServiceFactory.getShardedJobService().abortJob(shardedJobId);
+      ShardedJobServiceFactory.getShardedJobService().abortJob(getShardedJobId());
       return null;
     }
   }
@@ -297,25 +283,21 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   /**
    * The pipeline job to execute the optional Merge stage of the MapReduce. (For all shards)
    */
+  @RequiredArgsConstructor
   private static class MergeJob extends
       Job1<MapReduceResult<FilesByShard>, MapReduceResult<FilesByShard>> {
 
-    private static final long serialVersionUID = 6206131608067499939L;
+    private static final long serialVersionUID = 1L;
+
     // We don't need the CountersImpl part of the MapResult input here but we
     // accept it to avoid needing an adapter job to connect this job to MapJob's result.
-    private final String mrJobId;
-    private final MapReduceSpecification<?, ?, ?, ?, ?> mrSpec;
-    private final MapReduceSettings settings;
-    private final Integer tier;
-    private final String shardedJobId;
+    @NonNull private final String mrJobId;
+    @NonNull private final MapReduceSpecification<?, ?, ?, ?, ?> mrSpec;
+    @NonNull private final MapReduceSettings settings;
+    @NonNull private final Integer tier;
 
-    private MergeJob(String mrJobId, MapReduceSpecification<?, ?, ?, ?, ?> mrSpec,
-        MapReduceSettings settings, Integer tier) {
-      this.tier = checkNotNull(tier, "Null tier");
-      this.mrJobId = checkNotNull(mrJobId, "Null mrJobId");
-      this.mrSpec = checkNotNull(mrSpec, "Null mrSpec");
-      this.settings = checkNotNull(settings, "Null settings");
-      this.shardedJobId = "merge-" + mrJobId + "-" + tier;
+    private String getShardedJobId() {
+      return "merge-" + mrJobId + "-" + tier;
     }
 
     @Override
@@ -329,7 +311,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
      * method will invoke itself recursively.
      */
     @Override
-    public Value<MapReduceResult<FilesByShard>> run(MapReduceResult<FilesByShard> priorResult) {
+    public Value<MapReduceResult<FilesByShard>> run(@NonNull MapReduceResult<FilesByShard> priorResult) {
 
       Context context = new BaseContext(mrJobId);
       FilesByShard sortFiles = priorResult.getOutputResult();
@@ -359,7 +341,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       List<? extends OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>>> writers =
           output.createWriters(readers.size());
       Preconditions.checkState(readers.size() == writers.size(), "%s: %s readers, %s writers",
-          shardedJobId, readers.size(), writers.size());
+          getShardedJobId(), readers.size(), writers.size());
       ImmutableList.Builder<WorkerShardTask<KeyValue<ByteBuffer, Iterator<ByteBuffer>>,
           KeyValue<ByteBuffer, List<ByteBuffer>>, MergeContext>> mergeTasks =
           ImmutableList.builder();
@@ -372,7 +354,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             settings.getSortReadTimeMillis()));
       }
       ShardedJobSettings shardedJobSettings =
-          settings.toShardedJobSettings(shardedJobId, getPipelineKey());
+          settings.toShardedJobSettings(getShardedJobId(), getPipelineKey());
 
       PromisedValue<ResultAndStatus<FilesByShard>> resultAndStatus = newPromise();
       WorkerController<KeyValue<ByteBuffer, Iterator<ByteBuffer>>,
@@ -380,11 +362,11 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
           new WorkerController<>(mrJobId, priorResult.getCounters(), output,
               resultAndStatus.getHandle());
       ShardedJob<?> shardedJob =
-          new ShardedJob<>(shardedJobId, mergeTasks.build(), workerController, shardedJobSettings);
+          new ShardedJob<>(getShardedJobId(), mergeTasks.build(), workerController, shardedJobSettings);
       FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());
 
       FutureValue<MapReduceResult<FilesByShard>> finished = futureCall(
-          new ExamineStatusAndReturnResult<>(shardedJobId),
+          new ExamineStatusAndReturnResult<>(getShardedJobId()),
           resultAndStatus, settings.toJobSettings(waitFor(shardedJobResult),
               statusConsoleUrl(shardedJobSettings.getMapReduceStatusUrl())));
       futureCall(new MapReduceJob.Cleanup(settings), immediate(priorResult), waitFor(finished));
@@ -394,7 +376,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     @SuppressWarnings("unused")
     public Value<FilesByShard> handleException(CancellationException ex) {
-      ShardedJobServiceFactory.getShardedJobService().abortJob(shardedJobId);
+      ShardedJobServiceFactory.getShardedJobService().abortJob(getShardedJobId());
       return null;
     }
   }
@@ -410,22 +392,18 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   /**
    * The pipeline job to execute the Reduce stage of the MapReduce. (For all shards)
    */
+  @RequiredArgsConstructor
   private static class ReduceJob<K, V, O, R> extends Job1<MapReduceResult<R>,
       MapReduceResult<FilesByShard>> {
 
     private static final long serialVersionUID = 590237832617368335L;
 
-    private final String mrJobId;
-    private final MapReduceSpecification<?, K, V, O, R> mrSpec;
-    private final MapReduceSettings settings;
-    private final String shardedJobId;
+    @NonNull private final String mrJobId;
+    @NonNull private final MapReduceSpecification<?, K, V, O, R> mrSpec;
+    @NonNull private final MapReduceSettings settings;
 
-    private ReduceJob(
-        String mrJobId, MapReduceSpecification<?, K, V, O, R> mrSpec, MapReduceSettings settings) {
-      this.mrJobId = checkNotNull(mrJobId, "Null mrJobId");
-      this.mrSpec = checkNotNull(mrSpec, "Null mrSpec");
-      this.settings = checkNotNull(settings, "Null settings");
-      shardedJobId = "reduce-" + mrJobId;
+    private String getShardedJobId() {
+      return "reduce-" + mrJobId;
     }
 
     @Override
@@ -450,7 +428,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
       List<? extends OutputWriter<O>> writers = output.createWriters(mrSpec.getNumReducers());
       Preconditions.checkArgument(readers.size() == writers.size(), "%s: %s readers, %s writers",
-          shardedJobId, readers.size(), writers.size());
+        getShardedJobId(), readers.size(), writers.size());
       ImmutableList.Builder<WorkerShardTask<KeyValue<K, Iterator<V>>, O, ReducerContext<O>>>
           reduceTasks = ImmutableList.builder();
       for (int i = 0; i < readers.size(); i++) {
@@ -458,35 +436,33 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             mrSpec.getReducer(), writers.get(i), settings.getMillisPerSlice()));
       }
       ShardedJobSettings shardedJobSettings =
-          settings.toShardedJobSettings(shardedJobId, getPipelineKey());
+          settings.toShardedJobSettings(getShardedJobId(), getPipelineKey());
       PromisedValue<ResultAndStatus<R>> resultAndStatus = newPromise();
       WorkerController<KeyValue<K, Iterator<V>>, O, R, ReducerContext<O>> workerController =
           new WorkerController<>(mrJobId, mergeResult.getCounters(), output,
               resultAndStatus.getHandle());
       ShardedJob<?> shardedJob =
-          new ShardedJob<>(shardedJobId, reduceTasks.build(), workerController, shardedJobSettings);
+          new ShardedJob<>(getShardedJobId(), reduceTasks.build(), workerController, shardedJobSettings);
       FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());
-      return futureCall(new ExamineStatusAndReturnResult<R>(shardedJobId), resultAndStatus,
+      return futureCall(new ExamineStatusAndReturnResult<>(getShardedJobId()), resultAndStatus,
           settings.toJobSettings(waitFor(shardedJobResult),
               statusConsoleUrl(shardedJobSettings.getMapReduceStatusUrl())));
     }
 
     @SuppressWarnings("unused")
     public Value<MapReduceResult<R>> handleException(CancellationException ex) {
-      ShardedJobServiceFactory.getShardedJobService().abortJob(shardedJobId);
+      ShardedJobServiceFactory.getShardedJobService().abortJob(getShardedJobId());
       return null;
     }
   }
 
+  @RequiredArgsConstructor
   private static class Cleanup extends Job1<Void, MapReduceResult<FilesByShard>> {
 
     private static final long serialVersionUID = 4559443543355672948L;
 
+    @NonNull
     private final MapReduceSettings settings;
-
-    public Cleanup(MapReduceSettings settings) {
-      this.settings = settings;
-    }
 
     @Override
     public Value<Void> run(MapReduceResult<FilesByShard> result) {
