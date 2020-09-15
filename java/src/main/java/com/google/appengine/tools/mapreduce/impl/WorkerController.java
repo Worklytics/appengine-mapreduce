@@ -13,6 +13,8 @@ import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.OrphanedObjectException;
 import com.google.appengine.tools.pipeline.PipelineServiceFactory;
 import com.google.common.collect.ImmutableList;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -20,24 +22,17 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
 
+@RequiredArgsConstructor
 public class WorkerController<I, O, R, C extends WorkerContext<O>> extends
     ShardedJobController<WorkerShardTask<I, O, C>> {
 
   private static final long serialVersionUID = 931651840864967980L;
   private static final Logger log = Logger.getLogger(WorkerController.class.getName());
 
-  private final String mrJobId;
-  private final Counters totalCounters;
-  private final Output<O, R> output;
-  private final String resultPromiseHandle;
-
-  public WorkerController(String mrJobId, Counters initialCounters, Output<O, R> output,
-      String resultPromiseHandle) {
-    this.mrJobId = checkNotNull(mrJobId, "Null jobId");
-    this.totalCounters = checkNotNull(initialCounters, "Null counters");
-    this.output = checkNotNull(output, "Null output");
-    this.resultPromiseHandle = checkNotNull(resultPromiseHandle, "Null resultPromiseHandle");
-  }
+  @NonNull private final String mrJobId;
+  @NonNull private final Counters totalCounters;
+  @NonNull private final Output<O, R> output;
+  @NonNull private final String resultPromiseHandle;
 
   @Override
   public void completed(Iterator<WorkerShardTask<I, O, C>> workers) {
@@ -64,8 +59,8 @@ public class WorkerController<I, O, R, C extends WorkerContext<O>> extends
       totalCounters.addAll(counter);
     }
     Status status = new Status(Status.StatusCode.DONE);
-    ResultAndStatus<R> resultAndStatus = new ResultAndStatus<>(
-        new MapReduceResultImpl<>(outputResult, totalCounters), status);
+    ResultAndStatus<R> resultAndStatus =
+      new ResultAndStatus<>(new MapReduceResultImpl<>(outputResult, totalCounters), status);
     submitPromisedJob(resultAndStatus);
   }
 
@@ -76,8 +71,7 @@ public class WorkerController<I, O, R, C extends WorkerContext<O>> extends
 
   private void submitPromisedJob(final ResultAndStatus<R> resultAndStatus) {
     try {
-      PipelineServiceFactory.newPipelineService().submitPromisedValue(resultPromiseHandle,
-          resultAndStatus);
+      PipelineServiceFactory.newPipelineService().submitPromisedValue(resultPromiseHandle, resultAndStatus);
     } catch (OrphanedObjectException e) {
       log.warning("Discarding an orphaned promiseHandle: " + resultPromiseHandle);
     } catch (NoSuchObjectException e) {
