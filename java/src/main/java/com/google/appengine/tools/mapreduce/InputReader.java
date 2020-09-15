@@ -85,13 +85,6 @@ public abstract class InputReader<I> implements Serializable {
   public void endSlice() throws IOException {}
 
   /**
-   * @deprecated Override beginShard instead.
-   * @throws IOException in the event of failure
-   */
-  @Deprecated
-  public void open() throws IOException {}
-
-  /**
    * Performs setup at the beginning of the shard. This method is invoked before the first call to
    * {@link #beginSlice}. It will not be invoked again unless the shard restarts. When a shard is
    * restarted, this method is invoked and the input should be read from the beginning.
@@ -99,15 +92,7 @@ public abstract class InputReader<I> implements Serializable {
    * @throws IOException in the event of failure
    */
   public void beginShard() throws IOException {
-    open();
   }
-
-  /**
-   * @deprecated Override endShard instead.
-   * @throws IOException in the event of failure
-   */
-  @Deprecated
-  public void close() throws IOException {}
 
   /**
    * Called after endSlice if there will not be any subsequent calls to beginSlice or next.
@@ -116,7 +101,6 @@ public abstract class InputReader<I> implements Serializable {
    * @throws IOException in the event of failure
    */
   public void endShard() throws IOException {
-    close();
   }
 
   /**
