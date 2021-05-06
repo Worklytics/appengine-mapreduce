@@ -8,6 +8,8 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobServiceFac
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.pipeline.Job0;
 import com.google.appengine.tools.pipeline.Value;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 
@@ -17,22 +19,15 @@ import java.util.List;
  *
  * @param <T> type of task
  */
+@RequiredArgsConstructor
 public class ShardedJob<T extends IncrementalTask> extends Job0<Void> {
 
-  private static final long serialVersionUID = -6595147973116356334L;
+  private static final long serialVersionUID = 1L;
 
-  private final String jobId;
-  private final List<? extends T> workers;
-  private final ShardedJobController<T> controller;
-  private final ShardedJobSettings settings;
-
-  public ShardedJob(String shardedJobId, List<? extends T> workers,
-      ShardedJobController<T> controller, ShardedJobSettings shardedJobSettings) {
-    this.jobId = shardedJobId;
-    this.workers = workers;
-    this.controller = controller;
-    this.settings = shardedJobSettings;
-  }
+  @NonNull private final String jobId;
+  @NonNull private final List<? extends T> workers;
+  @NonNull private final ShardedJobController<T> controller;
+  @NonNull private final ShardedJobSettings settings;
 
   @Override
   public Value<Void> run() {

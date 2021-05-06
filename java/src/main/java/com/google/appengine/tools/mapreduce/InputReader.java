@@ -1,6 +1,9 @@
 // Copyright 2011 Google Inc. All Rights Reserved.
 package com.google.appengine.tools.mapreduce;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.NoSuchElementException;
@@ -33,25 +36,15 @@ import java.util.NoSuchElementException;
  *
  * @param <I> type of values produced by this input
  */
-public abstract class InputReader<I> implements Serializable {
+public abstract class InputReader<I> implements Serializable, ShardContextAware {
 
   private static final long serialVersionUID = 680562312715017093L;
 
+  /**
+   * Used internally to get/set the context to be used for the processing that follows.
+   */
+  @Getter @Setter
   private transient ShardContext context;
-
-  /**
-   * Used internally to sets the context to be used for the processing that follows.
-   */
-  public void setContext(ShardContext context) {
-    this.context = context;
-  }
-
-  /**
-   * Returns the current context, or null if none.
-   */
-  public ShardContext getContext() {
-    return context;
-  }
 
   /**
    * Returns the next input value, or throws {@link NoSuchElementException}
@@ -85,13 +78,6 @@ public abstract class InputReader<I> implements Serializable {
   public void endSlice() throws IOException {}
 
   /**
-   * @deprecated Override beginShard instead.
-   * @throws IOException in the event of failure
-   */
-  @Deprecated
-  public void open() throws IOException {}
-
-  /**
    * Performs setup at the beginning of the shard. This method is invoked before the first call to
    * {@link #beginSlice}. It will not be invoked again unless the shard restarts. When a shard is
    * restarted, this method is invoked and the input should be read from the beginning.
@@ -99,15 +85,7 @@ public abstract class InputReader<I> implements Serializable {
    * @throws IOException in the event of failure
    */
   public void beginShard() throws IOException {
-    open();
   }
-
-  /**
-   * @deprecated Override endShard instead.
-   * @throws IOException in the event of failure
-   */
-  @Deprecated
-  public void close() throws IOException {}
 
   /**
    * Called after endSlice if there will not be any subsequent calls to beginSlice or next.
@@ -116,7 +94,6 @@ public abstract class InputReader<I> implements Serializable {
    * @throws IOException in the event of failure
    */
   public void endShard() throws IOException {
-    close();
   }
 
   /**

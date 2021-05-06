@@ -2,6 +2,9 @@
 
 package com.google.appengine.tools.mapreduce;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.io.IOException;
 import java.io.Serializable;
 
@@ -33,25 +36,11 @@ import java.io.Serializable;
  *
  * @param <O> type of values accepted by this output
  */
-public abstract class OutputWriter<O> implements Serializable {
+public abstract class OutputWriter<O> implements Serializable, ShardContextAware {
   private static final long serialVersionUID = 5225114373913821210L;
 
+  @Getter @Setter
   private transient ShardContext context;
-
-  /**
-   * Used internally to sets the context to be used for the processing that follows.
-   * @param context in which OutputWriter is executing
-   */
-  public void setContext(ShardContext context) {
-    this.context = context;
-  }
-
-  /**
-   * @return the current context, or null if none.
-   */
-  public ShardContext getContext() {
-    return context;
-  }
 
   /**
    * Prepares the writer for writing after possibly having gone through

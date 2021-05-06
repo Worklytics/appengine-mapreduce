@@ -1,6 +1,9 @@
 // Copyright 2011 Google Inc. All Rights Reserved.
 package com.google.appengine.tools.mapreduce;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
@@ -15,22 +18,12 @@ import java.util.List;
  *
  * @param <I> type of values produced by this input
  */
-public abstract class Input<I> implements Serializable {
+public abstract class Input<I> implements Serializable, ContextAware {
 
   private static final long serialVersionUID = 8796820298129705263L;
 
+  @Getter @Setter
   private transient Context context;
-
-  void setContext(Context context) {
-    this.context = context;
-  }
-
-  /**
-   * Returns the current context, or null if none.
-   */
-  public Context getContext() {
-    return context;
-  }
 
   /**
    * Returns a list of readers for this input.  It is the {@code Input}'s
