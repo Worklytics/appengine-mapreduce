@@ -98,10 +98,10 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
   static final DatastoreService DATASTORE = DatastoreServiceFactory.getDatastoreService();
   private static final LogService LOG_SERVICE = LogServiceFactory.getLogService();
 
-  private static final WaitStrategy DEFAULT_WAIT_STRATEGY =
+  public static final WaitStrategy DEFAULT_WAIT_STRATEGY =
     WaitStrategies.exponentialWait(30000, TimeUnit.MILLISECONDS);
 
-  private static final RetryerBuilder RETRYER = RetryerBuilder.newBuilder()
+  public static final RetryerBuilder RETRYER = RetryerBuilder.newBuilder()
     .withWaitStrategy(WaitStrategies.exponentialWait(30_000, TimeUnit.MILLISECONDS))
     .retryIfException(e -> {
       boolean ofTypeToRetryFor =
@@ -120,7 +120,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
       return ofTypeToRetryFor && !ofTypeToStopFor;
     });
 
-  private static final RetryerBuilder RETRYER_AGGRESSIVE = RetryerBuilder.newBuilder()
+  public static final RetryerBuilder RETRYER_AGGRESSIVE = RetryerBuilder.newBuilder()
     .retryIfException(e ->
       !(e instanceof RequestTooLargeException
          || e instanceof ResponseTooLargeException

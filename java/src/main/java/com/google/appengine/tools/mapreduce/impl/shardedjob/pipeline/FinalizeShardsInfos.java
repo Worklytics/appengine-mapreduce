@@ -2,10 +2,11 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline;
 
 import static java.util.concurrent.Executors.callable;
 
+import com.github.rholder.retry.RetryException;
+import com.github.rholder.retry.StopStrategies;
 import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Entity;
 import com.google.appengine.api.datastore.Key;
-import com.google.appengine.tools.cloudstorage.RetryHelper;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTask;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskState;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardRetryState;
@@ -56,18 +57,18 @@ public class FinalizeShardsInfos extends Job0<Void> {
         toDelete.add(key);
       }
     }
-    RetryHelper.runWithRetries(callable(new Runnable() {
-      @Override
-      public void run() {
+    try {
+      ShardedJobRunner.RETRYER.withStopStrategy(StopStrategies.neverStop())
+        .build().call(callable(() -> {
         Future<Void> deleteAsync =
-            DatastoreServiceFactory.getAsyncDatastoreService().delete(null, toDelete);
+          DatastoreServiceFactory.getAsyncDatastoreService().delete(null, toDelete);
         Map<Key, Entity> entities = DatastoreServiceFactory.getDatastoreService().get(toFetch);
         Iterator<Key> keysIter = toFetch.iterator();
         while (keysIter.hasNext()) {
           Entity entity = entities.get(keysIter.next());
           if (entity != null) {
             IncrementalTaskState<IncrementalTask> taskState =
-                IncrementalTaskState.Serializer.fromEntity(entity, true);
+              IncrementalTaskState.Serializer.fromEntity(entity, true);
             if (taskState.getTask() != null) {
               taskState.getTask().jobCompleted(status);
               toUpdate.add(IncrementalTaskState.Serializer.toEntity(null, taskState));
@@ -86,8 +87,11 @@ public class FinalizeShardsInfos extends Job0<Void> {
           Throwables.propagateIfPossible(e.getCause());
           throw new RuntimeException("Async get failed", e);
         }
-      }
-    }), ShardedJobRunner.DATASTORE_RETRY_FOREVER_PARAMS, ShardedJobRunner.EXCEPTION_HANDLER);
+      }));
+    } catch (ExecutionException | RetryException e) {
+      throw new RuntimeException(e);
+    }
+
     return null;
   }
 

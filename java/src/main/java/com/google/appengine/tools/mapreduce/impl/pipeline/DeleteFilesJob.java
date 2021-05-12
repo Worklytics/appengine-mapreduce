@@ -1,10 +1,9 @@
 package com.google.appengine.tools.mapreduce.impl.pipeline;
 
-import static com.google.appengine.tools.mapreduce.impl.MapReduceConstants.GCS_RETRY_PARAMETERS;
-
 import com.google.appengine.tools.cloudstorage.GcsService;
 import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
 import com.google.appengine.tools.cloudstorage.RetriesExhaustedException;
+import com.google.appengine.tools.cloudstorage.RetryParams;
 import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.pipeline.Job1;
 import com.google.appengine.tools.pipeline.Value;
@@ -18,6 +17,15 @@ import java.util.logging.Logger;
  * A job which deletes all the files in the provided GoogleCloudStorageFileSet
  */
 public class DeleteFilesJob extends Job1<Void, List<GcsFilename>> {
+
+  public static final RetryParams GCS_RETRY_PARAMETERS = new RetryParams.Builder()
+    .requestTimeoutMillis(30000)
+    .retryMaxAttempts(10)
+    .retryMinAttempts(6)
+    .maxRetryDelayMillis(30000)
+    .totalRetryPeriodMillis(120000)
+    .initialRetryDelayMillis(250)
+    .build();
 
   private static final long serialVersionUID = 4821135390816992131L;
   private static final GcsService gcs = GcsServiceFactory.createGcsService(GCS_RETRY_PARAMETERS);

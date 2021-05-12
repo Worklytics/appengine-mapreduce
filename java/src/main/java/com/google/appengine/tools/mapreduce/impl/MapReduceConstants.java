@@ -52,12 +52,5 @@ public class MapReduceConstants {
 
   public static final int MAX_REDUCE_SHARDS = 2048;
 
-  public static final RetryParams GCS_RETRY_PARAMETERS = new RetryParams.Builder()
-      .requestTimeoutMillis(30000)
-      .retryMaxAttempts(10)
-      .retryMinAttempts(6)
-      .maxRetryDelayMillis(30000)
-      .totalRetryPeriodMillis(120000)
-      .initialRetryDelayMillis(250)
-      .build();
+
 }

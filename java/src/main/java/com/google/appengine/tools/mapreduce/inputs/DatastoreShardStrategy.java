@@ -11,6 +11,9 @@ import static com.google.appengine.api.datastore.Query.SortDirection.ASCENDING;
 import static com.google.appengine.api.datastore.Query.SortDirection.DESCENDING;
 import static com.google.appengine.tools.mapreduce.inputs.BaseDatastoreInput.createQuery;
 
+import com.github.rholder.retry.RetryerBuilder;
+import com.github.rholder.retry.StopStrategies;
+import com.github.rholder.retry.WaitStrategies;
 import com.google.appengine.api.datastore.DatastoreFailureException;
 import com.google.appengine.api.datastore.DatastoreService;
 import com.google.appengine.api.datastore.DatastoreTimeoutException;
@@ -26,14 +29,12 @@ import com.google.appengine.api.datastore.Query.FilterOperator;
 import com.google.appengine.api.datastore.Query.FilterPredicate;
 import com.google.appengine.api.datastore.Query.SortDirection;
 import com.google.appengine.api.datastore.Rating;
-import com.google.appengine.tools.cloudstorage.ExceptionHandler;
-import com.google.appengine.tools.cloudstorage.RetryHelper;
-import com.google.appengine.tools.cloudstorage.RetryParams;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
 import com.google.common.collect.ImmutableMap;
+import lombok.SneakyThrows;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -45,6 +46,7 @@ import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 /**
@@ -172,9 +174,14 @@ public class DatastoreShardStrategy {
 
   private static final Logger logger = Logger.getLogger(DatastoreShardStrategy.class.getName());
 
-  private static final ExceptionHandler EXCEPTION_HANDLER = new ExceptionHandler.Builder().retryOn(
-      ConcurrentModificationException.class, DatastoreTimeoutException.class,
-      DatastoreFailureException.class).abortOn(EntityNotFoundException.class).build();
+  private static final RetryerBuilder EXCEPTION_HANDLER = RetryerBuilder.newBuilder()
+      .retryIfException(e ->
+        (e instanceof ConcurrentModificationException
+          || e instanceof DatastoreTimeoutException
+          || e instanceof DatastoreFailureException)
+        && !(e instanceof EntityNotFoundException))
+    .withWaitStrategy(WaitStrategies.exponentialWait(32_000, TimeUnit.MILLISECONDS))
+    .withStopStrategy(StopStrategies.stopAfterAttempt(6));
 
   private static final Map<Class<?>, Splitter<?>> typeMap =
       ImmutableMap.<Class<?>, Splitter<?>>builder()
@@ -390,16 +397,14 @@ public class DatastoreShardStrategy {
     return new FilterPredicate(propertyName, operator, item.get(0).getProperty(propertyName));
   }
 
+  @SneakyThrows
   private List<Entity> runQuery(Query q, final int limit) {
     final PreparedQuery preparedQuery = datastore.prepare(q);
-    return RetryHelper.runWithRetries(new Callable<List<Entity>>() {
-      @Override
-      public List<Entity> call() {
+    return (List<Entity>) EXCEPTION_HANDLER.build().call(() -> {
         List<Entity> list = preparedQuery.asList(withLimit(limit));
         list.size(); // Forces the loading of all the data.
         return list;
-      }
-    }, RetryParams.getDefaultInstance(), EXCEPTION_HANDLER);
+      });
   }
 
   @VisibleForTesting

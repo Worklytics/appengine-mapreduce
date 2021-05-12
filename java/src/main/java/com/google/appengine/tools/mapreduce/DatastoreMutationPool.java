@@ -1,9 +1,9 @@
 // Copyright 2011 Google Inc. All Rights Reserved.
 package com.google.appengine.tools.mapreduce;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.concurrent.Executors.callable;
 
+import com.github.rholder.retry.RetryerBuilder;
 import com.google.appengine.api.datastore.CommittedButStillApplyingException;
 import com.google.appengine.api.datastore.DatastoreService;
 import com.google.appengine.api.datastore.DatastoreServiceFactory;
@@ -12,11 +12,9 @@ import com.google.appengine.api.datastore.Entity;
 import com.google.appengine.api.datastore.EntityTranslator;
 import com.google.appengine.api.datastore.Key;
 import com.google.appengine.api.datastore.KeyFactory;
-import com.google.appengine.tools.cloudstorage.ExceptionHandler;
-import com.google.appengine.tools.cloudstorage.RetryHelper;
-import com.google.appengine.tools.cloudstorage.RetryParams;
 import com.google.apphosting.api.ApiProxy.ApiProxyException;
 import com.google.common.collect.Lists;
+import lombok.SneakyThrows;
 
 import java.io.Serializable;
 import java.util.Collection;
@@ -57,10 +55,14 @@ public class DatastoreMutationPool {
 
   public static final int DEFAULT_COUNT_LIMIT = 100;
   public static final int DEFAULT_BYTES_LIMIT = 256 * 1024;
-  private static final ExceptionHandler EXCEPTION_HANDLER = new ExceptionHandler.Builder()
-      .retryOn(ApiProxyException.class, ConcurrentModificationException.class,
-          CommittedButStillApplyingException.class, DatastoreTimeoutException.class)
-      .build();
+
+
+  private static final RetryerBuilder RETRYER_BUILDER = RetryerBuilder.newBuilder()
+    .retryIfExceptionOfType(ApiProxyException.class)
+    .retryIfExceptionOfType(ConcurrentModificationException.class)
+    .retryIfExceptionOfType(CommittedButStillApplyingException.class)
+    .retryIfExceptionOfType(DatastoreTimeoutException.class);
+
   public static final Params DEFAULT_PARAMS = new Params.Builder().build();
 
   private final Params params;
@@ -77,18 +79,12 @@ public class DatastoreMutationPool {
 
     private static final long serialVersionUID = -4072996713626072011L;
 
-    private final RetryParams retryParams;
     private final int countLimit;
     private final int bytesLimit;
 
     private Params(Builder builder) {
-      retryParams = builder.retryParams;
       countLimit = builder.countLimit;
       bytesLimit = builder.bytesLimit;
-    }
-
-    public RetryParams getRetryParams() {
-      return retryParams;
     }
 
     public int getCountLimit() {
@@ -106,7 +102,6 @@ public class DatastoreMutationPool {
 
       private int bytesLimit = DEFAULT_BYTES_LIMIT;
       private int countLimit = DEFAULT_COUNT_LIMIT;
-      private RetryParams retryParams = RetryParams.getDefaultInstance();
 
       public Builder bytesLimit(int bytesLimit) {
         this.bytesLimit = bytesLimit;
@@ -115,11 +110,6 @@ public class DatastoreMutationPool {
 
       public Builder countLimit(int countLimit) {
         this.countLimit = countLimit;
-        return this;
-      }
-
-      public Builder retryParams(RetryParams retryParams) {
-        this.retryParams = checkNotNull(retryParams);
         return this;
       }
 
@@ -197,23 +187,21 @@ public class DatastoreMutationPool {
     }
   }
 
+  @SneakyThrows
   private void flushDeletes() {
-    RetryHelper.runWithRetries(callable(new Runnable() {
-      @Override public void run() {
+    RETRYER_BUILDER.build().call(callable(() -> {
         ds.delete(deletes);
         deletes.clear();
         deletesBytes = 0;
-      }
-    }), params.getRetryParams(), EXCEPTION_HANDLER);
+      }));
   }
 
+  @SneakyThrows
   private void flushPuts() {
-    RetryHelper.runWithRetries(callable(new Runnable() {
-      @Override public void run() {
+    RETRYER_BUILDER.build().call(callable(() -> {
         ds.put(puts);
         puts.clear();
         putsBytes = 0;
-      }
-    }), params.getRetryParams(), EXCEPTION_HANDLER);
+      }));
   }
 }
