@@ -97,9 +97,6 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
   static final DatastoreService DATASTORE = DatastoreServiceFactory.getDatastoreService();
   private static final LogService LOG_SERVICE = LogServiceFactory.getLogService();
 
-  public static final WaitStrategy DEFAULT_WAIT_STRATEGY =
-    WaitStrategies.exponentialWait(30000, TimeUnit.MILLISECONDS);
-
 
   public static RetryerBuilder getRetryerBuilder() {
     return RetryerBuilder.newBuilder()
@@ -124,6 +121,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
 
   public static RetryerBuilder getRetryerBuilderAggressive() {
       return RetryerBuilder.newBuilder()
+        .withWaitStrategy(WaitStrategies.exponentialWait(30_000, TimeUnit.MILLISECONDS))
         .retryIfException(e ->
           !(e instanceof RequestTooLargeException
             || e instanceof ResponseTooLargeException
@@ -233,7 +231,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
   public void completeShard(final String jobId, final String taskId) {
     log.info("Polling task states for job " + jobId);
     final int shardNumber = parseTaskNumberFromTaskId(jobId, taskId);
-    ShardedJobStateImpl<T> jobState = (ShardedJobStateImpl<T>) getRetryerBuilder().withWaitStrategy(DEFAULT_WAIT_STRATEGY)
+    ShardedJobStateImpl<T> jobState = (ShardedJobStateImpl<T>) getRetryerBuilder()
       .build().call(new Callable<ShardedJobStateImpl<T>>() {
         @Override
         public ShardedJobStateImpl<T> call() throws ConcurrentModificationException,
