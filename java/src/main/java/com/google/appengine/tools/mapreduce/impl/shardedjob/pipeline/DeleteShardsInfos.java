@@ -50,7 +50,7 @@ public class DeleteShardsInfos extends Job0<Void> {
       addParentKeyToList(toDelete, ShardRetryState.Serializer.makeKey(taskId));
     }
     try {
-      ShardedJobRunner.RETRYER.withStopStrategy(StopStrategies.neverStop())
+      ShardedJobRunner.getRetryerBuilder().withStopStrategy(StopStrategies.neverStop())
         .build()
         .call(callable(() -> DatastoreServiceFactory.getDatastoreService().delete(null, toDelete)));
     } catch (ExecutionException | RetryException e) {

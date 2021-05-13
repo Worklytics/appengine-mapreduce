@@ -82,16 +82,18 @@ public class ShufflerServlet extends HttpServlet {
 
   private static final int MAX_VALUES_COUNT = 10000;
 
-  private static final RetryerBuilder RETRYER_BUILDER = RetryerBuilder.newBuilder()
-    .retryIfException((e) ->
-      e instanceof Exception
-        && !(e instanceof IllegalArgumentException
-        || e instanceof RequestTooLargeException
-        || e instanceof RequestTooLargeException
-        || e instanceof ArgumentException)
-    )
-    .withWaitStrategy(WaitStrategies.exponentialWait(30_000, TimeUnit.MILLISECONDS))
-    .withStopStrategy(StopStrategies.stopAfterAttempt(10));
+  private static final RetryerBuilder getRetryerBuilder() {
+    return RetryerBuilder.newBuilder()
+      .retryIfException((e) ->
+        e instanceof Exception
+          && !(e instanceof IllegalArgumentException
+          || e instanceof RequestTooLargeException
+          || e instanceof RequestTooLargeException
+          || e instanceof ArgumentException)
+      )
+      .withWaitStrategy(WaitStrategies.exponentialWait(30_000, TimeUnit.MILLISECONDS))
+      .withStopStrategy(StopStrategies.stopAfterAttempt(10));
+  }
 
   @VisibleForTesting
   static final class ShuffleMapReduce extends Job0<Void> {
@@ -226,7 +228,7 @@ public class ShufflerServlet extends HttpServlet {
   @SneakyThrows
   private static void enqueueCallbackTask(final ShufflerParams shufflerParams, final String url,
                                           final String taskName) {
-    RETRYER_BUILDER.build().call(callable(() -> {
+    getRetryerBuilder().build().call(callable(() -> {
         String hostname = ModulesServiceFactory.getModulesService().getVersionHostname(
             shufflerParams.getCallbackService(), shufflerParams.getCallbackVersion());
         Queue queue = QueueFactory.getQueue(shufflerParams.getCallbackQueue());

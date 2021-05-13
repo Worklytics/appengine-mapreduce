@@ -41,15 +41,19 @@ public class MapSettings implements Serializable {
 
   private static final long serialVersionUID = 51425056338041064L;
 
-  private static final RetryerBuilder queueRetryerBuilder = RetryerBuilder.newBuilder()
-    .withWaitStrategy(WaitStrategies.exponentialWait(20_000, TimeUnit.MILLISECONDS))
-    .withStopStrategy(StopStrategies.stopAfterAttempt(8))
-    .retryIfExceptionOfType(TransientFailureException.class);
+  private static final RetryerBuilder getQueueRetryerBuilder() {
+    return RetryerBuilder.newBuilder()
+      .withWaitStrategy(WaitStrategies.exponentialWait(20_000, TimeUnit.MILLISECONDS))
+      .withStopStrategy(StopStrategies.stopAfterAttempt(8))
+      .retryIfExceptionOfType(TransientFailureException.class);
+  }
 
-  private static final RetryerBuilder modulesRetryerBuilder = RetryerBuilder.newBuilder()
+  private static final RetryerBuilder getModulesRetryerBuilder() {
+    return RetryerBuilder.newBuilder()
       .withWaitStrategy(WaitStrategies.exponentialWait(20_000, TimeUnit.MILLISECONDS))
       .withStopStrategy(StopStrategies.stopAfterAttempt(8))
       .retryIfExceptionOfType(ModulesException.class);
+  }
 
   public static final String DEFAULT_BASE_URL = "/mapreduce/";
   public static final String CONTROLLER_PATH = "controllerCallback";
@@ -292,7 +296,7 @@ public class MapSettings implements Serializable {
           // TODO(user): we may want to support providing a version for a module
           final String requestedModule = module;
 
-          version = runWithRetries(() -> modulesService.getDefaultVersion(requestedModule), modulesRetryerBuilder);
+          version = runWithRetries(() -> modulesService.getDefaultVersion(requestedModule), getModulesRetryerBuilder());
         }
       }
     }
@@ -309,7 +313,7 @@ public class MapSettings implements Serializable {
         .setMaxSliceRetries(maxSliceRetries)
         .setSliceTimeoutMillis(
             Math.max(DEFAULT_SLICE_TIMEOUT_MILLIS, (int) (millisPerSlice * sliceTimeoutRatio)));
-    return runWithRetries(() -> builder.build(), modulesRetryerBuilder);
+    return runWithRetries(() -> builder.build(), getModulesRetryerBuilder());
   }
 
   @SneakyThrows //just tricks compiler
@@ -329,7 +333,7 @@ public class MapSettings implements Serializable {
           // to inspect EnforceRate for not null.
           queue.fetchStatistics();
           return null;
-        }, queueRetryerBuilder);
+        }, getQueueRetryerBuilder());
     } catch (Throwable ex) {
       if (ex instanceof ExecutionException) {
         if (ex.getCause() instanceof IllegalStateException) {

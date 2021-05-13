@@ -45,7 +45,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
@@ -174,14 +173,16 @@ public class DatastoreShardStrategy {
 
   private static final Logger logger = Logger.getLogger(DatastoreShardStrategy.class.getName());
 
-  private static final RetryerBuilder EXCEPTION_HANDLER = RetryerBuilder.newBuilder()
+  private static final RetryerBuilder getRetryerBuilder() {
+    return RetryerBuilder.newBuilder()
       .retryIfException(e ->
         (e instanceof ConcurrentModificationException
           || e instanceof DatastoreTimeoutException
           || e instanceof DatastoreFailureException)
-        && !(e instanceof EntityNotFoundException))
-    .withWaitStrategy(WaitStrategies.exponentialWait(32_000, TimeUnit.MILLISECONDS))
-    .withStopStrategy(StopStrategies.stopAfterAttempt(6));
+          && !(e instanceof EntityNotFoundException))
+      .withWaitStrategy(WaitStrategies.exponentialWait(32_000, TimeUnit.MILLISECONDS))
+      .withStopStrategy(StopStrategies.stopAfterAttempt(6));
+  }
 
   private static final Map<Class<?>, Splitter<?>> typeMap =
       ImmutableMap.<Class<?>, Splitter<?>>builder()
@@ -400,7 +401,7 @@ public class DatastoreShardStrategy {
   @SneakyThrows
   private List<Entity> runQuery(Query q, final int limit) {
     final PreparedQuery preparedQuery = datastore.prepare(q);
-    return (List<Entity>) EXCEPTION_HANDLER.build().call(() -> {
+    return (List<Entity>) getRetryerBuilder().build().call(() -> {
         List<Entity> list = preparedQuery.asList(withLimit(limit));
         list.size(); // Forces the loading of all the data.
         return list;

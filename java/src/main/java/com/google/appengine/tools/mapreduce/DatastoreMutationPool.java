@@ -57,11 +57,13 @@ public class DatastoreMutationPool {
   public static final int DEFAULT_BYTES_LIMIT = 256 * 1024;
 
 
-  private static final RetryerBuilder RETRYER_BUILDER = RetryerBuilder.newBuilder()
-    .retryIfExceptionOfType(ApiProxyException.class)
-    .retryIfExceptionOfType(ConcurrentModificationException.class)
-    .retryIfExceptionOfType(CommittedButStillApplyingException.class)
-    .retryIfExceptionOfType(DatastoreTimeoutException.class);
+  private static final RetryerBuilder getRetryerBuilder() {
+    return RetryerBuilder.newBuilder()
+      .retryIfExceptionOfType(ApiProxyException.class)
+      .retryIfExceptionOfType(ConcurrentModificationException.class)
+      .retryIfExceptionOfType(CommittedButStillApplyingException.class)
+      .retryIfExceptionOfType(DatastoreTimeoutException.class);
+  }
 
   public static final Params DEFAULT_PARAMS = new Params.Builder().build();
 
@@ -189,7 +191,7 @@ public class DatastoreMutationPool {
 
   @SneakyThrows
   private void flushDeletes() {
-    RETRYER_BUILDER.build().call(callable(() -> {
+    getRetryerBuilder().build().call(callable(() -> {
         ds.delete(deletes);
         deletes.clear();
         deletesBytes = 0;
@@ -198,7 +200,7 @@ public class DatastoreMutationPool {
 
   @SneakyThrows
   private void flushPuts() {
-    RETRYER_BUILDER.build().call(callable(() -> {
+    getRetryerBuilder().build().call(callable(() -> {
         ds.put(puts);
         puts.clear();
         putsBytes = 0;

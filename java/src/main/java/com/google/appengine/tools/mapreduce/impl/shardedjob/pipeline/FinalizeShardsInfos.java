@@ -58,7 +58,7 @@ public class FinalizeShardsInfos extends Job0<Void> {
       }
     }
     try {
-      ShardedJobRunner.RETRYER.withStopStrategy(StopStrategies.neverStop())
+      ShardedJobRunner.getRetryerBuilder().withStopStrategy(StopStrategies.neverStop())
         .build().call(callable(() -> {
         Future<Void> deleteAsync =
           DatastoreServiceFactory.getAsyncDatastoreService().delete(null, toDelete);
