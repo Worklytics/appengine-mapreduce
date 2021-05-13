@@ -8,6 +8,7 @@ import com.google.cloud.storage.StorageOptions;
 import lombok.SneakyThrows;
 import lombok.ToString;
 
+import javax.annotation.Nullable;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Base64;
@@ -33,9 +34,11 @@ public interface GcpCredentialOptions {
   }
 
   //helper util; consider moving to GCPUtils class, or something ...
-  static Storage getStorageClient(GcpCredentialOptions gcpCredentialOptions) {
-    Credentials credentials =
-      gcpCredentialOptions.getServiceAccountCredentials().map(c -> (Credentials) c)
+  static Storage getStorageClient(@Nullable GcpCredentialOptions gcpCredentialOptions) {
+    Credentials credentials
+      = Optional.ofNullable(gcpCredentialOptions)
+        .map(gcp -> gcp.getServiceAccountCredentials()).orElse(Optional.empty())
+        .map(c -> (Credentials) c)
         .orElseGet(() -> StorageOptions.getDefaultInstance().getCredentials());
 
     return StorageOptions.newBuilder()
