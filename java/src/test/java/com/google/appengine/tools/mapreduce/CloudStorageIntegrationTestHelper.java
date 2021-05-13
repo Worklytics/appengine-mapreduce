@@ -5,6 +5,8 @@ import com.google.auth.Credentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageFactory;
+import com.google.cloud.storage.StorageOptions;
 import com.google.cloud.storage.testing.RemoteStorageHelper;
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -54,18 +56,24 @@ public class CloudStorageIntegrationTestHelper implements LocalServiceTestConfig
   public void setUp() {
 
     String keyVar = System.getenv(KEY_ENV_VAR);
+
+
     if (keyVar == null) {
-      throw new IllegalStateException("Must set environment variable " + KEY_ENV_VAR + " as base64 encoded service account key to use for storage integration tests");
+      //attempt w default credentials
+      credentials = StorageOptions.getDefaultInstance().getCredentials();
+      projectId = "worklytics-ci";
+      //throw new IllegalStateException("Must set environment variable " + KEY_ENV_VAR + " as base64 encoded service account key to use for storage integration tests");
+    } else {
+      base64EncodedServiceAccountKey = keyVar.trim();
+      String jsonKey = new String(Base64.getDecoder().decode(base64EncodedServiceAccountKey.getBytes()));
+
+      credentials = ServiceAccountCredentials.fromStream(new ByteArrayInputStream(jsonKey.getBytes()));
+      projectId = ((ServiceAccountCredentials) credentials).getProjectId();
     }
-    base64EncodedServiceAccountKey = keyVar.trim();
-    String jsonKey = new String(Base64.getDecoder().decode(base64EncodedServiceAccountKey.getBytes()));
 
-    credentials = ServiceAccountCredentials.fromStream(new ByteArrayInputStream(jsonKey.getBytes()));
-    projectId = ((ServiceAccountCredentials) credentials).getProjectId();
-
-    InputStream keyStream = new ByteArrayInputStream(jsonKey.getBytes());
-    RemoteStorageHelper helper = RemoteStorageHelper.create(projectId, keyStream);
-    storage = helper.getOptions().getService();
+    //InputStream keyStream = new ByteArrayInputStream(jsonKey.getBytes());
+    //RemoteStorageHelper helper = RemoteStorageHelper.create(projectId, keyStream);
+    storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService();
     if (bucket == null) {
       bucket = RemoteStorageHelper.generateBucketName();
       storage.create(BucketInfo.of(bucket));
