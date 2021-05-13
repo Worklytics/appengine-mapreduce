@@ -11,7 +11,7 @@
   </organization>
   <!-- follow semver for fork of OSS -->
   <!-- https://gofore.com/en/best-practices-for-forking-a-git-repo/ -->
-  <version>0.10+worklytics.3</version>
+  <version>0.10+worklytics.4</version>
   <packaging>jar</packaging>
   <scm>
     <connection>scm:git:git@github.com:Worklytics/appengine-mapreduce.git</connection>
@@ -105,7 +105,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-        <version>2.6</version>
+        <version>3.2.0</version>
         <configuration>
           <archive>
             <manifest>
