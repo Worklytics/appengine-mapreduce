@@ -42,8 +42,13 @@ public final class BigQueryLoadGoogleCloudStorageFilesJob extends
     Job1<List<BigQueryLoadJobReference>, BigQueryStoreResult<GoogleCloudStorageFileSet>> {
 
   private static final long serialVersionUID = 4162438273017726233L;
+
+  //the name of the bigquery dataset.
   private final String dataset;
+
+  //name of the bigquery table to load data.
   private final String tableName;
+  //bigquery project Id
   private final String projectId;
   private final GcpCredentialOptions options;
 
@@ -72,19 +77,6 @@ public final class BigQueryLoadGoogleCloudStorageFilesJob extends
   }
 
   /**
-   * @param dataset the name of the bigquery dataset.
-   * @param tableName name of the bigquery table to load data.
-   * @param projectId bigquery project Id.
-   */
-  public BigQueryLoadGoogleCloudStorageFilesJob(String dataset, String tableName,
-      String projectId) {
-    this.dataset = dataset;
-    this.tableName = tableName;
-    this.projectId = projectId;
-    this.options = null;
-  }
-
-  /**
    * Divides the files into bundles having size less than or equal to the maximum size allowed per
    * bigquery load {@link Job} and then starts separate pipeline jobs for each of the bundles.
    * Returns a list of {@link JobReference}s.
@@ -100,7 +92,7 @@ public final class BigQueryLoadGoogleCloudStorageFilesJob extends
     for (List<GcsFilename> bundle : bundles) {
       jobReferenceList.add(futureCall(new BigQueryLoadFileSetJob(dataset, tableName, projectId,
           bundle, SerializableValue.of(Marshallers.getGenericJsonMarshaller(TableSchema.class),
-              outputResult.getSchema())), immediate(Integer.valueOf(0))));
+              outputResult.getSchema()), options), immediate(Integer.valueOf(0))));
     }
     return futureList(jobReferenceList);
   }

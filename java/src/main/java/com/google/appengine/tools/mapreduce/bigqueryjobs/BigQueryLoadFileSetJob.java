@@ -6,6 +6,7 @@ import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.appengine.tools.mapreduce.GcpCredentialOptions;
 import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.impl.BigQueryConstants;
 import com.google.appengine.tools.mapreduce.impl.util.SerializableValue;
@@ -13,6 +14,7 @@ import com.google.appengine.tools.pipeline.ImmediateValue;
 import com.google.appengine.tools.pipeline.Job1;
 import com.google.appengine.tools.pipeline.PromisedValue;
 import com.google.appengine.tools.pipeline.Value;
+import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -23,30 +25,22 @@ import java.util.logging.Logger;
  * A pipeline job that manages the lifecycle of a bigquery load {@link Job}. It triggers, polls for
  * status and retries or cleans up the files based on the status of the load job.
  */
+@RequiredArgsConstructor
 final class BigQueryLoadFileSetJob extends Job1<BigQueryLoadJobReference, Integer> {
   private static final long serialVersionUID = 2L;
   private static final Logger log = Logger.getLogger(BigQueryLoadFileSetJob.class.getName());
-  private final String dataset;
-  private final String tableName;
-  private final String projectId;
-  private final List<GcsFilename> fileSet;
-  private final SerializableValue<TableSchema> schema;
 
-  /**
-   * @param dataset the name of the BigQuery dataset.
-   * @param tableName name of the BigQuery table to load data.
-   * @param projectId BigQuery project Id.
-   * @param fileSet list of the GCS files to load.
-   * @param schema wrapper around a non-serializable {@link TableSchema} object.
-   */
-  BigQueryLoadFileSetJob(String dataset, String tableName, String projectId,
-      List<GcsFilename> fileSet, SerializableValue<TableSchema> schema) {
-    this.dataset = dataset;
-    this.tableName = tableName;
-    this.projectId = projectId;
-    this.fileSet = fileSet;
-    this.schema = schema;
-  }
+  //the name of the BigQuery dataset.
+  private final String dataset;
+  //name of the BigQuery table to load data.
+  private final String tableName;
+  //BigQuery project Id.
+  private final String projectId;
+  //list of the GCS files to load.
+  private final List<GcsFilename> fileSet;
+  //wrapper around a non-serializable {@link TableSchema} object.
+  private final SerializableValue<TableSchema> schema;
+  private final GcpCredentialOptions gcpCredentialOptions;
 
   /**
    * Triggers a bigquery load {@link Job} request and returns the job Id for the same.
@@ -112,7 +106,7 @@ final class BigQueryLoadFileSetJob extends Job1<BigQueryLoadJobReference, Intege
     PromisedValue<String> jobStatus = newPromise();
     futureCall(new BigQueryLoadPollJob(jobStatus.getHandle()), jobTrigger);
 
-    return futureCall(new RetryLoadOrCleanupJob(dataset, tableName, projectId, fileSet, schema),
+    return futureCall(new RetryLoadOrCleanupJob(dataset, tableName, projectId, fileSet, schema, gcpCredentialOptions),
         jobTrigger, immediate(retryCount), waitFor(jobStatus));
   }
 }

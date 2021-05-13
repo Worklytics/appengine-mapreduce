@@ -478,7 +478,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
         toDelete.addAll(filesByShard.getFilesForShard(i).getFiles());
       }
 
-      CleanupPipelineJob.cleanup(new ArrayList<>(toDelete), settings.toJobSettings());
+      CleanupPipelineJob.cleanup(settings, new ArrayList<>(toDelete), settings.toJobSettings());
       return null;
     }
   }
