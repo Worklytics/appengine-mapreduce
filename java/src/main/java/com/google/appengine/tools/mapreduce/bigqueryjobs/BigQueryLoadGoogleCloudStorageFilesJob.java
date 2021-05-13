@@ -1,15 +1,5 @@
 package com.google.appengine.tools.mapreduce.bigqueryjobs;
 
-import com.google.api.client.googleapis.extensions.appengine.auth.oauth2.AppIdentityCredential;
-import com.google.api.client.googleapis.services.GoogleClientRequestInitializer;
-import com.google.api.client.googleapis.services.json.AbstractGoogleJsonClientRequest;
-import com.google.api.client.googleapis.services.json.CommonGoogleJsonClientRequestInitializer;
-import com.google.api.client.http.HttpTransport;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.services.bigquery.Bigquery;
-import com.google.api.services.bigquery.BigqueryRequest;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -25,7 +15,6 @@ import com.google.appengine.tools.pipeline.Job1;
 import com.google.appengine.tools.pipeline.Value;
 import com.google.cloud.storage.Storage;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
 import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
@@ -52,29 +41,8 @@ public final class BigQueryLoadGoogleCloudStorageFilesJob extends
   private final String projectId;
   private final GcpCredentialOptions options;
 
-  private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
-  private static final JsonFactory JSON_FACTORY = new JacksonFactory();
-
   private static final Logger log =
       Logger.getLogger(BigQueryLoadGoogleCloudStorageFilesJob.class.getName());
-
-  static Bigquery getBigquery() {
-    List<String> scopes = Lists.newArrayList();
-    scopes.add(BigQueryConstants.BQ_SCOPE);
-    AppIdentityCredential credential = new AppIdentityCredential.Builder(scopes).build();
-    GoogleClientRequestInitializer initializer = new CommonGoogleJsonClientRequestInitializer() {
-      @SuppressWarnings("unused")
-      public void initialize(
-          @SuppressWarnings("rawtypes") AbstractGoogleJsonClientRequest request) {
-        @SuppressWarnings("rawtypes")
-        BigqueryRequest bigqueryRequest = (BigqueryRequest) request;
-        bigqueryRequest.setPrettyPrint(true);
-      }
-    };
-    return new Bigquery.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
-        .setHttpRequestInitializer(credential).setGoogleClientRequestInitializer(initializer)
-        .build();
-  }
 
   /**
    * Divides the files into bundles having size less than or equal to the maximum size allowed per

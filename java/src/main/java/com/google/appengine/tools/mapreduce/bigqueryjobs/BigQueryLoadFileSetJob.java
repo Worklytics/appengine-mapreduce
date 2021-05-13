@@ -1,5 +1,9 @@
 package com.google.appengine.tools.mapreduce.bigqueryjobs;
 
+import com.google.api.client.extensions.appengine.http.UrlFetchTransport;
+import com.google.api.client.http.HttpTransport;
+import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.bigquery.Bigquery.Jobs.Insert;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
@@ -49,8 +53,10 @@ final class BigQueryLoadFileSetJob extends Job1<BigQueryLoadJobReference, Intege
     Job job = createJob();
     // Set up Bigquery Insert
     try {
+
       Insert insert =
-          BigQueryLoadGoogleCloudStorageFilesJob.getBigquery().jobs().insert(projectId, job);
+        GcpCredentialOptions.getBigqueryClient(gcpCredentialOptions)
+          .jobs().insert(projectId, job);
       Job executedJob = insert.execute();
       log.info("Triggered the bigQuery load job for files " + fileSet + " . Job Id = "
           + executedJob.getId());
@@ -104,7 +110,7 @@ final class BigQueryLoadFileSetJob extends Job1<BigQueryLoadJobReference, Intege
     ImmediateValue<BigQueryLoadJobReference> jobTrigger = immediate(triggerBigQueryLoadJob());
 
     PromisedValue<String> jobStatus = newPromise();
-    futureCall(new BigQueryLoadPollJob(jobStatus.getHandle()), jobTrigger);
+    futureCall(new BigQueryLoadPollJob(jobStatus.getHandle(), gcpCredentialOptions), jobTrigger);
 
     return futureCall(new RetryLoadOrCleanupJob(dataset, tableName, projectId, fileSet, schema, gcpCredentialOptions),
         jobTrigger, immediate(retryCount), waitFor(jobStatus));
