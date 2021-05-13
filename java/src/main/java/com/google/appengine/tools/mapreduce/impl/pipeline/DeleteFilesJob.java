@@ -32,13 +32,16 @@ public class DeleteFilesJob extends Job1<Void, List<GcsFilename>> {
   public Value<Void> run(List<GcsFilename> files) throws Exception {
     Storage storage = GcpCredentialOptions.getStorageClient(credentialOptions);
     try {
-      List<Boolean> results = storage.delete((BlobId[]) files.stream().map(GcsFilename::asBlobId).toArray());
-      for (int i = 0; i < results.size(); i++)  {
-        if (!results.get(i)) {
-          // not found? deletion failed? or access denied?
-          log.log(Level.WARNING, "Failed to cleanup file: " + files.get(i));
-        }
-      }
+
+      files.stream().map(GcsFilename::asBlobId)
+        .map(blobId -> {
+          boolean r = storage.delete(blobId);
+          if (!r) {
+            // not found? deletion failed? or access denied?
+            log.log(Level.WARNING, "Failed to cleanup file: " + blobId);
+          }
+          return r;
+        });
     } catch (Throwable e) {
       log.log(Level.WARNING, "Failed to cleanup files", e);
     }
