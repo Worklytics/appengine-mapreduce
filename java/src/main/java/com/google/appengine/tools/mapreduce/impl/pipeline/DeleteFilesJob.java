@@ -35,6 +35,7 @@ public class DeleteFilesJob extends Job1<Void, List<GcsFilename>> {
       List<Boolean> results = storage.delete((BlobId[]) files.stream().map(GcsFilename::asBlobId).toArray());
       for (int i = 0; i < results.size(); i++)  {
         if (!results.get(i)) {
+          // not found? deletion failed? or access denied?
           log.log(Level.WARNING, "Failed to cleanup file: " + files.get(i));
         }
       }
