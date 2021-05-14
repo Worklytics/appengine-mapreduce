@@ -32,7 +32,7 @@ public class MapReduceConstants {
    */
   public static final int DEFAULT_IO_BUFFER_SIZE = 1 * 1024 * 1024;
 
-  public static final int GCS_IO_BLOCK_SIZE = 256 * 1024 * 1024; // 256KB
+  public static final int GCS_IO_BLOCK_SIZE = 256 * 1024; // 256KB
 
   public static final String MAP_OUTPUT_MIME_TYPE =
       "application/vnd.appengine.mapreduce.map-output.records";
