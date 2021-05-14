@@ -2,10 +2,10 @@
 
 package com.google.appengine.tools.mapreduce;
 
-import static com.google.appengine.tools.cloudstorage.RetryHelper.runWithRetries;
 import static com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings.DEFAULT_SLICE_TIMEOUT_MILLIS;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.github.rholder.retry.*;
 import com.google.appengine.api.backends.BackendService;
 import com.google.appengine.api.backends.BackendServiceFactory;
 import com.google.appengine.api.datastore.Key;
@@ -15,20 +15,18 @@ import com.google.appengine.api.modules.ModulesServiceFactory;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TransientFailureException;
-import com.google.appengine.tools.cloudstorage.ExceptionHandler;
-import com.google.appengine.tools.cloudstorage.RetryHelperException;
-import com.google.appengine.tools.cloudstorage.RetryParams;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.common.base.Preconditions;
-import lombok.NoArgsConstructor;
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.ToString;
 
 import java.io.Serializable;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Settings that affect how a Map job is executed.  May affect performance and
@@ -42,13 +40,20 @@ import java.util.concurrent.Callable;
 public class MapSettings implements Serializable {
 
   private static final long serialVersionUID = 51425056338041064L;
-  private static final ExceptionHandler MODULES_EXCEPTION_HANDLER =
-      new ExceptionHandler.Builder().retryOn(ModulesException.class).build();
-  private static final ExceptionHandler QUEUE_EXCEPTION_HANDLER =
-      new ExceptionHandler.Builder().retryOn(TransientFailureException.class).build();
-  private static final RetryParams QUEUE_RETRY_PARAMS = new RetryParams.Builder()
-      .initialRetryDelayMillis(500).retryMinAttempts(7).retryMaxAttempts(8)
-      .retryDelayBackoffFactor(2).maxRetryDelayMillis(20_000).build();
+
+  private static final RetryerBuilder getQueueRetryerBuilder() {
+    return RetryerBuilder.newBuilder()
+      .withWaitStrategy(WaitStrategies.exponentialWait(20_000, TimeUnit.MILLISECONDS))
+      .withStopStrategy(StopStrategies.stopAfterAttempt(8))
+      .retryIfExceptionOfType(TransientFailureException.class);
+  }
+
+  private static final RetryerBuilder getModulesRetryerBuilder() {
+    return RetryerBuilder.newBuilder()
+      .withWaitStrategy(WaitStrategies.exponentialWait(20_000, TimeUnit.MILLISECONDS))
+      .withStopStrategy(StopStrategies.stopAfterAttempt(8))
+      .retryIfExceptionOfType(ModulesException.class);
+  }
 
   public static final String DEFAULT_BASE_URL = "/mapreduce/";
   public static final String CONTROLLER_PATH = "controllerCallback";
@@ -194,7 +199,7 @@ public class MapSettings implements Serializable {
     baseUrl = builder.baseUrl;
     module = builder.module;
     backend = builder.backend;
-    workerQueueName = checkQueueSettings(builder.workerQueueName);
+    workerQueueName = this.checkQueueSettings(builder.workerQueueName);
     millisPerSlice = builder.millisPerSlice;
     sliceTimeoutRatio = builder.sliceTimeoutRatio;
     maxShardRetries = builder.maxShardRetries;
@@ -290,11 +295,8 @@ public class MapSettings implements Serializable {
         } else {
           // TODO(user): we may want to support providing a version for a module
           final String requestedModule = module;
-          version = runWithRetries(new Callable<String>() {
-            @Override public String call() {
-              return modulesService.getDefaultVersion(requestedModule);
-            }
-          },  QUEUE_RETRY_PARAMS, MODULES_EXCEPTION_HANDLER);
+
+          version = runWithRetries(() -> modulesService.getDefaultVersion(requestedModule), getModulesRetryerBuilder());
         }
       }
     }
@@ -311,34 +313,37 @@ public class MapSettings implements Serializable {
         .setMaxSliceRetries(maxSliceRetries)
         .setSliceTimeoutMillis(
             Math.max(DEFAULT_SLICE_TIMEOUT_MILLIS, (int) (millisPerSlice * sliceTimeoutRatio)));
-    return runWithRetries(new Callable<ShardedJobSettings>() {
-      @Override public ShardedJobSettings call() {
-        return builder.build();
-      }
-    },  QUEUE_RETRY_PARAMS, MODULES_EXCEPTION_HANDLER);
+    return runWithRetries(() -> builder.build(), getModulesRetryerBuilder());
   }
 
-  private static String checkQueueSettings(String queueName) {
+  @SneakyThrows //just tricks compiler
+  private <V> V runWithRetries (Callable<V> callable, RetryerBuilder retryerBuilder) {
+    return (V) retryerBuilder.build().call(callable);
+  }
+
+  private String checkQueueSettings(String queueName) {
     if (queueName == null) {
       return null;
     }
     final Queue queue = QueueFactory.getQueue(queueName);
     try {
-      runWithRetries(new Callable<Void>() {
-        @Override public Void call() {
+      runWithRetries(() -> {
           // Does not work as advertise (just check that the queue name is valid).
           // See b/13910616. Probably after the bug is fixed the check would need
           // to inspect EnforceRate for not null.
           queue.fetchStatistics();
           return null;
+        }, getQueueRetryerBuilder());
+    } catch (Throwable ex) {
+      if (ex instanceof ExecutionException) {
+        if (ex.getCause() instanceof IllegalStateException) {
+          throw new RuntimeException("Queue '" + queueName + "' does not exists");
         }
-      }, QUEUE_RETRY_PARAMS, QUEUE_EXCEPTION_HANDLER);
-    } catch (RetryHelperException ex) {
-      if (ex.getCause() instanceof IllegalStateException) {
-        throw new RuntimeException("Queue '" + queueName + "' does not exists");
-      }
-      throw new RuntimeException(
+        throw new RuntimeException(
           "Could not check if queue '" + queueName + "' exists", ex.getCause());
+      } else {
+        throw ex;
+      }
     }
     return queueName;
   }

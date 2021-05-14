@@ -16,14 +16,14 @@ package com.google.appengine.tools.mapreduce.servlets;
 
 import static java.util.concurrent.Executors.callable;
 
+import com.github.rholder.retry.RetryerBuilder;
+import com.github.rholder.retry.StopStrategies;
+import com.github.rholder.retry.WaitStrategies;
 import com.google.appengine.api.modules.ModulesServiceFactory;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
 import com.google.appengine.api.taskqueue.TaskOptions;
-import com.google.appengine.tools.cloudstorage.ExceptionHandler;
-import com.google.appengine.tools.cloudstorage.RetryHelper;
-import com.google.appengine.tools.cloudstorage.RetryParams;
 import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.impl.MapReduceConstants;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInput;
@@ -43,13 +43,13 @@ import com.google.appengine.tools.pipeline.PipelineServiceFactory;
 import com.google.appengine.tools.pipeline.Value;
 import com.google.apphosting.api.ApiProxy.ArgumentException;
 import com.google.apphosting.api.ApiProxy.RequestTooLargeException;
-import com.google.apphosting.api.ApiProxy.ResponseTooLargeException;
 import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.ByteStreams;
+import lombok.SneakyThrows;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -58,6 +58,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -81,17 +82,18 @@ public class ShufflerServlet extends HttpServlet {
 
   private static final int MAX_VALUES_COUNT = 10000;
 
-  private static final ExceptionHandler EXCEPTION_HANDLER = new ExceptionHandler.Builder()
-      .retryOn(Exception.class).abortOn(IllegalArgumentException.class,
-                                        RequestTooLargeException.class, ResponseTooLargeException.class, ArgumentException.class)
-      .build();
-
-  private static final RetryParams RETRY_PARAMS = new RetryParams.Builder()
-    .initialRetryDelayMillis(1000)
-    .maxRetryDelayMillis(30000)
-    .retryMinAttempts(10)
-    .retryMaxAttempts(10)
-    .build();
+  private static final RetryerBuilder getRetryerBuilder() {
+    return RetryerBuilder.newBuilder()
+      .retryIfException((e) ->
+        e instanceof Exception
+          && !(e instanceof IllegalArgumentException
+          || e instanceof RequestTooLargeException
+          || e instanceof RequestTooLargeException
+          || e instanceof ArgumentException)
+      )
+      .withWaitStrategy(WaitStrategies.exponentialWait(30_000, TimeUnit.MILLISECONDS))
+      .withStopStrategy(StopStrategies.stopAfterAttempt(10));
+  }
 
   @VisibleForTesting
   static final class ShuffleMapReduce extends Job0<Void> {
@@ -223,11 +225,10 @@ public class ShufflerServlet extends HttpServlet {
   /**
    * Notifies the caller that the job has completed.
    */
+  @SneakyThrows
   private static void enqueueCallbackTask(final ShufflerParams shufflerParams, final String url,
-      final String taskName) {
-    RetryHelper.runWithRetries(callable(new Runnable() {
-      @Override
-      public void run() {
+                                          final String taskName) {
+    getRetryerBuilder().build().call(callable(() -> {
         String hostname = ModulesServiceFactory.getModulesService().getVersionHostname(
             shufflerParams.getCallbackService(), shufflerParams.getCallbackVersion());
         Queue queue = QueueFactory.getQueue(shufflerParams.getCallbackQueue());
@@ -238,8 +239,7 @@ public class ShufflerServlet extends HttpServlet {
         } catch (TaskAlreadyExistsException e) {
           // harmless dup.
         }
-      }
-    }), RETRY_PARAMS, EXCEPTION_HANDLER);
+      }));
   }
 
   @VisibleForTesting

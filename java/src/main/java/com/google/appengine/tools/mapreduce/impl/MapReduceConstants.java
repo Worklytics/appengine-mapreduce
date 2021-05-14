@@ -2,11 +2,6 @@
 
 package com.google.appengine.tools.mapreduce.impl;
 
-import com.google.appengine.api.urlfetch.HTTPHeader;
-import com.google.appengine.tools.cloudstorage.RetryParams;
-import com.google.appengine.tools.cloudstorage.oauth.OauthRawGcsServiceFactory;
-import com.google.common.collect.ImmutableSet;
-
 /**
  * @author ohler@google.com (Christian Ohler)
  */
@@ -37,8 +32,7 @@ public class MapReduceConstants {
    */
   public static final int DEFAULT_IO_BUFFER_SIZE = 1 * 1024 * 1024;
 
-  public static final int GCS_IO_BLOCK_SIZE = OauthRawGcsServiceFactory.createOauthRawGcsService(
-      ImmutableSet.<HTTPHeader>of()).getChunkSizeBytes(); // 256KB
+  public static final int GCS_IO_BLOCK_SIZE = 256 * 1024; // 256KB
 
   public static final String MAP_OUTPUT_MIME_TYPE =
       "application/vnd.appengine.mapreduce.map-output.records";
@@ -52,12 +46,5 @@ public class MapReduceConstants {
 
   public static final int MAX_REDUCE_SHARDS = 2048;
 
-  public static final RetryParams GCS_RETRY_PARAMETERS = new RetryParams.Builder()
-      .requestTimeoutMillis(30000)
-      .retryMaxAttempts(10)
-      .retryMinAttempts(6)
-      .maxRetryDelayMillis(30000)
-      .totalRetryPeriodMillis(120000)
-      .initialRetryDelayMillis(250)
-      .build();
+
 }

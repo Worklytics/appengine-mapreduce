@@ -2,9 +2,10 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline;
 
 import static java.util.concurrent.Executors.callable;
 
+import com.github.rholder.retry.RetryException;
+import com.github.rholder.retry.StopStrategies;
 import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Key;
-import com.google.appengine.tools.cloudstorage.RetryHelper;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskState;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardRetryState;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
@@ -14,6 +15,7 @@ import com.google.appengine.tools.pipeline.Value;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 /**
  * A pipeline job to delete persistent data for a range of shards of a sharded job.
@@ -47,12 +49,13 @@ public class DeleteShardsInfos extends Job0<Void> {
       addParentKeyToList(toDelete, IncrementalTaskState.Serializer.makeKey(taskId));
       addParentKeyToList(toDelete, ShardRetryState.Serializer.makeKey(taskId));
     }
-    RetryHelper.runWithRetries(callable(new Runnable() {
-      @Override
-      public void run() {
-        DatastoreServiceFactory.getDatastoreService().delete(null, toDelete);
-      }
-    }), ShardedJobRunner.DATASTORE_RETRY_FOREVER_PARAMS, ShardedJobRunner.EXCEPTION_HANDLER);
+    try {
+      ShardedJobRunner.getRetryerBuilder().withStopStrategy(StopStrategies.neverStop())
+        .build()
+        .call(callable(() -> DatastoreServiceFactory.getDatastoreService().delete(null, toDelete)));
+    } catch (ExecutionException | RetryException e) {
+      throw new RuntimeException(e);
+    }
     return null;
   }
 

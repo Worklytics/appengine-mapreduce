@@ -7,6 +7,7 @@ import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.RetryOptions;
 import com.google.appengine.api.taskqueue.TaskOptions;
+import com.google.appengine.tools.mapreduce.GcpCredentialOptions;
 import com.google.appengine.tools.mapreduce.impl.BigQueryConstants;
 import com.google.appengine.tools.pipeline.Job1;
 import com.google.appengine.tools.pipeline.JobInfo.State;
@@ -16,6 +17,7 @@ import com.google.appengine.tools.pipeline.PipelineServiceFactory;
 import com.google.appengine.tools.pipeline.Value;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.common.base.Optional;
+import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
 import java.util.logging.Logger;
@@ -26,18 +28,15 @@ import javax.servlet.http.HttpServletRequest;
  * A pipeline job to poll the status of a bigquery load {@link Job}. It polls until the job goes to
  * completion or it fails.
  */
+@RequiredArgsConstructor
 final class BigQueryLoadPollJob extends Job1<Void, BigQueryLoadJobReference> {
 
   private static final long serialVersionUID = 3156995046607209969L;
   private static final Logger log = Logger.getLogger(BigQueryLoadPollJob.class.getName());
-  private final String jobStatusHandle;
 
-  /**
-   * @param jobStatusHandle handle that is populated by this job on completion.
-   */
-  BigQueryLoadPollJob(String jobStatusHandle) {
-    this.jobStatusHandle = jobStatusHandle;
-  }
+  //handle that is populated by this job on completion.
+  private final String jobStatusHandle;
+  private final GcpCredentialOptions gcpCredentialOptions;
 
   @Override
   public Value<Void> run(final BigQueryLoadJobReference jobToPoll) throws Exception {
@@ -48,7 +47,7 @@ final class BigQueryLoadPollJob extends Job1<Void, BigQueryLoadJobReference> {
       public void run() {
         String jobRef = jobToPoll.getJobReference().getJobId();
         try {
-          Job pollJob = BigQueryLoadGoogleCloudStorageFilesJob.getBigquery().jobs()
+          Job pollJob = GcpCredentialOptions.getBigqueryClient(gcpCredentialOptions).jobs()
               .get(jobToPoll.getJobReference().getProjectId(), jobRef).execute();
           log.info("Job status of job " + jobRef + " : " + pollJob.getStatus().getState());
           if (pollJob.getStatus().getState().equals("PENDING")

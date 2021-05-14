@@ -3,6 +3,7 @@ package com.google.appengine.tools.mapreduce.bigqueryjobs;
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.appengine.tools.mapreduce.GcpCredentialOptions;
 import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.impl.pipeline.DeleteFilesJob;
 import com.google.appengine.tools.mapreduce.impl.util.SerializableValue;
@@ -10,6 +11,7 @@ import com.google.appengine.tools.pipeline.FutureValue;
 import com.google.appengine.tools.pipeline.Job1;
 import com.google.appengine.tools.pipeline.Job2;
 import com.google.appengine.tools.pipeline.Value;
+import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 import java.util.logging.Level;
@@ -21,6 +23,7 @@ import java.util.logging.Logger;
  */
 // TODO : make clean up optional. There can be cases where the users want to retain the files
 // after load
+@RequiredArgsConstructor
 final class RetryLoadOrCleanupJob extends
     Job2<BigQueryLoadJobReference, BigQueryLoadJobReference, Integer> {
 
@@ -30,26 +33,16 @@ final class RetryLoadOrCleanupJob extends
   private final String dataset;
   private final String tableName;
   private final String projectId;
+  // bundle list of GCS files to load
   private final List<GcsFilename> bundle;
+  // wrapper around a non-serializable {@link TableSchema} object.
   private final SerializableValue<TableSchema> schema;
-
-  /**
-   * @param bundle list of GCS files to load
-   * @param schema wrapper around a non-serializable {@link TableSchema} object.
-   */
-  RetryLoadOrCleanupJob(String dataset, String tableName, String projectId,
-      List<GcsFilename> bundle, SerializableValue<TableSchema> schema) {
-    this.dataset = dataset;
-    this.tableName = tableName;
-    this.projectId = projectId;
-    this.bundle = bundle;
-    this.schema = schema;
-  }
+  private final GcpCredentialOptions gcpCredentialOptions;
 
   @Override
   public Value<BigQueryLoadJobReference> run(BigQueryLoadJobReference pollResult,
       Integer numRetries) throws Exception {
-    Job pollJob = BigQueryLoadGoogleCloudStorageFilesJob.getBigquery().jobs()
+    Job pollJob = GcpCredentialOptions.getBigqueryClient(gcpCredentialOptions).jobs()
         .get(pollResult.getJobReference().getProjectId(), pollResult.getJobReference().getJobId())
         .execute();
     ErrorProto fatalError = pollJob.getStatus().getErrorResult();
@@ -58,7 +51,7 @@ final class RetryLoadOrCleanupJob extends
       log.severe("Job failed while writing to Bigquery. Retrying...#attempt " + numRetries
           + " Error details : " + fatalError.getReason() + ": " + fatalError.getMessage() + " at "
           + fatalError.getLocation());
-      return futureCall(new BigQueryLoadFileSetJob(dataset, tableName, projectId, bundle, schema),
+      return futureCall(new BigQueryLoadFileSetJob(dataset, tableName, projectId, bundle, schema, gcpCredentialOptions),
           immediate(++numRetries));
     }
     if (errors != null) {
@@ -69,8 +62,8 @@ final class RetryLoadOrCleanupJob extends
             + error.getMessage() + " [LOCATION] " + error.getLocation());
       }
     }
-    FutureValue<Void> deleteJob = futureCall(new DeleteFilesJob(), immediate(bundle));
-    return futureCall(new ReturnResult<BigQueryLoadJobReference>(),
+    FutureValue<Void> deleteJob = futureCall(new DeleteFilesJob(gcpCredentialOptions), immediate(bundle));
+    return futureCall(new ReturnResult<>(),
         immediate(new BigQueryLoadJobReference("DONE", pollJob.getJobReference())),
         waitFor(deleteJob));
   }
