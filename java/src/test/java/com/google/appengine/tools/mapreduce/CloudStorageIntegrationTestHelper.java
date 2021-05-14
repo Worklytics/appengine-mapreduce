@@ -61,6 +61,10 @@ public class CloudStorageIntegrationTestHelper implements LocalServiceTestConfig
     if (keyVar == null) {
       //attempt w default credentials
       credentials = StorageOptions.getDefaultInstance().getCredentials();
+
+      //TODO: more elegant solution? weirdness seems to happen if mix projects; credentials' project
+      // isn't exposed to java code via any public interface; yet bucket is created in the project
+      // to which the credentials default project is set
       projectId = "worklytics-ci";
       //throw new IllegalStateException("Must set environment variable " + KEY_ENV_VAR + " as base64 encoded service account key to use for storage integration tests");
     } else {
@@ -71,9 +75,10 @@ public class CloudStorageIntegrationTestHelper implements LocalServiceTestConfig
       projectId = ((ServiceAccountCredentials) credentials).getProjectId();
     }
 
-    //InputStream keyStream = new ByteArrayInputStream(jsonKey.getBytes());
-    //RemoteStorageHelper helper = RemoteStorageHelper.create(projectId, keyStream);
-    storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService();
+    storage = StorageOptions.newBuilder()
+      .setCredentials(credentials)
+      .setProjectId(projectId)
+      .build().getService();
     if (bucket == null) {
       bucket = RemoteStorageHelper.generateBucketName();
       storage.create(BucketInfo.of(bucket));
