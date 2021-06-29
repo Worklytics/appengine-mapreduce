@@ -353,6 +353,9 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
       } catch (LogServiceException ex) {
         // consider any log-fetch failure as if request is not known to be completed
         log.log(Level.FINE, "Failed to query log service for request " + requestId, ex);
+      } catch (Throwable ex) {
+        // consider any log-fetch failure as if request is not known to be completed
+        log.log(Level.SEVERE, "Unexpected exception querying log serivce", ex);
       }
     }
     return false;
