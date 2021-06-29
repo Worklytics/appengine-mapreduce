@@ -11,7 +11,7 @@
   </organization>
   <!-- follow semver for fork of OSS -->
   <!-- https://gofore.com/en/best-practices-for-forking-a-git-repo/ -->
-  <version>0.10+worklytics.4</version>
+  <version>0.10+worklytics.5</version>
   <packaging>jar</packaging>
   <scm>
     <connection>scm:git:git@github.com:Worklytics/appengine-mapreduce.git</connection>
@@ -31,7 +31,8 @@
   </licenses>
   <properties>
     <!-- 1.9.72 as min (2019 version) -->
-    <appengine.target.version>[1.9.72,2.0)</appengine.target.version>
+    <!-- 1.9.80 is max supported by app for now -->
+    <appengine.target.version>[1.9.72,1.9.81)</appengine.target.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <github.global.server>github</github.global.server>
@@ -97,7 +98,7 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.8.1</version>
         <configuration>
-          <source>1.8</source> <!-- GAE doesn't support java7 from March 2019 -->
+          <source>1.8</source>
           <target>1.8</target>
           <release>8</release>
         </configuration>
