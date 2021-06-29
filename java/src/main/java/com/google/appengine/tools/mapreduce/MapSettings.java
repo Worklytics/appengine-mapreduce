@@ -20,11 +20,9 @@ import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.common.base.Preconditions;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import lombok.ToString;
 
 import java.io.Serializable;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -296,7 +294,7 @@ public class MapSettings implements Serializable {
           // TODO(user): we may want to support providing a version for a module
           final String requestedModule = module;
 
-          version = runWithRetries(() -> modulesService.getDefaultVersion(requestedModule), getModulesRetryerBuilder());
+          version = RetryExecutor.call(getModulesRetryerBuilder(), () -> modulesService.getDefaultVersion(requestedModule));
         }
       }
     }
@@ -313,12 +311,7 @@ public class MapSettings implements Serializable {
         .setMaxSliceRetries(maxSliceRetries)
         .setSliceTimeoutMillis(
             Math.max(DEFAULT_SLICE_TIMEOUT_MILLIS, (int) (millisPerSlice * sliceTimeoutRatio)));
-    return runWithRetries(() -> builder.build(), getModulesRetryerBuilder());
-  }
-
-  @SneakyThrows //just tricks compiler
-  private <V> V runWithRetries (Callable<V> callable, RetryerBuilder retryerBuilder) {
-    return (V) retryerBuilder.build().call(callable);
+    return RetryExecutor.call(getModulesRetryerBuilder(), () -> builder.build());
   }
 
   private String checkQueueSettings(String queueName) {
@@ -327,13 +320,16 @@ public class MapSettings implements Serializable {
     }
     final Queue queue = QueueFactory.getQueue(queueName);
     try {
-      runWithRetries(() -> {
+      // Does not work as advertise (just check that the queue name is valid).
+      // See b/13910616. Probably after the bug is fixed the check would need
+      // to inspect EnforceRate for not null.
+      RetryExecutor.call(getQueueRetryerBuilder(), () -> {
           // Does not work as advertise (just check that the queue name is valid).
           // See b/13910616. Probably after the bug is fixed the check would need
           // to inspect EnforceRate for not null.
           queue.fetchStatistics();
           return null;
-        }, getQueueRetryerBuilder());
+        });
     } catch (Throwable ex) {
       if (ex instanceof ExecutionException) {
         if (ex.getCause() instanceof IllegalStateException) {

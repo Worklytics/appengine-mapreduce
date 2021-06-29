@@ -225,10 +225,9 @@ public class ShufflerServlet extends HttpServlet {
   /**
    * Notifies the caller that the job has completed.
    */
-  @SneakyThrows
   private static void enqueueCallbackTask(final ShufflerParams shufflerParams, final String url,
                                           final String taskName) {
-    getRetryerBuilder().build().call(callable(() -> {
+    RetryExecutor.call(getRetryerBuilder(), callable(() -> {
         String hostname = ModulesServiceFactory.getModulesService().getVersionHostname(
             shufflerParams.getCallbackService(), shufflerParams.getCallbackVersion());
         Queue queue = QueueFactory.getQueue(shufflerParams.getCallbackQueue());
