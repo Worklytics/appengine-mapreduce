@@ -9,7 +9,6 @@ import static java.util.concurrent.Executors.callable;
 
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.WaitStrategies;
-import com.github.rholder.retry.WaitStrategy;
 import com.google.appengine.api.datastore.CommittedButStillApplyingException;
 import com.google.appengine.api.datastore.DatastoreFailureException;
 import com.google.appengine.api.datastore.DatastoreService;
@@ -19,11 +18,6 @@ import com.google.appengine.api.datastore.Entity;
 import com.google.appengine.api.datastore.EntityNotFoundException;
 import com.google.appengine.api.datastore.Key;
 import com.google.appengine.api.datastore.Transaction;
-import com.google.appengine.api.log.LogQuery;
-import com.google.appengine.api.log.LogService;
-import com.google.appengine.api.log.LogServiceException;
-import com.google.appengine.api.log.LogServiceFactory;
-import com.google.appengine.api.log.RequestLogs;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.api.taskqueue.TransactionalTaskException;
@@ -95,8 +89,6 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
   private static final Logger log = Logger.getLogger(ShardedJobRunner.class.getName());
 
   static final DatastoreService DATASTORE = DatastoreServiceFactory.getDatastoreService();
-  private static final LogService LOG_SERVICE = LogServiceFactory.getLogService();
-
 
   public static RetryerBuilder getRetryerBuilder() {
     return RetryerBuilder.newBuilder()
@@ -319,6 +311,8 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
     long currentTime = System.currentTimeMillis();
     int sliceTimeoutMillis = jobState.getSettings().getSliceTimeoutMillis();
     long lockExpiration = taskState.getLockInfo().lockedSince() + sliceTimeoutMillis;
+
+    //NOTE: always 'false' now; requests that complete properly SHOULD release their locks..
     boolean wasRequestCompleted = wasRequestCompleted(taskState.getLockInfo().getRequestId());
 
     if (lockExpiration > currentTime && !wasRequestCompleted) {
@@ -340,23 +334,24 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
     }
   }
 
+  /**
+   * determines whether a given GAE request was completed by querying against Logs Service
+   * @param requestId
+   * @return whether request is known to have been completed
+   */
   private static boolean wasRequestCompleted(String requestId) {
     if (requestId != null) {
-      LogQuery query = LogQuery.Builder.withRequestIds(Collections.singletonList(requestId));
-      try {
-        for (RequestLogs requestLog : LOG_SERVICE.fetch(query)) {
-          if (requestLog.isFinished()) {
-            log.info("Previous un-released lock for request " + requestId + " has finished");
-            return true;
-          }
-        }
-      } catch (LogServiceException ex) {
-        // consider any log-fetch failure as if request is not known to be completed
-        log.log(Level.FINE, "Failed to query log service for request " + requestId, ex);
-      } catch (Throwable ex) {
-        // consider any log-fetch failure as if request is not known to be completed
-        log.log(Level.SEVERE, "Unexpected exception querying log serivce", ex);
-      }
+      //previously, this checked against GAE LogService; this seems to no longer work as-expected
+      // and there does not appear to be any clear success after we move from Java8 --> Java11 anyways
+      // presumably, successor is Cloud Logging; neither REST or gRPC APIs provide any obvious way
+      // to query by "request id"
+      // @see https://cloud.google.com/logging/docs/apis
+      // an actual Logs Explorer query that does it is:
+      //   resource.type="gae_app" resource.labels.module_id="jobs"
+      //   protoPayload.requestId="60db8a4400ff06d6adcf87f2400001737e6576616c2d656e67696e00016a6f62733a7633393863000100"
+      // but this seems to be a BQ-powered search against partitioned log tables, not an efficient
+      // lookup by id
+      log.log(Level.INFO, "Check for whether request is completed no longer support; will assume it's not");
     }
     return false;
   }
@@ -449,8 +444,8 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
   }
 
   private ShardRetryState<T> handleSliceFailure(ShardedJobStateImpl<T> jobState,
-      IncrementalTaskState<T> taskState, RuntimeException ex, boolean abandon) {
-    if (!(ex instanceof RecoverableException) && !taskState.getTask().allowSliceRetry(abandon)) {
+      IncrementalTaskState<T> taskState, RuntimeException ex, boolean failedDueToAbandonedLock) {
+    if (!(ex instanceof RecoverableException) && !taskState.getTask().allowSliceRetry(failedDueToAbandonedLock)) {
       return handleShardFailure(jobState, taskState, ex);
     }
     int attempts = taskState.incrementAndGetRetryCount();
