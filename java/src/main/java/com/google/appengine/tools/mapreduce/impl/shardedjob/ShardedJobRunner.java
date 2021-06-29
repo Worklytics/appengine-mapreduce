@@ -327,8 +327,11 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
             "Resuming after abandon lock for " + taskId + " on slice: "
                 + taskState.getSequenceNumber()), true);
       } else {
-        retryState = handleShardFailure(jobState, taskState, new RuntimeException(
-          "Lock for " + taskId + " expired on slice: " + taskState.getSequenceNumber()));
+        retryState = handleSliceFailure(jobState, taskState, new RuntimeException(
+          "Resuming after abandon lock for " + taskId + " on slice: "
+            + taskState.getSequenceNumber()), true);
+//        retryState = handleShardFailure(jobState, taskState, new RuntimeException(
+//          "Lock for " + taskId + " expired on slice: " + taskState.getSequenceNumber()));
       }
       updateTask(jobState, taskState, retryState, false);
     }
@@ -445,17 +448,18 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
 
   private ShardRetryState<T> handleSliceFailure(ShardedJobStateImpl<T> jobState,
       IncrementalTaskState<T> taskState, RuntimeException ex, boolean failedDueToAbandonedLock) {
-    if (!(ex instanceof RecoverableException) && !taskState.getTask().allowSliceRetry(failedDueToAbandonedLock)) {
-      return handleShardFailure(jobState, taskState, ex);
-    }
-    int attempts = taskState.incrementAndGetRetryCount();
-    if (attempts > jobState.getSettings().getMaxSliceRetries()){
-      log.log(Level.WARNING, "Slice exceeded its max attempts.");
-      return handleShardFailure(jobState, taskState, ex);
+    if (ex instanceof RecoverableException || taskState.getTask().allowSliceRetry(failedDueToAbandonedLock)) {
+      int attempts = taskState.incrementAndGetRetryCount();
+      if (attempts > jobState.getSettings().getMaxSliceRetries()){
+        log.log(Level.WARNING, "Slice exceeded its max attempts.");
+        return handleShardFailure(jobState, taskState, ex);
+      } else {
+        log.log(Level.INFO, "Slice attempt #" + attempts + " failed. Going to retry.", ex);
+      }
+      return null;
     } else {
-      log.log(Level.INFO, "Slice attempt #" + attempts + " failed. Going to retry.", ex);
+      return handleShardFailure(jobState, taskState, ex);
     }
-    return null;
   }
 
   private ShardRetryState<T> handleShardFailure(ShardedJobStateImpl<T> jobState,
