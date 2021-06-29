@@ -11,7 +11,9 @@ public class RetryExecutor {
   public static <V> V call(RetryerBuilder<V> retryerBuilder, Callable<V> callable) {
     try {
       return retryerBuilder.build().call(callable);
-    } catch (ExecutionException | RetryException e) {
+    } catch (ExecutionException e) {
+      throw new RuntimeException(e.getCause());
+    } catch (RetryException e) {
       throw new RuntimeException(e);
     }
   }
