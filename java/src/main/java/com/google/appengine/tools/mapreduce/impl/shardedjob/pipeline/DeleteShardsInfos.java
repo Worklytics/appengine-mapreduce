@@ -6,6 +6,7 @@ import com.github.rholder.retry.RetryException;
 import com.github.rholder.retry.StopStrategies;
 import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Key;
+import com.google.appengine.tools.mapreduce.RetryExecutor;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskState;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardRetryState;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
@@ -49,13 +50,9 @@ public class DeleteShardsInfos extends Job0<Void> {
       addParentKeyToList(toDelete, IncrementalTaskState.Serializer.makeKey(taskId));
       addParentKeyToList(toDelete, ShardRetryState.Serializer.makeKey(taskId));
     }
-    try {
-      ShardedJobRunner.getRetryerBuilder().withStopStrategy(StopStrategies.neverStop())
-        .build()
-        .call(callable(() -> DatastoreServiceFactory.getDatastoreService().delete(null, toDelete)));
-    } catch (ExecutionException | RetryException e) {
-      throw new RuntimeException(e);
-    }
+    RetryExecutor.call(
+      ShardedJobRunner.getRetryerBuilder().withStopStrategy(StopStrategies.neverStop()),
+      callable(() -> DatastoreServiceFactory.getDatastoreService().delete(null, toDelete)));
     return null;
   }
 
