@@ -4,6 +4,7 @@ package com.google.appengine.tools.mapreduce;
 import static java.util.concurrent.Executors.callable;
 
 import com.github.rholder.retry.RetryerBuilder;
+import com.github.rholder.retry.StopStrategies;
 import com.google.appengine.api.datastore.CommittedButStillApplyingException;
 import com.google.appengine.api.datastore.DatastoreService;
 import com.google.appengine.api.datastore.DatastoreServiceFactory;
@@ -62,7 +63,8 @@ public class DatastoreMutationPool {
       .retryIfExceptionOfType(ApiProxyException.class)
       .retryIfExceptionOfType(ConcurrentModificationException.class)
       .retryIfExceptionOfType(CommittedButStillApplyingException.class)
-      .retryIfExceptionOfType(DatastoreTimeoutException.class);
+      .retryIfExceptionOfType(DatastoreTimeoutException.class)
+      .withStopStrategy(StopStrategies.stopAfterAttempt(8));
   }
 
   public static final Params DEFAULT_PARAMS = new Params.Builder().build();
@@ -189,18 +191,16 @@ public class DatastoreMutationPool {
     }
   }
 
-  @SneakyThrows
   private void flushDeletes() {
-    getRetryerBuilder().build().call(callable(() -> {
+    RetryExecutor.call(getRetryerBuilder(), callable(() -> {
         ds.delete(deletes);
         deletes.clear();
         deletesBytes = 0;
       }));
   }
 
-  @SneakyThrows
   private void flushPuts() {
-    getRetryerBuilder().build().call(callable(() -> {
+    RetryExecutor.call(getRetryerBuilder(), callable(() -> {
         ds.put(puts);
         puts.clear();
         putsBytes = 0;

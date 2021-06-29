@@ -29,6 +29,7 @@ import com.google.appengine.api.datastore.Query.FilterOperator;
 import com.google.appengine.api.datastore.Query.FilterPredicate;
 import com.google.appengine.api.datastore.Query.SortDirection;
 import com.google.appengine.api.datastore.Rating;
+import com.google.appengine.tools.mapreduce.RetryExecutor;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
@@ -398,10 +399,10 @@ public class DatastoreShardStrategy {
     return new FilterPredicate(propertyName, operator, item.get(0).getProperty(propertyName));
   }
 
-  @SneakyThrows
   private List<Entity> runQuery(Query q, final int limit) {
     final PreparedQuery preparedQuery = datastore.prepare(q);
-    return (List<Entity>) getRetryerBuilder().build().call(() -> {
+    //noinspection unchecked
+    return (List<Entity>) RetryExecutor.call(getRetryerBuilder(), () -> {
         List<Entity> list = preparedQuery.asList(withLimit(limit));
         list.size(); // Forces the loading of all the data.
         return list;

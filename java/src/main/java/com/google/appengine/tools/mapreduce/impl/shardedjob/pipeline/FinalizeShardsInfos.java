@@ -7,6 +7,7 @@ import com.github.rholder.retry.StopStrategies;
 import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Entity;
 import com.google.appengine.api.datastore.Key;
+import com.google.appengine.tools.mapreduce.RetryExecutor;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTask;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskState;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardRetryState;
@@ -57,40 +58,38 @@ public class FinalizeShardsInfos extends Job0<Void> {
         toDelete.add(key);
       }
     }
-    try {
-      ShardedJobRunner.getRetryerBuilder().withStopStrategy(StopStrategies.neverStop())
-        .build().call(callable(() -> {
-        Future<Void> deleteAsync =
-          DatastoreServiceFactory.getAsyncDatastoreService().delete(null, toDelete);
-        Map<Key, Entity> entities = DatastoreServiceFactory.getDatastoreService().get(toFetch);
-        Iterator<Key> keysIter = toFetch.iterator();
-        while (keysIter.hasNext()) {
-          Entity entity = entities.get(keysIter.next());
-          if (entity != null) {
-            IncrementalTaskState<IncrementalTask> taskState =
-              IncrementalTaskState.Serializer.fromEntity(entity, true);
-            if (taskState.getTask() != null) {
-              taskState.getTask().jobCompleted(status);
-              toUpdate.add(IncrementalTaskState.Serializer.toEntity(null, taskState));
-            }
+
+    RetryExecutor.call(
+      ShardedJobRunner.getRetryerBuilder().withStopStrategy(StopStrategies.neverStop()),
+      callable(() -> {
+      Future<Void> deleteAsync =
+        DatastoreServiceFactory.getAsyncDatastoreService().delete(null, toDelete);
+      Map<Key, Entity> entities = DatastoreServiceFactory.getDatastoreService().get(toFetch);
+      Iterator<Key> keysIter = toFetch.iterator();
+      while (keysIter.hasNext()) {
+        Entity entity = entities.get(keysIter.next());
+        if (entity != null) {
+          IncrementalTaskState<IncrementalTask> taskState =
+            IncrementalTaskState.Serializer.fromEntity(entity, true);
+          if (taskState.getTask() != null) {
+            taskState.getTask().jobCompleted(status);
+            toUpdate.add(IncrementalTaskState.Serializer.toEntity(null, taskState));
           }
         }
-        if (!toUpdate.isEmpty()) {
-          DatastoreServiceFactory.getDatastoreService().put(null, toUpdate);
-        }
-        try {
-          deleteAsync.get();
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new RuntimeException("Request interrupted");
-        } catch (ExecutionException e) {
-          Throwables.propagateIfPossible(e.getCause());
-          throw new RuntimeException("Async get failed", e);
-        }
-      }));
-    } catch (ExecutionException | RetryException e) {
-      throw new RuntimeException(e);
-    }
+      }
+      if (!toUpdate.isEmpty()) {
+        DatastoreServiceFactory.getDatastoreService().put(null, toUpdate);
+      }
+      try {
+        deleteAsync.get();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException("Request interrupted");
+      } catch (ExecutionException e) {
+        Throwables.propagateIfPossible(e.getCause());
+        throw new RuntimeException("Async get failed", e);
+      }
+    }));
 
     return null;
   }

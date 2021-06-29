@@ -84,7 +84,6 @@ public class MapReduceSettings extends MapSettings implements GcpCredentialOptio
 
     public Builder() {}
 
-    @SneakyThrows
     public Builder(MapReduceSettings settings) {
       super(settings);
       this.bucketName = settings.bucketName;

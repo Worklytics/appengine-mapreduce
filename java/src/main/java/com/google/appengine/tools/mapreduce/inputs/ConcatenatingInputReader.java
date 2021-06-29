@@ -1,6 +1,7 @@
 package com.google.appengine.tools.mapreduce.inputs;
 
 import com.google.appengine.tools.mapreduce.InputReader;
+import com.google.appengine.tools.mapreduce.ShardContext;
 import com.google.common.base.Preconditions;
 
 import java.io.IOException;
@@ -23,6 +24,11 @@ public final class ConcatenatingInputReader<I> extends InputReader<I> {
   public ConcatenatingInputReader(List<? extends InputReader<I>> readers) {
     this.readers = Preconditions.checkNotNull(readers);
     this.index = 0;
+  }
+
+  @Override
+  public void setContext(ShardContext context) {
+    this.readers.forEach(r -> r.setContext(context));
   }
 
   @Override
