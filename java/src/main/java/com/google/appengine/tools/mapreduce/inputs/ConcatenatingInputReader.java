@@ -28,6 +28,7 @@ public final class ConcatenatingInputReader<I> extends InputReader<I> {
 
   @Override
   public void setContext(ShardContext context) {
+    super.setContext(context);
     this.readers.forEach(r -> r.setContext(context));
   }
 
