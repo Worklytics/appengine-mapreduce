@@ -263,7 +263,7 @@
     <dependency>
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client</artifactId>
-      <version>[1.25.0, 1.30.99)</version>
+      <version>[1.25.0, 1.41.4)</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.guava</groupId>
@@ -274,7 +274,7 @@
     <dependency>
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client-jackson2</artifactId>
-      <version>1.25.0</version>
+      <version>[1.25.0, 1.41.4)</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.guava</groupId>
