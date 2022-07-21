@@ -193,7 +193,7 @@
     <dependency>
       <groupId>com.google.appengine.tools</groupId>
       <artifactId>appengine-pipeline</artifactId>
-      <version>0.3+worklytics.1</version>
+      <version>0.3+worklytics.2</version>
     </dependency>
     <dependency>
       <groupId>com.googlecode.charts4j</groupId>
