@@ -7,6 +7,10 @@ Java library for MapReduce implementation.
 
 ## Change Log
 
+### worklytics.4
+
+ * bump proto-buf [due vulnerabilities](https://cloud.google.com/support/bulletins#gcp-2022-001) 
+
 ### worklytics.3
  * lombokify some classes
  * remove some deprecated methods
@@ -14,4 +18,3 @@ Java library for MapReduce implementation.
 
 ### worklytics.2
   * migrate to modern GCS client; breaking changes to all GoogleCloudStorage Input/Output classes
-  
