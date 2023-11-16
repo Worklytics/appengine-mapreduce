@@ -21,7 +21,8 @@ import java.util.logging.Logger;
 /**
  * sets up storage bucket for tests
  *
- * as of Apr 2020, no gcs emulator https://cloud.google.com/sdk/gcloud/reference/beta/emulators
+ * as of Nov 2023, no gcs emulator
+ * @see "https://cloud.google.com/sdk/gcloud/reference/beta/emulators"
  *
  * @see "https://googleapis.dev/java/google-cloud-storage/1.106.0/com/google/cloud/storage/testing/RemoteStorageHelper.html"
  *
@@ -56,7 +57,6 @@ public class CloudStorageIntegrationTestHelper implements LocalServiceTestConfig
   public void setUp() {
 
     String keyVar = System.getenv(KEY_ENV_VAR);
-
 
     if (keyVar == null) {
       //attempt w default credentials
@@ -96,7 +96,6 @@ public class CloudStorageIntegrationTestHelper implements LocalServiceTestConfig
   }
 
   @Deprecated //attach delete to global runtime shutdown
-  @SneakyThrows
   @Override
   public void tearDown() {
   }

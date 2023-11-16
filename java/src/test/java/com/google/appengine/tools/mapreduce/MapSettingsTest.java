@@ -11,8 +11,6 @@ import static com.google.appengine.tools.mapreduce.MapSettings.DEFAULT_SLICE_RET
 import static com.google.appengine.tools.mapreduce.MapSettings.WORKER_PATH;
 import static com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet.makeViewerUrl;
 
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
 import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
@@ -26,6 +24,7 @@ import com.google.appengine.tools.pipeline.JobSetting.StatusConsoleUrl;
 import com.google.apphosting.api.ApiProxy;
 import com.google.apphosting.api.ApiProxy.Environment;
 
+import com.google.cloud.datastore.Key;
 import junit.framework.TestCase;
 
 import org.easymock.EasyMock;
@@ -170,7 +169,7 @@ public class MapSettingsTest extends TestCase {
   }
 
   public void testMakeShardedJobSettings() {
-    Key key = KeyFactory.createKey("Kind1", "value1");
+    Key key = Key.newBuilder(" test-project", "Kind1", "value1").build();
     MapSettings settings = new MapSettings.Builder().setWorkerQueueName("good-queue").build();
     ShardedJobSettings sjSettings = settings.toShardedJobSettings("job1", key);
     assertNull(sjSettings.getBackend());

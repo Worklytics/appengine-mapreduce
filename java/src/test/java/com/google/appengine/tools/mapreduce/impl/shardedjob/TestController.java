@@ -1,10 +1,9 @@
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.fail;
-import static org.junit.Assert.assertFalse;
 
 import java.util.Iterator;
+
+import static org.junit.Assert.*;
 
 /**
  * A mock controller used for unit tests. It simply sums the inputs to combine the results.

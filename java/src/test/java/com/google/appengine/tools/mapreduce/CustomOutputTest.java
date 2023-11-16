@@ -83,15 +83,14 @@ public class CustomOutputTest extends EndToEndTestCase {
     mrSpecBuilder.setJobName("Test MR").setInput(new DatastoreInput("Test", 2))
         .setMapper(new TestMapper()).setKeyMarshaller(Marshallers.getStringMarshaller())
         .setValueMarshaller(Marshallers.getLongMarshaller())
-        .setReducer(ValueProjectionReducer.<String, Long>create())
+        .setReducer(ValueProjectionReducer.create())
         .setOutput(new CustomOutput())
         .setNumReducers(17);
     PipelineService pipelineService = PipelineServiceFactory.newPipelineService();
     MapReduceSettings mrSettings = new MapReduceSettings.Builder()
       .setServiceAccountKey(getStorageTestHelper().getBase64EncodedServiceAccountKey())
       .build();
-    String jobId = pipelineService.startNewPipeline(
-        new MapReduceJob<>(mrSpecBuilder.build(), mrSettings));
+    String jobId = pipelineService.startNewPipeline(new MapReduceJob<>(mrSpecBuilder.build(), mrSettings));
     assertFalse(jobId.isEmpty());
     executeTasksUntilEmpty("default");
     JobInfo info = pipelineService.getJobInfo(jobId);

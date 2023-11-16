@@ -140,7 +140,7 @@ public abstract class EndToEndTestCase {
     replay(request, response);
 
     if (taskStateInfo.getMethod().equals("POST")) {
-      if (taskStateInfo.getUrl().startsWith(PipelineServlet.BASE_URL)) {
+      if (taskStateInfo.getUrl().startsWith(PipelineServlet.baseUrl())) {
         pipelineServlet.doPost(request, response);
       } else {
         mrServlet.doPost(request, response);
