@@ -342,9 +342,9 @@ public class SerializationUtil {
       }
       return (T) deserializeFromByteArray(bytes);
     } catch (RuntimeException ex) {
+      log.warning("Deserialization of " + entity.getKey() + "#" + property + " failed: "
+              + ex.getMessage() + ", returning null instead.");
       if (lenient) {
-        log.info("Deserialization of " + entity.getKey() + "#" + property + " failed: "
-            + ex.getMessage() + ", returning null instead.");
         return null;
       }
       throw ex;
