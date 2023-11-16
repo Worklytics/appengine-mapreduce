@@ -11,7 +11,7 @@
   </organization>
   <!-- follow semver for fork of OSS -->
   <!-- https://gofore.com/en/best-practices-for-forking-a-git-repo/ -->
-  <version>0.10+worklytics.5</version>
+  <version>0.10+worklytics.6</version>
   <packaging>jar</packaging>
   <scm>
     <connection>scm:git:git@github.com:Worklytics/appengine-mapreduce.git</connection>
@@ -37,6 +37,7 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <github.global.server>github</github.global.server>
     <jackson.version>[2.7,3.0)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
+    <google.http.client.version>1.38.0</google.http.client.version>
   </properties>
   <repositories>
     <repository>
@@ -61,7 +62,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
-        <version>3.3.0</version>
+        <version>3.4.0</version>
         <reportSets>
           <reportSet>
             <id>html</id>
@@ -192,7 +193,7 @@
     <dependency>
       <groupId>com.google.appengine.tools</groupId>
       <artifactId>appengine-pipeline</artifactId>
-      <version>0.3+worklytics.1</version>
+      <version>0.3+worklytics.2</version>
     </dependency>
     <dependency>
       <groupId>com.googlecode.charts4j</groupId>
@@ -263,7 +264,7 @@
     <dependency>
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client</artifactId>
-      <version>[1.25.0, 1.30.99)</version>
+      <version>${google.http.client.version}</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.guava</groupId>
@@ -274,7 +275,7 @@
     <dependency>
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client-jackson2</artifactId>
-      <version>1.25.0</version>
+      <version>${google.http.client.version}</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.guava</groupId>
@@ -326,7 +327,7 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <version>4.10</version>
+      <version>4.13.1</version>
       <scope>test</scope>
     </dependency>
     <dependency>
