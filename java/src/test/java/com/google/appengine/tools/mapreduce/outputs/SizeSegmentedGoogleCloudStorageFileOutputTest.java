@@ -4,7 +4,6 @@ import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.mapreduce.CloudStorageIntegrationTestHelper;
 import com.google.appengine.tools.mapreduce.GoogleCloudStorageFileSet;
 import com.google.appengine.tools.mapreduce.OutputWriter;
-import com.google.appengine.tools.mapreduce.impl.BigQueryConstants;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 
 import com.google.cloud.storage.Blob;
@@ -46,10 +45,10 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
 
   public void testFilesWritten() throws IOException {
     int segmentSizeLimit = 10;
-    String fileNamePattern = String.format(BigQueryConstants.GCS_FILE_NAME_FORMAT, "testJob");
+    String fileNamePattern = String.format("BigQueryFilesToLoad/Job-%s/Shard-%%04d/file-%%04d", "testJob");
     SizeSegmentedGoogleCloudStorageFileOutput segmenter =
         new SizeSegmentedGoogleCloudStorageFileOutput(cloudStorageIntegrationTestHelper.getBucket(), segmentSizeLimit, fileNamePattern,
-            BigQueryConstants.MIME_TYPE, options);
+           MIME_TYPE, options);
     List<? extends OutputWriter<ByteBuffer>> writers = segmenter.createWriters(5);
     List<OutputWriter<ByteBuffer>> finished = new ArrayList<>();
     assertEquals(5, writers.size());
@@ -82,7 +81,7 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
     int segmentSizeLimit = 10;
     SizeSegmentedGoogleCloudStorageFileOutput segmenter =
         new SizeSegmentedGoogleCloudStorageFileOutput(cloudStorageIntegrationTestHelper.getBucket(), segmentSizeLimit, "testJob",
-            BigQueryConstants.MIME_TYPE, options);
+            MIME_TYPE, options);
     List<? extends OutputWriter<ByteBuffer>> writers = segmenter.createWriters(5);
     int countFiles = 0;
     for (OutputWriter<ByteBuffer> w : writers) {

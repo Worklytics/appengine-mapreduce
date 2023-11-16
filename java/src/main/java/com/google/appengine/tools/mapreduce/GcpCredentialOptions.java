@@ -1,17 +1,7 @@
 package com.google.appengine.tools.mapreduce;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.api.client.googleapis.services.GoogleClientRequestInitializer;
-import com.google.api.client.googleapis.services.json.AbstractGoogleJsonClientRequest;
-import com.google.api.client.googleapis.services.json.CommonGoogleJsonClientRequestInitializer;
-import com.google.api.client.http.HttpTransport;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.services.bigquery.Bigquery;
-import com.google.api.services.bigquery.BigqueryRequest;
 import com.google.auth.Credentials;
-import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
@@ -51,32 +41,6 @@ public interface GcpCredentialOptions {
     return StorageOptions.newBuilder()
       .setCredentials(credentials)
       .build().getService();
-  }
-
-
-
-  static Bigquery getBigqueryClient(@Nullable GcpCredentialOptions gcpCredentialOptions) {
-
-    //weird, but this is what FW was using previously ...
-    HttpTransport transport = new NetHttpTransport(); //new UrlFetchTransport();
-    JsonFactory jsonFactory = new JacksonFactory();
-
-    Credentials credentials = determineCredentials(gcpCredentialOptions)
-      .orElseGet(() -> StorageOptions.getDefaultInstance().getCredentials());
-
-    GoogleClientRequestInitializer initializer = new CommonGoogleJsonClientRequestInitializer() {
-      @SuppressWarnings("unused")
-      public void initialize(
-        @SuppressWarnings("rawtypes") AbstractGoogleJsonClientRequest request) {
-        @SuppressWarnings("rawtypes")
-        BigqueryRequest bigqueryRequest = (BigqueryRequest) request;
-        bigqueryRequest.setPrettyPrint(true);
-      }
-    };
-
-    return new Bigquery.Builder(transport, jsonFactory, new HttpCredentialsAdapter(credentials))
-      .setGoogleClientRequestInitializer(initializer)
-      .build();
   }
 
   static Optional<Credentials> determineCredentials(@Nullable GcpCredentialOptions gcpCredentialOptions) {
