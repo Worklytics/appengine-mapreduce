@@ -325,7 +325,7 @@
     <dependency>
       <groupId>org.easymock</groupId>
       <artifactId>easymock</artifactId>
-      <version>4.3</version>
+      <version>4.3</version> <!-- need 5.2.0 to solve all JDK 17 issues? see https://github.com/easymock/easymock/releases -->
     </dependency>
   </dependencies>
 </project>
