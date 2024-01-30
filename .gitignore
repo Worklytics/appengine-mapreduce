@@ -6,5 +6,5 @@ MANIFEST
 # build files from java
 java/target
 java/WEB-INF
-java/lib
+#java/lib
 java/dist

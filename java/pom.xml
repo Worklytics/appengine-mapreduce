@@ -35,7 +35,7 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <github.global.server>github</github.global.server>
     <jackson.version>[2.7,3.0)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
-    <google.http.client.version>1.44.0</google.http.client.version>
+    <google.http.client.version>1.44.1</google.http.client.version>
   </properties>
   <repositories>
     <repository>
@@ -190,7 +190,7 @@
     <dependency>
       <groupId>com.google.appengine.tools</groupId>
       <artifactId>appengine-pipeline</artifactId>
-      <version>0.3+worklytics.2</version>
+      <version>0.3+worklytics.3</version>
     </dependency>
     <dependency>
       <groupId>com.googlecode.charts4j</groupId>
@@ -327,7 +327,7 @@
     <dependency>
       <groupId>org.easymock</groupId>
       <artifactId>easymock</artifactId>
-      <version>3.0</version>
+      <version>4.3</version>
     </dependency>
   </dependencies>
 </project>
