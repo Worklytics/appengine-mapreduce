@@ -15,7 +15,7 @@ jobs:
       - name: Install pipelines-jar
         run: mvn install:install-file -Dfile=java/lib/pipeline.jar -DgroupId=com.google.appengine.tools -DartifactId=appengine-pipeline -Dversion=0.3+worklytics.3 -Dpackaging=jar
       # init maven settings such maven can consume packages from GitHub, not just maven central
-      - uses: s4u/maven-settings-action@v1.1
+      - uses: s4u/maven-settings-action@v1.11.0
         with:
           override: true
           servers: '[{"id": "github", "username": "OWNER", "password": "${{secrets.GITHUB_TOKEN}}"}]'
