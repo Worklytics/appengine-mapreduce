@@ -1,5 +1,15 @@
 package com.google.appengine.tools.mapreduce.bigqueryjobs;
 
+import com.google.api.client.googleapis.extensions.appengine.auth.oauth2.AppIdentityCredential;
+import com.google.api.client.googleapis.services.GoogleClientRequestInitializer;
+import com.google.api.client.googleapis.services.json.AbstractGoogleJsonClientRequest;
+import com.google.api.client.googleapis.services.json.CommonGoogleJsonClientRequestInitializer;
+import com.google.api.client.http.HttpTransport;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.bigquery.Bigquery;
+import com.google.api.services.bigquery.BigqueryRequest;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -15,7 +25,9 @@ import com.google.appengine.tools.pipeline.Job1;
 import com.google.appengine.tools.pipeline.Value;
 import com.google.cloud.storage.Storage;
 import com.google.common.collect.ImmutableSet;
+
 import lombok.RequiredArgsConstructor;
+import com.google.common.collect.Lists;
 
 import java.io.IOException;
 import java.util.ArrayList;
