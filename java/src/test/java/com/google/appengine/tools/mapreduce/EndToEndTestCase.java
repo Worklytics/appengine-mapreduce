@@ -12,22 +12,24 @@ import com.google.appengine.api.taskqueue.dev.QueueStateInfo;
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo.HeaderWrapper;
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo.TaskStateInfo;
 import com.google.appengine.tools.development.ApiProxyLocal;
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
-import com.google.appengine.tools.development.testing.LocalMemcacheServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobHandler;
+import com.google.appengine.tools.mapreduce.testutil.EndToEndTestDIModule;
+import com.google.appengine.tools.mapreduce.testutil.PipelineSetupExtensions;
+import com.google.appengine.tools.pipeline.impl.PipelineManager;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
+import com.google.appengine.tools.pipeline.impl.util.DIUtil;
 import com.google.apphosting.api.ApiProxy;
+import com.google.cloud.datastore.DatastoreOptions;
 import com.google.common.base.CharMatcher;
 
 import lombok.Getter;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
@@ -44,17 +46,17 @@ import javax.servlet.http.HttpServletResponse;
 
 /**
  */
+@PipelineSetupExtensions
 public abstract class EndToEndTestCase {
 
   private static final Logger logger = Logger.getLogger(EndToEndTestCase.class.getName());
 
-  private final MapReduceServlet mrServlet = new MapReduceServlet();
-  private final PipelineServlet pipelineServlet = new PipelineServlet();
+  private MapReduceServlet mrServlet;
+  private PipelineServlet pipelineServlet;
   private final LocalServiceTestHelper helper =
       new LocalServiceTestHelper(
-          new LocalDatastoreServiceTestConfig(),
           new LocalTaskQueueTestConfig().setDisableAutoTaskExecution(true),
-          new LocalMemcacheServiceTestConfig(),
+          //new LocalMemcacheServiceTestConfig(),
           new LocalModulesServiceTestConfig());
   private LocalTaskQueue taskQueue;
 
@@ -66,8 +68,9 @@ public abstract class EndToEndTestCase {
   @Getter
   private CloudStorageIntegrationTestHelper storageTestHelper;
 
-  @Before
-  public void setUp() throws Exception {
+  @BeforeEach
+  public void setUp(DatastoreOptions datastoreOptions,
+                    AppEngineBackEnd appEngineBackEnd) throws Exception {
     helper.setUp();
     Map<String, String> envAttributes = getEnvAttributes();
     if (envAttributes != null) {
@@ -79,12 +82,21 @@ public abstract class EndToEndTestCase {
     proxy.setProperty(LocalBlobstoreService.NO_STORAGE_PROPERTY, "true");
     storageTestHelper = new CloudStorageIntegrationTestHelper();
     storageTestHelper.setUp();
+
+    EndToEndTestDIModule.datastoreOptions = datastoreOptions;
+    EndToEndTestDIModule.appEngineBackEnd = appEngineBackEnd;
+
+    pipelineServlet = new PipelineServlet();
+    DIUtil.inject(EndToEndTestDIModule.class.getName(), pipelineServlet);
+    pipelineServlet.init();
+
+    mrServlet = new MapReduceServlet();
+    DIUtil.inject(EndToEndTestDIModule.class.getName(), mrServlet);
   }
 
-  @After
+  @AfterEach
   public void tearDown() throws Exception {
     helper.tearDown();
-    storageTestHelper.tearDown();
   }
 
   protected List<QueueStateInfo.TaskStateInfo> getTasks() {

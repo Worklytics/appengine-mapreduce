@@ -16,21 +16,14 @@
 
 package com.google.appengine.tools.mapreduce.impl.util;
 
-import com.google.appengine.api.datastore.Blob;
-import com.google.appengine.api.datastore.DatastoreService;
-import com.google.appengine.api.datastore.DatastoreServiceFactory;
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.PreparedQuery;
-import com.google.appengine.api.datastore.Query;
-import com.google.appengine.api.datastore.Query.FilterOperator;
-import com.google.appengine.api.datastore.Query.FilterPredicate;
-import com.google.appengine.api.datastore.Transaction;
 import com.google.appengine.tools.mapreduce.CorruptDataException;
 import com.google.appengine.tools.mapreduce.Marshaller;
-import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
+import com.google.cloud.datastore.*;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Streams;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+import lombok.extern.java.Log;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -46,13 +39,10 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.io.StreamCorruptedException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.Inflater;
@@ -62,19 +52,14 @@ import java.util.zip.InflaterInputStream;
  * A serialization utility class.
  *
  */
+@Log
 public class SerializationUtil {
 
-  private static final Logger log = Logger.getLogger(SerializationUtil.class.getName());
-  private static final DatastoreService DATASTORE = DatastoreServiceFactory.getDatastoreService();
   // 1MB - 200K slack for the rest of the properties and entity overhead
   private static final int MAX_BLOB_BYTE_SIZE = 1024 * 1024 - 200 * 1024;
   private static final String SHARDED_VALUE_KIND = "MR-ShardedValue";
-  private static final Function<Entity, Key> ENTITY_TO_KEY = new Function<Entity, Key>() {
-    @Override
-    public Key apply(Entity entity) {
-      return entity.getKey();
-    }
-  };
+
+
 
   /**
    * Type of compression to optionally use when serializing/deserializing objects.
@@ -150,19 +135,12 @@ public class SerializationUtil {
     }
   }
 
+  @AllArgsConstructor
+  @NoArgsConstructor
   private static class Flag implements Externalizable {
 
     private static final long serialVersionUID = 1L;
     private byte id;
-
-    @SuppressWarnings("unused")
-    public Flag() {
-      // Needed for serialization
-    }
-
-    private Flag(byte id) {
-      this.id = id;
-    }
 
     private CompressionType getCompressionType() {
       return CompressionType.getByFlag(this);
@@ -314,70 +292,77 @@ public class SerializationUtil {
   }
 
   public static <T extends Serializable> T deserializeFromDatastoreProperty(
-      Entity entity, String property) {
-    return deserializeFromDatastoreProperty(entity, property, false);
+    Datastore datastore, Entity entity, String property) {
+    return deserializeFromDatastoreProperty(datastore, entity, property, false);
   }
 
   @SuppressWarnings("unchecked")
   public static <T extends Serializable> T deserializeFromDatastoreProperty(
-      Entity entity, String property, boolean lenient) {
-    Object value = entity.getProperty(property);
-    try {
-      byte[] bytes;
-      if (value instanceof Blob) {
-        bytes = ((Blob) value).getBytes();
-      } else {
-        Collection<Key> keys = (Collection<Key>) value;
-        Map<Key, Entity> shards = DATASTORE.get(keys);
-        ByteArrayOutputStream bout = new ByteArrayOutputStream();
-        for (Key key : keys) {
-          Entity shard = shards.get(key);
-          if (shard == null) {
-            throw new CorruptDataException("Missing data shard " + key);
-          }
-          byte[] shardBytes = ((Blob) shard.getProperty("content")).getBytes();
-          bout.write(shardBytes, 0, shardBytes.length);
-        }
-        bytes = bout.toByteArray();
+      Datastore datastore, Entity entity, String property, boolean lenient) {
+    Value<?> value = entity.getProperties().get(property);
+
+    if (value instanceof BlobValue) {
+      return deserializeFromByteArray(((BlobValue) value).get().toByteArray(), lenient);
+    } else if (value instanceof ListValue) {
+      List<Entity> entities =
+        ((ListValue) value).get().stream().parallel()
+          .map(k -> (Key) k.get())
+          .map(datastore::get)
+          .collect(Collectors.toList());
+
+      // in case not back from datastore in order, sort by key name
+      List<byte[]> chunks = entities.stream()
+        .sorted(Comparator.comparing((Entity chunkEntity) -> Integer.parseInt(chunkEntity.getKey().getName().split("-")[1])))
+        .map(chunkEntity -> chunkEntity.getBlob("content").toByteArray())
+        .collect(Collectors.toList());
+
+      int size = (int) chunks.stream().mapToLong(b -> b.length).sum();
+      byte[] allBytes = new byte[size];
+      int destPos = 0;
+      for (byte[] chunk : chunks) {
+        System.arraycopy(chunk, 0, allBytes, destPos, chunk.length);
+        destPos+= chunk.length;
       }
-      return (T) deserializeFromByteArray(bytes);
-    } catch (RuntimeException ex) {
-      log.warning("Deserialization of " + entity.getKey() + "#" + property + " failed: "
-              + ex.getMessage() + ", returning null instead.");
-      if (lenient) {
-        return null;
-      }
-      throw ex;
+      return deserializeFromByteArray(allBytes, lenient);
+    } else {
+      throw new IllegalArgumentException("Unexpected property type: " + value.getClass());
     }
   }
 
   public static void serializeToDatastoreProperty(
-      Transaction tx, Entity entity, String property, Serializable o) {
+    Transaction tx, Entity.Builder entity, String property, Serializable o) {
     serializeToDatastoreProperty(tx, entity, property, o, null);
   }
 
   public static Iterable<Key> getShardedValueKeysFor(Transaction tx, Key parent, String property) {
-    Query query = new Query(SHARDED_VALUE_KIND);
-    query.setAncestor(parent);
+    KeyQuery.Builder queryBuilder = KeyQuery.newKeyQueryBuilder()
+      .setKind(SHARDED_VALUE_KIND);
+
+    StructuredQuery.Filter filter = StructuredQuery.PropertyFilter.hasAncestor(parent);
+
+
     if (property != null) {
-      query.setFilter(new FilterPredicate("property", FilterOperator.EQUAL, property));
+      filter = StructuredQuery.CompositeFilter.and(
+        filter,
+        StructuredQuery.PropertyFilter.eq("property", property));
     }
-    query.setKeysOnly();
-    PreparedQuery preparedQuery = DATASTORE.prepare(tx, query);
-    return Iterables.transform(preparedQuery.asIterable(), ENTITY_TO_KEY);
+    queryBuilder.setFilter(filter);
+    return () -> tx.run(queryBuilder.build());
   }
 
   public static void serializeToDatastoreProperty(
-      Transaction tx, Entity entity, String property, Serializable o, CompressionType compression) {
+      Transaction tx, Entity.Builder entity, String property, Serializable o, CompressionType compression) {
     byte[] bytes = serializeToByteArray(o, false, compression);
 
     // deleting previous shards
-    List<Key> toDelete = Lists.newArrayList(getShardedValueKeysFor(tx, entity.getKey(), property));
+    Key parentKey = entity.build().getKey();
 
-    Object value;
+    List<Key> toDelete = Lists.newArrayList(getShardedValueKeysFor(tx, parentKey, property));
+
+    Value<?> value;
     if (bytes.length < MAX_BLOB_BYTE_SIZE) {
-      value = new Blob(bytes);
-      DATASTORE.delete(tx, toDelete);
+      value = BlobValue.newBuilder(Blob.copyFrom(bytes)).setExcludeFromIndexes(true).build();
+      tx.delete(toDelete.toArray(new Key[toDelete.size()]));
     } else {
       int shardId = 0;
       int offset = 0;
@@ -387,17 +372,30 @@ public class SerializationUtil {
         byte[] chunk = Arrays.copyOfRange(bytes, offset, Math.min(limit, bytes.length));
         offset = limit;
         String keyName = String.format("shard-%02d", ++shardId);
-        Entity shard = new Entity(SHARDED_VALUE_KIND, keyName, entity.getKey());
-        shard.setProperty("property", property);
-        shard.setUnindexedProperty("content", new Blob(chunk));
-        shards.add(shard);
+        Key key = Key.newBuilder(parentKey, SHARDED_VALUE_KIND, keyName).build();
+        Entity.Builder shard = Entity.newBuilder(key);
+        shard.set("property", property);
+        shard.set("content", BlobValue.newBuilder(Blob.copyFrom(chunk)).setExcludeFromIndexes(true).build());
+        shards.add(shard.build());
       }
       if (shards.size() < toDelete.size()) {
-        DATASTORE.delete(tx, toDelete.subList(shards.size(), toDelete.size()));
+        tx.delete(toDelete.subList(shards.size(), toDelete.size()).toArray(new Key[toDelete.size()]));
       }
-      value = DATASTORE.put(tx, shards);
+
+      ListValue.Builder builder = ListValue.newBuilder();
+
+      Queue<Key> queue = new ConcurrentLinkedQueue<>();
+      shards.stream().parallel().forEach(shard -> {
+        Batch batch = tx.getDatastore().newBatch();
+        batch.put(shard);
+        batch.submit();
+        queue.add(shard.getKey());
+      });
+
+      queue.stream().forEach(builder::addValue);
+      value = builder.build();
     }
-    entity.setUnindexedProperty(property, value);
+    entity.set(property, value);
   }
 
   public static byte[] serializeToByteArray(Serializable o) {

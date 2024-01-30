@@ -2,27 +2,23 @@
 
 package com.google.appengine.tools.mapreduce;
 
-import com.google.appengine.tools.mapreduce.impl.BaseContext;
-import com.google.appengine.tools.mapreduce.impl.CountersImpl;
-import com.google.appengine.tools.mapreduce.impl.MapOnlyShardTask;
-import com.google.appengine.tools.mapreduce.impl.WorkerController;
-import com.google.appengine.tools.mapreduce.impl.WorkerShardTask;
+import com.google.appengine.tools.mapreduce.impl.*;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ExamineStatusAndReturnResult;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ResultAndStatus;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ShardedJob;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobServiceFactory;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
-import com.google.appengine.tools.pipeline.FutureValue;
-import com.google.appengine.tools.pipeline.Job0;
-import com.google.appengine.tools.pipeline.JobSetting;
-import com.google.appengine.tools.pipeline.PipelineService;
-import com.google.appengine.tools.pipeline.PipelineServiceFactory;
-import com.google.appengine.tools.pipeline.PromisedValue;
-import com.google.appengine.tools.pipeline.Value;
+import com.google.appengine.tools.pipeline.*;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineEnvironment;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import lombok.NoArgsConstructor;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.java.Log;
 
+import javax.inject.Inject;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -37,18 +33,20 @@ import java.util.logging.Logger;
  * @param <O> type of output values
  * @param <R> type of final result
  */
+@Log
+@NoArgsConstructor
+@RequiredArgsConstructor
+@Injectable(MapReduceDIModule.class)
 public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
 
   private static final long serialVersionUID = 723635736794527552L;
-  private static final Logger log = Logger.getLogger(MapJob.class.getName());
 
-  private final MapSpecification<I, O, R> specification;
-  private final MapSettings settings;
+  @NonNull
+  private MapSpecification<I, O, R> specification;
+  @NonNull
+  private MapSettings settings;
 
-  public MapJob(MapSpecification<I, O, R> specification, MapSettings settings) {
-    this.specification = specification;
-    this.settings = settings;
-  }
+  @Inject transient AppEngineEnvironment environment;
 
   public static final String DEFAULT_QUEUE_NAME = "default";
 
@@ -56,12 +54,13 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
    * Starts a {@link MapJob} with the given parameters in a new Pipeline.
    * Returns the pipeline id.
    */
-  public static <I, O, R> String start(MapSpecification<I, O, R> specification,
-      MapSettings settings) {
+  public static <I, O, R> String start(PipelineService pipelineService,
+                                       MapSpecification<I, O, R> specification,
+                                       MapSettings settings) {
+    pipelineService.getBackendOptions();
     if (settings.getWorkerQueueName() == null) {
-      settings = new MapSettings.Builder(settings).setWorkerQueueName(DEFAULT_QUEUE_NAME).build();
+      settings = settings.toBuilder().workerQueueName(DEFAULT_QUEUE_NAME).build();
     }
-    PipelineService pipelineService = PipelineServiceFactory.newPipelineService();
     return pipelineService.startNewPipeline(
         new MapJob<>(specification, settings), settings.toJobSettings());
   }
@@ -76,7 +75,7 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
             + " job, using 'default'");
         queue = DEFAULT_QUEUE_NAME;
       }
-      settings = new MapReduceSettings.Builder().setWorkerQueueName(queue).build();
+      settings = MapReduceSettings.builder().workerQueueName(queue).build();
     }
     String jobId = getJobKey().getName();
     Context context = new BaseContext(jobId);
@@ -99,7 +98,7 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
       mapTasks.add(new MapOnlyShardTask<>(jobId, i, readers.size(), readers.get(i),
           specification.getMapper(), writers.get(i), settings.getMillisPerSlice()));
     }
-    ShardedJobSettings shardedJobSettings = settings.toShardedJobSettings(jobId, getPipelineKey());
+    ShardedJobSettings shardedJobSettings = settings.toShardedJobSettings(environment, jobId, getPipelineKey());
     PromisedValue<ResultAndStatus<R>> resultAndStatus = newPromise();
     WorkerController<I, O, R, MapOnlyMapperContext<O>> workerController = new WorkerController<>(
         jobId, new CountersImpl(), output, resultAndStatus.getHandle());

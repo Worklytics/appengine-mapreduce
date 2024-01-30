@@ -10,34 +10,35 @@ import com.google.appengine.api.taskqueue.dev.QueueStateInfo.TaskStateInfo;
 import com.google.appengine.tools.mapreduce.EndToEndTestCase;
 import com.google.apphosting.api.ApiProxy;
 import com.google.apphosting.api.ApiProxy.Environment;
+import com.google.cloud.datastore.Datastore;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.SettableFuture;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.BlockJUnit4ClassRunner;
-
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import java.io.UnsupportedEncodingException;
+import java.util.Date;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Tests that locking prevents concurrent execution.
  */
-@RunWith(BlockJUnit4ClassRunner.class)
+
 public class LockingTest extends EndToEndTestCase {
 
-  private final ShardedJobService service = ShardedJobServiceFactory.getShardedJobService();
+  private ShardedJobService service;
   private final String queueName = "default";
   private ShardedJobSettings settings;
 
-  @Before
-  @Override
-  public void setUp() throws Exception {
-    super.setUp();
-    settings = new ShardedJobSettings.Builder().build();
+  private Datastore datastore;
+
+  @BeforeEach
+  public void setUp(Datastore datastore) throws Exception {
+    settings = ShardedJobSettings.builder().build();
+    this.datastore = datastore;
+    this.service = ShardedJobServiceFactory.getShardedJobService(datastore);
   }
 
   /**
@@ -72,8 +73,7 @@ public class LockingTest extends EndToEndTestCase {
     }
   }
 
-  @After
-  @Before
+  @AfterEach
   public void cleanup() {
     StaticBlockingTask.resetStatus();
   }
@@ -97,10 +97,10 @@ public class LockingTest extends EndToEndTestCase {
     assertEquals(1, state.getActiveTaskCount());
     assertEquals(1, state.getTotalTaskCount());
 
-    IncrementalTaskState<IncrementalTask> taskState = lookupTaskState(taskFromQueue);
+    IncrementalTaskState<IncrementalTask> taskState = lookupTaskState(datastore, taskFromQueue);
     //Duplicate task again (after status change).
     executeTask(jobId, taskFromQueue); //Should do nothing.
-    assertAreEqual(taskState, lookupTaskState(taskFromQueue));
+    assertAreEqual(taskState, lookupTaskState(datastore, taskFromQueue));
     assertEquals(1, StaticBlockingTask.timesRun.get());
 
     //Finish execution of job.
@@ -140,7 +140,7 @@ public class LockingTest extends EndToEndTestCase {
   }
 
   /**
-   * Tests a duplicate task from task queue while the execution of that task in in progress.
+   * Tests a duplicate task from task queue while the execution of that task in progress.
    */
   @Test
   public void testDupResultsInWaiting() throws Exception {
@@ -184,16 +184,16 @@ public class LockingTest extends EndToEndTestCase {
    * Tests lock expiration
    */
   @Test
-  public void testExpiryRestartsShard() throws Exception {
+  public void testExpiryRestartsShard(Datastore datastore) throws Exception {
     //Setting the timeout to 0 insures that the shard will have timed out by the time the
     //duplicate arrives.
     ShardedJobSettings settings =
-        new ShardedJobSettings.Builder().setSliceTimeoutMillis(0).build();
+        ShardedJobSettings.builder().sliceTimeoutMillis(0).build();
     final String jobId = startNewTask(settings);
 
     //Run task
     final TaskStateInfo taskFromQueue = grabNextTaskFromQueue(queueName);
-    assertEquals(0, getShardRetryCount(taskFromQueue));
+    assertEquals(0, getShardRetryCount(datastore, taskFromQueue));
     SettableFuture<Void> result = runInNewThread(taskFromQueue);
     assertEquals(1, StaticBlockingTask.timesRun.get());
     ShardedJobState state = service.getJobState(jobId);
@@ -201,11 +201,11 @@ public class LockingTest extends EndToEndTestCase {
     assertEquals(1, state.getActiveTaskCount());
     assertEquals(1, state.getTotalTaskCount());
     assertEquals("Something was left in the queue", 0, getTasks(queueName).size());
-    assertEquals(0, getShardRetryCount(taskFromQueue));
+    assertEquals(0, getShardRetryCount(datastore, taskFromQueue));
 
     //Duplicate task
     executeTask(jobId, taskFromQueue); //Should not block because will not execute run.
-    assertEquals(1, getShardRetryCount(taskFromQueue));
+    assertEquals(1, getShardRetryCount(datastore, taskFromQueue));
     state = service.getJobState(jobId);
     assertEquals(new Status(RUNNING), state.getStatus());
     assertEquals(1, state.getActiveTaskCount());
@@ -213,10 +213,10 @@ public class LockingTest extends EndToEndTestCase {
     assertEquals(1, StaticBlockingTask.timesRun.get());
 
     //First task completion should not update state
-    IncrementalTaskState<IncrementalTask> taskState = lookupTaskState(taskFromQueue);
+    IncrementalTaskState<IncrementalTask> taskState = lookupTaskState(datastore, taskFromQueue);
     StaticBlockingTask.finishRun.release();
     result.get();
-    assertAreEqual(taskState, lookupTaskState(taskFromQueue));
+    assertAreEqual(taskState, lookupTaskState(datastore, taskFromQueue));
     state = service.getJobState(jobId);
     assertEquals(new Status(RUNNING), state.getStatus());
 
@@ -268,13 +268,15 @@ public class LockingTest extends EndToEndTestCase {
     return settableFuture;
   }
 
-  private int getShardRetryCount(final TaskStateInfo taskFromQueue)
+  private int getShardRetryCount(Datastore datastore,
+                                 final TaskStateInfo taskFromQueue)
       throws UnsupportedEncodingException {
-    return new ShardedJobRunner<>().lookupShardRetryState(getTaskId(taskFromQueue)).getRetryCount();
+    return new ShardedJobRunner<>(datastore).lookupShardRetryState(datastore, getTaskId(taskFromQueue)).getRetryCount();
   }
 
-  private IncrementalTaskState<IncrementalTask> lookupTaskState(final TaskStateInfo taskFromQueue)
+  private IncrementalTaskState<IncrementalTask> lookupTaskState(Datastore datastore,
+                                                                final TaskStateInfo taskFromQueue)
       throws UnsupportedEncodingException {
-    return new ShardedJobRunner<>().lookupTaskState(null, getTaskId(taskFromQueue));
+    return new ShardedJobRunner<>(datastore).lookupTaskState(null, getTaskId(taskFromQueue));
   }
 }

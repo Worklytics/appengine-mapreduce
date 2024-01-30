@@ -12,10 +12,9 @@ import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageLevelDbOutputWriter;
 import com.google.appengine.tools.mapreduce.outputs.LevelDbOutputWriter;
 
-import junit.framework.TestCase;
-
-import org.junit.After;
-import org.junit.Before;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -24,10 +23,12 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Random;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 /**
  * Tests for {@link GoogleCloudStorageLevelDbInput}
  */
-public class GoogleCloudStorageLevelDbInputReaderTest extends TestCase {
+public class GoogleCloudStorageLevelDbInputReaderTest {
 
   private static final int BLOCK_SIZE = LevelDbConstants.BLOCK_SIZE;
   GcsFilename filename;
@@ -39,18 +40,15 @@ public class GoogleCloudStorageLevelDbInputReaderTest extends TestCase {
       new LocalDatastoreServiceTestConfig());
 
 
-  @Override
-  @Before
+  @BeforeEach
   public void setUp() throws Exception {
-    super.setUp();
     helper.setUp();
     storageHelper = new CloudStorageIntegrationTestHelper();
     storageHelper.setUp();
     filename = new GcsFilename(storageHelper.getBucket(), "GoogleCloudStorageLevelDbInputReaderTest");
   }
 
-  @Override
-  @After
+  @AfterEach
   public void tearDown() throws Exception {
     storageHelper.getStorage().delete(filename.asBlobId());
     helper.tearDown();
@@ -109,6 +107,8 @@ public class GoogleCloudStorageLevelDbInputReaderTest extends TestCase {
     writer.endShard();
   }
 
+  @Test
+
   public void testReading() throws IOException {
     writeData(filename, new ByteBufferGenerator(100));
     GoogleCloudStorageLevelDbInputReader reader =
@@ -124,6 +124,7 @@ public class GoogleCloudStorageLevelDbInputReaderTest extends TestCase {
     reader.endSlice();
   }
 
+  @Test
   public void testRecordsDontChange() throws IOException {
     writeData(filename, new ByteBufferGenerator(1000));
     GoogleCloudStorageLevelDbInputReader reader =
@@ -148,6 +149,7 @@ public class GoogleCloudStorageLevelDbInputReaderTest extends TestCase {
     reader.endSlice();
   }
 
+  @Test
   public void testReadingWithSerialization() throws IOException, ClassNotFoundException {
     writeData(filename, new ByteBufferGenerator(100));
     GoogleCloudStorageLevelDbInputReader reader =

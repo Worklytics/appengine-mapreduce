@@ -16,11 +16,13 @@ package com.google.appengine.tools.mapreduce;
 
 import com.google.appengine.tools.mapreduce.impl.handlers.MapReduceServletImpl;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.RejectRequestException;
+import lombok.extern.java.Log;
 
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.inject.Inject;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -50,16 +52,18 @@ import javax.servlet.http.HttpServletResponse;
  * </pre>
  *
  */
+@Log
 public class MapReduceServlet extends HttpServlet {
   private static final long serialVersionUID = 899229972193207939L;
-  private static final Logger log = Logger.getLogger(MapReduceServlet.class.getName());
 
   private static final int REJECT_REQUEST_STATUSCODE = 429; // See rfc6585
+
+  @Inject transient MapReduceServletImpl mapReduceServletImpl;
 
   @Override
   public void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     try {
-      MapReduceServletImpl.doPost(req, resp);
+      mapReduceServletImpl.doPost(req, resp);
     } catch (RejectRequestException e) {
       handleRejectedRequest(resp, e);
     }
@@ -68,7 +72,7 @@ public class MapReduceServlet extends HttpServlet {
   @Override
   public void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     try {
-      MapReduceServletImpl.doGet(req, resp);
+      mapReduceServletImpl.doGet(req, resp);
     } catch (RejectRequestException e) {
       handleRejectedRequest(resp, e);
     }

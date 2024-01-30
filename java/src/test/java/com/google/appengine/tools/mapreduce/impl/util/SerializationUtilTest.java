@@ -3,43 +3,51 @@
 package com.google.appengine.tools.mapreduce.impl.util;
 
 import static java.util.Arrays.asList;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.google.appengine.api.datastore.DatastoreService;
-import com.google.appengine.api.datastore.DatastoreServiceFactory;
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
-import com.google.appengine.api.datastore.Transaction;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
+import com.google.appengine.tools.mapreduce.testutil.DatastoreExtension;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.CompressionType;
 
-import junit.framework.TestCase;
+import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.Key;
+import com.google.cloud.datastore.Transaction;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 
 /**
  * @author ohler@google.com (Christian Ohler)
  */
-public class SerializationUtilTest extends TestCase {
+@ExtendWith({DatastoreExtension.class, DatastoreExtension.ParameterResolver.class})
+public class SerializationUtilTest {
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper();
-  private DatastoreService datastore;
+  private Datastore datastore;
 
-  @Override
-  protected void setUp() throws Exception {
+  @BeforeEach
+  protected void setUp(Datastore datastore) throws Exception {
     helper.setUp();
-    datastore = DatastoreServiceFactory.getDatastoreService();
+    this.datastore = datastore;
   }
 
-  @Override
+  @AfterEach
   protected void tearDown() throws Exception {
     helper.tearDown();
   }
 
+  @Test
   public void testGetBytes_slice1() throws Exception {
     ByteBuffer b = ByteBuffer.allocate(10);
     b.putShort((short) 0x1234);
@@ -51,6 +59,7 @@ public class SerializationUtilTest extends TestCase {
     assertTrue(Arrays.equals(new byte[] { 0x12, 0x34 }, bytes));
   }
 
+  @Test
   public void testGetBytes_slice2() throws Exception {
     ByteBuffer b = ByteBuffer.allocate(10);
     b.position(2);
@@ -63,6 +72,7 @@ public class SerializationUtilTest extends TestCase {
     assertTrue(Arrays.equals(new byte[] { 0x12, 0x34 }, bytes));
   }
 
+  @Test
   public void testSerializeToFromByteArrayWithNoParams() throws Exception {
     Serializable original = "hello";
     byte[] bytes = SerializationUtil.serializeToByteArray(original);
@@ -79,6 +89,7 @@ public class SerializationUtilTest extends TestCase {
     assertEquals(original, restored);
   }
 
+  @Test
   public void testSerializeToFromByteArray() throws Exception {
     Iterable<CompressionType> compressionTypes =
         asList(CompressionType.NONE, CompressionType.GZIP, null);
@@ -125,23 +136,29 @@ public class SerializationUtilTest extends TestCase {
     }
   }
 
-  public void testSerializeToDatastore() throws Exception {
-    Key key = KeyFactory.createKey("mr-entity", 1);
-    List<Value> values = asList(null, new Value(0), new Value(500), new Value(2000),
-        new Value(10000), new Value(1500));
+  @ValueSource(ints = {
+    0, 500, 2000, 10000, 1500
+  })
+  @ParameterizedTest
+  public void testSerializeToDatastore(int size) throws Exception {
     Iterable<CompressionType> compressionTypes =
         asList(CompressionType.NONE, CompressionType.GZIP, null);
-    for (Value original : values) {
-      for (CompressionType compression : compressionTypes) {
-        Transaction tx = datastore.beginTransaction();
-        Entity entity = new Entity(key);
-        SerializationUtil.serializeToDatastoreProperty(tx, entity, "foo", original, compression);
-        datastore.put(entity);
-        tx.commit();
-        entity = datastore.get(key);
-        Serializable restored = SerializationUtil.deserializeFromDatastoreProperty(entity, "foo");
-        assertEquals(original, restored);
-      }
+
+    Value value = new Value(size);
+
+    for (CompressionType compression : compressionTypes) {
+      int id = 1 + size + Optional.ofNullable(compression).map(c -> c.ordinal() + 1).orElse(0); // hacky, but avoids contention in emulator
+      Key key = Key.newBuilder(datastore.getOptions().getProjectId(), "serializeToDatastoreTest", id).build();
+      Transaction tx = datastore.newTransaction();
+
+      Entity.Builder entity = Entity.newBuilder(key);
+      SerializationUtil.serializeToDatastoreProperty(tx, entity, "foo", value, compression);
+      datastore.put(entity.build());
+      tx.commit(); // why when try to do PUT here, do we get 'too much contention'? it's just a put of 4 values in a txn
+
+      Entity fromDb = datastore.get(key);
+      Serializable restored = SerializationUtil.deserializeFromDatastoreProperty(datastore, fromDb, "foo");
+      assertEquals(value, restored);
     }
   }
 }

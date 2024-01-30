@@ -35,8 +35,7 @@ public class MapReduceSettingsTest extends TestCase {
   }
 
   public void testDefaultSettings() {
-    MapReduceSettings mrSettings = new MapReduceSettings.Builder().build();
-    assertNull(mrSettings.getBackend());
+    MapReduceSettings mrSettings = MapReduceSettings.builder().build();
     assertEquals(DEFAULT_BASE_URL, mrSettings.getBaseUrl());
     assertEquals("app_default_bucket", mrSettings.getBucketName());
     assertEquals(DEFAULT_MAP_FANOUT, mrSettings.getMapFanout());
@@ -52,70 +51,68 @@ public class MapReduceSettingsTest extends TestCase {
   }
 
   public void testNonDefaultSettings() {
-    MapReduceSettings.Builder builder = new MapReduceSettings.Builder();
-    builder.setBackend("b1");
+    MapReduceSettings.MapReduceSettingsBuilder builder = MapReduceSettings.builder();
     try {
-      builder.setModule("m").build();
+      builder.module("m").build();
       fail("Expected exception to be thrown");
     } catch (IllegalArgumentException ex) {
       // expected
-      builder.setModule(null);
+      builder.module(null);
     }
-    builder = builder.setBaseUrl("base-url");
-    builder = builder.setBucketName("bucket");
+    builder.baseUrl("base-url");
+    builder.bucketName("bucket");
     try {
-      builder.setMapFanout(-1);
+      builder.mapFanout(-1);
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setMapFanout(3);
+    builder.mapFanout(3);
     try {
-      builder.setMaxShardRetries(-1);
+      builder.maxShardRetries(-1);
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setMaxShardRetries(1);
+    builder.maxShardRetries(1);
     try {
-      builder.setMaxSliceRetries(-1);
+      builder.maxSliceRetries(-1);
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setMaxSliceRetries(0);
+    builder.maxSliceRetries(0);
     try {
-      builder.setMaxSortMemory(-1L);
+      builder.maxSortMemory(-1L);
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setMaxSortMemory(10L);
+    builder.maxSortMemory(10L);
     try {
-      builder.setMergeFanin(-1);
+      builder.mergeFanin(-1);
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setMergeFanin(4);
+    builder = builder.mergeFanin(4);
     try {
-      builder.setMillisPerSlice(-1);
+      builder.millisPerSlice(-1);
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setMillisPerSlice(10);
+    builder.millisPerSlice(10);
     try {
-      builder.setSortBatchPerEmitBytes(-1);
+      builder.sortBatchPerEmitBytes(-1);
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setSortBatchPerEmitBytes(5);
+    builder.sortBatchPerEmitBytes(5);
     try {
-      builder.setSortReadTimeMillis(-1);
+      builder.sortReadTimeMillis(-1);
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setSortReadTimeMillis(6);
-    builder = builder.setWorkerQueueName("queue1");
+    builder.sortReadTimeMillis(6);
+    builder.workerQueueName("queue1");
 
 
     MapReduceSettings mrSettings = builder.build();
-    assertEquals("b1", mrSettings.getBackend());
     assertNull(mrSettings.getModule());
     assertEquals("bucket", mrSettings.getBucketName());
     assertEquals("base-url", mrSettings.getBaseUrl());
@@ -129,16 +126,9 @@ public class MapReduceSettingsTest extends TestCase {
     assertEquals(6, mrSettings.getSortReadTimeMillis());
     assertEquals("queue1", mrSettings.getWorkerQueueName());
 
-    builder = new MapReduceSettings.Builder().setModule("m1");
-    try {
-      builder.setBackend("b").build();
-      fail("Expected exception to be thrown");
-    } catch (IllegalArgumentException ex) {
-      // expected
-      builder.setBackend(null);
-    }
+    builder = MapReduceSettings.builder().module("m1");
+
     mrSettings = builder.build();
-    assertNull(mrSettings.getBackend());
     assertEquals("m1", mrSettings.getModule());
   }
 }

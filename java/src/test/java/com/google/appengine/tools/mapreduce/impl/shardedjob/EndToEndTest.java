@@ -15,10 +15,8 @@ import com.google.appengine.tools.mapreduce.EndToEndTestCase;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.BlockJUnit4ClassRunner;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Iterator;
 import java.util.List;
@@ -27,16 +25,13 @@ import java.util.Random;
 /**
  * @author ohler@google.com (Christian Ohler)
  */
-@RunWith(BlockJUnit4ClassRunner.class)
 public class EndToEndTest extends EndToEndTestCase {
 
   private final ShardedJobService service = ShardedJobServiceFactory.getShardedJobService();
   private ShardedJobSettings settings;
 
-  @Before
-  @Override
+  @BeforeEach
   public void setUp() throws Exception {
-    super.setUp();
     settings = new ShardedJobSettings.Builder().build();
   }
 

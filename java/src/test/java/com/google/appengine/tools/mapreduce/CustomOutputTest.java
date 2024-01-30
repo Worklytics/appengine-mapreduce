@@ -5,18 +5,19 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import com.google.appengine.api.datastore.Entity;
 import com.google.appengine.tools.mapreduce.EndToEndTest.TestMapper;
-import com.google.appengine.tools.mapreduce.inputs.DatastoreInput;
+import com.google.appengine.tools.mapreduce.inputs.NoInput;
 import com.google.appengine.tools.mapreduce.reducers.ValueProjectionReducer;
+import com.google.appengine.tools.mapreduce.testutil.DatastoreExtension;
+import com.google.appengine.tools.mapreduce.testutil.PipelineSetupExtensions;
 import com.google.appengine.tools.pipeline.JobInfo;
 import com.google.appengine.tools.pipeline.JobInfo.State;
 import com.google.appengine.tools.pipeline.PipelineService;
-import com.google.appengine.tools.pipeline.PipelineServiceFactory;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.BlockJUnit4ClassRunner;
+import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.Entity;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -26,7 +27,8 @@ import java.util.List;
 /**
  * Tests that custom output classes work.
  */
-@RunWith(BlockJUnit4ClassRunner.class)
+
+@PipelineSetupExtensions
 public class CustomOutputTest extends EndToEndTestCase {
 
   @SuppressWarnings("serial")
@@ -77,18 +79,19 @@ public class CustomOutputTest extends EndToEndTestCase {
   }
 
   @Test
-  public void testOutputInOrder() throws Exception {
+  public void testOutputInOrder(Datastore datastore, PipelineService pipelineService) throws Exception {
     MapReduceSpecification.Builder<Entity, String, Long, Long, Boolean> mrSpecBuilder =
         new MapReduceSpecification.Builder<>();
-    mrSpecBuilder.setJobName("Test MR").setInput(new DatastoreInput("Test", 2))
-        .setMapper(new TestMapper()).setKeyMarshaller(Marshallers.getStringMarshaller())
+    mrSpecBuilder.setJobName("Test MR")
+        .setInput(new NoInput<>(2))
+        .setMapper(new TestMapper(datastore.getOptions()))
+        .setKeyMarshaller(Marshallers.getStringMarshaller())
         .setValueMarshaller(Marshallers.getLongMarshaller())
         .setReducer(ValueProjectionReducer.create())
         .setOutput(new CustomOutput())
         .setNumReducers(17);
-    PipelineService pipelineService = PipelineServiceFactory.newPipelineService();
-    MapReduceSettings mrSettings = new MapReduceSettings.Builder()
-      .setServiceAccountKey(getStorageTestHelper().getBase64EncodedServiceAccountKey())
+    MapReduceSettings mrSettings = MapReduceSettings.builder()
+      .serviceAccountKey(getStorageTestHelper().getBase64EncodedServiceAccountKey())
       .build();
     String jobId = pipelineService.startNewPipeline(new MapReduceJob<>(mrSpecBuilder.build(), mrSettings));
     assertFalse(jobId.isEmpty());

@@ -24,9 +24,7 @@ import com.google.common.collect.ImmutableList;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.BlockJUnit4ClassRunner;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Array;
 import java.util.HashMap;
@@ -38,7 +36,6 @@ import java.util.regex.Pattern;
 /**
  *
  */
-@RunWith(BlockJUnit4ClassRunner.class)
 public class StatusHandlerTest extends EndToEndTestCase {
 
   private static final class DummyWorkerController
@@ -56,7 +53,7 @@ public class StatusHandlerTest extends EndToEndTestCase {
   public void testCleanupJob() throws Exception {
     ShardedJobService jobService = ShardedJobServiceFactory.getShardedJobService();
     assertTrue(jobService.cleanupJob("testCleanupJob")); // No such job yet
-    ShardedJobSettings settings = new ShardedJobSettings.Builder().build();
+    ShardedJobSettings settings = ShardedJobSettings.builder().build();
     ShardedJobController<TestTask> controller = new DummyWorkerController();
     byte[] bytes = new byte[1024 * 1024];
     new Random().nextBytes(bytes);
@@ -76,7 +73,7 @@ public class StatusHandlerTest extends EndToEndTestCase {
   @Test
   public void testGetJobDetail_empty() throws Exception {
     ShardedJobService jobService = ShardedJobServiceFactory.getShardedJobService();
-    ShardedJobSettings settings = new ShardedJobSettings.Builder().build();
+    ShardedJobSettings settings = ShardedJobSettings.builder().build();
     ShardedJobController<TestTask> controller = new DummyWorkerController();
     jobService.startJob("testGetJobDetail_empty", ImmutableList.<TestTask>of(), controller,
         settings);
@@ -93,7 +90,7 @@ public class StatusHandlerTest extends EndToEndTestCase {
   @Test
   public void testGetJobDetail_populated() throws Exception {
     ShardedJobService jobService = ShardedJobServiceFactory.getShardedJobService();
-    ShardedJobSettings settings = new ShardedJobSettings.Builder().build();
+    ShardedJobSettings settings = ShardedJobSettings.builder().build();
     ShardedJobController<TestTask> controller = new DummyWorkerController();
     TestTask s1 = new TestTask(0, 2, 2, 2);
     TestTask s2 = new TestTask(1, 2, 2, 1);

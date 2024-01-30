@@ -1,26 +1,27 @@
 package com.google.appengine.tools.mapreduce.inputs;
 
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 
 import com.google.appengine.tools.mapreduce.CloudStorageIntegrationTestHelper;
+import com.google.appengine.tools.mapreduce.testutil.DatastoreExtension;
 import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import junit.framework.TestCase;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
  */
+@ExtendWith(DatastoreExtension.class)
 abstract class GoogleCloudStorageLineInputTestCase extends TestCase  {
 
   CloudStorageIntegrationTestHelper cloudStorageIntegrationTestHelper;
 
-  private final LocalServiceTestHelper helper = new LocalServiceTestHelper(
-      new LocalDatastoreServiceTestConfig());
+  private final LocalServiceTestHelper helper = new LocalServiceTestHelper();
 
   @Override
   public void setUp() throws Exception {

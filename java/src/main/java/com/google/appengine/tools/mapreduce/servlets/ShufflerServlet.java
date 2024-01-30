@@ -121,10 +121,10 @@ public class ShufflerServlet extends HttpServlet {
     }
 
     private MapReduceSettings createSettings() {
-      return new MapReduceSettings.Builder()
-          .setBucketName(shufflerParams.getGcsBucket())
-          .setWorkerQueueName(shufflerParams.getShufflerQueue())
-          .setServiceAccountKey(shufflerParams.getServiceAccountKey())
+      return MapReduceSettings.builder()
+          .bucketName(shufflerParams.getGcsBucket())
+          .workerQueueName(shufflerParams.getShufflerQueue())
+          .serviceAccountKey(shufflerParams.getServiceAccountKey())
           .build();
     }
 

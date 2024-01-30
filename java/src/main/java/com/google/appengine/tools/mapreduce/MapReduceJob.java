@@ -2,20 +2,7 @@
 
 package com.google.appengine.tools.mapreduce;
 
-import com.google.appengine.tools.mapreduce.impl.BaseContext;
-import com.google.appengine.tools.mapreduce.impl.CountersImpl;
-import com.google.appengine.tools.mapreduce.impl.FilesByShard;
-import com.google.appengine.tools.mapreduce.impl.GoogleCloudStorageMapOutput;
-import com.google.appengine.tools.mapreduce.impl.GoogleCloudStorageMergeInput;
-import com.google.appengine.tools.mapreduce.impl.GoogleCloudStorageMergeOutput;
-import com.google.appengine.tools.mapreduce.impl.GoogleCloudStorageReduceInput;
-import com.google.appengine.tools.mapreduce.impl.GoogleCloudStorageSortInput;
-import com.google.appengine.tools.mapreduce.impl.GoogleCloudStorageSortOutput;
-import com.google.appengine.tools.mapreduce.impl.HashingSharder;
-import com.google.appengine.tools.mapreduce.impl.MapShardTask;
-import com.google.appengine.tools.mapreduce.impl.ReduceShardTask;
-import com.google.appengine.tools.mapreduce.impl.WorkerController;
-import com.google.appengine.tools.mapreduce.impl.WorkerShardTask;
+import com.google.appengine.tools.mapreduce.impl.*;
 import com.google.appengine.tools.mapreduce.impl.pipeline.CleanupPipelineJob;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ExamineStatusAndReturnResult;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ResultAndStatus;
@@ -29,20 +16,17 @@ import com.google.appengine.tools.mapreduce.impl.sort.SortShardTask;
 import com.google.appengine.tools.mapreduce.impl.sort.SortWorker;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
-import com.google.appengine.tools.pipeline.FutureValue;
-import com.google.appengine.tools.pipeline.Job0;
-import com.google.appengine.tools.pipeline.Job1;
-import com.google.appengine.tools.pipeline.PipelineService;
-import com.google.appengine.tools.pipeline.PipelineServiceFactory;
-import com.google.appengine.tools.pipeline.PromisedValue;
-import com.google.appengine.tools.pipeline.Value;
+import com.google.appengine.tools.pipeline.*;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineEnvironment;
 import com.google.cloud.storage.*;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
+import javax.inject.Inject;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -63,6 +47,7 @@ import java.util.logging.Logger;
  * @param <O> type of output values
  * @param <R> type of final result
  */
+@Injectable(MapReduceDIModule.class)
 @RequiredArgsConstructor
 public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
@@ -72,6 +57,8 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   @NonNull private final MapReduceSpecification<I, K, V, O, R> specification;
   @NonNull private final MapReduceSettings settings;
 
+  @Inject transient AppEngineEnvironment environment;
+
   /**
    * Starts a {@link MapReduceJob} with the given parameters in a new Pipeline.
    * Returns the pipeline id.
@@ -79,7 +66,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   public static <I, K, V, O, R> String start(
       @NonNull MapReduceSpecification<I, K, V, O, R> specification, @NonNull MapReduceSettings settings) {
     if (settings.getWorkerQueueName() == null) {
-      settings = new MapReduceSettings.Builder(settings).setWorkerQueueName("default").build();
+      settings = settings.toBuilder().workerQueueName("default").build();
     }
 
     verifyBucketIsWritable(settings);
@@ -107,15 +94,21 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
   /**
    * The pipeline job to execute the Map stage of the MapReduce. (For all shards)
+   *
+   * TODO: move this so can be pkg-private
    */
+  @Injectable(MapReduceDIModule.class)
+  @NoArgsConstructor
   @RequiredArgsConstructor
-  private static class MapJob<I, K, V> extends Job0<MapReduceResult<FilesByShard>> {
+  public static class MapJob<I, K, V> extends Job0<MapReduceResult<FilesByShard>> {
 
     private static final long serialVersionUID = 1L;
 
-    @NonNull private final String mrJobId;
-    @NonNull private final MapReduceSpecification<I, K, V, ?, ?> mrSpec;
-    @NonNull private final MapReduceSettings settings;
+    @NonNull private String mrJobId;
+    @NonNull private MapReduceSpecification<I, K, V, ?, ?> mrSpec;
+    @NonNull private MapReduceSettings settings;
+
+    @Inject transient AppEngineEnvironment environment;
 
     private String getShardedJobId() {
       return "map-" + mrJobId;
@@ -165,7 +158,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             mrSpec.getMapper(), writers.get(i), settings.getMillisPerSlice()));
       }
       ShardedJobSettings shardedJobSettings =
-          settings.toShardedJobSettings(getShardedJobId(), getPipelineKey());
+          settings.toShardedJobSettings(environment, getShardedJobId(), getPipelineKey());
 
       PromisedValue<ResultAndStatus<FilesByShard>> resultAndStatus = newPromise();
       WorkerController<I, KeyValue<K, V>, FilesByShard, MapperContext<K, V>> workerController =
@@ -193,8 +186,9 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   /**
    * The pipeline job to execute the Sort stage of the MapReduce. (For all shards)
    */
+  @Injectable(MapReduceDIModule.class)
   @RequiredArgsConstructor
-  private static class SortJob extends Job1<
+  public static class SortJob extends Job1<
       MapReduceResult<FilesByShard>,
       MapReduceResult<FilesByShard>> {
     private static final long serialVersionUID = 1L;
@@ -203,6 +197,9 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
     @NonNull private final String mrJobId;
     @NonNull private final MapReduceSpecification<?, ?, ?, ?, ?> mrSpec;
     @NonNull private final MapReduceSettings settings;
+
+    @Inject
+    transient AppEngineEnvironment environment;
 
     private String getShardedJobId() {
       return "sort-" + mrJobId;
@@ -257,7 +254,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             settings.getSortReadTimeMillis()));
       }
       ShardedJobSettings shardedJobSettings =
-          settings.toShardedJobSettings(getShardedJobId(), getPipelineKey());
+        settings.toShardedJobSettings(environment, getShardedJobId(), getPipelineKey());
 
       PromisedValue<ResultAndStatus<FilesByShard>> resultAndStatus = newPromise();
       WorkerController<KeyValue<ByteBuffer, ByteBuffer>, KeyValue<ByteBuffer, List<ByteBuffer>>,
@@ -283,8 +280,9 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   /**
    * The pipeline job to execute the optional Merge stage of the MapReduce. (For all shards)
    */
+  @Injectable(MapReduceDIModule.class)
   @RequiredArgsConstructor
-  private static class MergeJob extends
+  public static class MergeJob extends
       Job1<MapReduceResult<FilesByShard>, MapReduceResult<FilesByShard>> {
 
     private static final long serialVersionUID = 1L;
@@ -295,6 +293,9 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
     @NonNull private final MapReduceSpecification<?, ?, ?, ?, ?> mrSpec;
     @NonNull private final MapReduceSettings settings;
     @NonNull private final Integer tier;
+
+    @Inject
+    transient AppEngineEnvironment environment;
 
     private String getShardedJobId() {
       return "merge-" + mrJobId + "-" + tier;
@@ -360,7 +361,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             settings.getSortReadTimeMillis()));
       }
       ShardedJobSettings shardedJobSettings =
-          settings.toShardedJobSettings(getShardedJobId(), getPipelineKey());
+          settings.toShardedJobSettings(environment, getShardedJobId(), getPipelineKey() );
 
       PromisedValue<ResultAndStatus<FilesByShard>> resultAndStatus = newPromise();
       WorkerController<KeyValue<ByteBuffer, Iterator<ByteBuffer>>,
@@ -397,8 +398,9 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   /**
    * The pipeline job to execute the Reduce stage of the MapReduce. (For all shards)
    */
+  @Injectable(MapReduceDIModule.class)
   @RequiredArgsConstructor
-  private static class ReduceJob<K, V, O, R> extends Job1<MapReduceResult<R>,
+  public static class ReduceJob<K, V, O, R> extends Job1<MapReduceResult<R>,
       MapReduceResult<FilesByShard>> {
 
     private static final long serialVersionUID = 590237832617368335L;
@@ -406,6 +408,8 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
     @NonNull private final String mrJobId;
     @NonNull private final MapReduceSpecification<?, K, V, O, R> mrSpec;
     @NonNull private final MapReduceSettings settings;
+
+    @Inject transient AppEngineEnvironment environment;
 
     private String getShardedJobId() {
       return "reduce-" + mrJobId;
@@ -441,7 +445,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             mrSpec.getReducer(), writers.get(i), settings.getMillisPerSlice()));
       }
       ShardedJobSettings shardedJobSettings =
-          settings.toShardedJobSettings(getShardedJobId(), getPipelineKey());
+          settings.toShardedJobSettings(environment, getShardedJobId(), getPipelineKey());
       PromisedValue<ResultAndStatus<R>> resultAndStatus = newPromise();
       WorkerController<KeyValue<K, Iterator<V>>, O, R, ReducerContext<O>> workerController =
           new WorkerController<>(mrJobId, mergeResult.getCounters(), output,
@@ -493,7 +497,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             + " job, using 'default'");
         queue = "default";
       }
-      settings = new MapReduceSettings.Builder(settings).setWorkerQueueName(queue).build();
+      settings = settings.toBuilder().workerQueueName(queue).build();
     }
     String mrJobId = getJobKey().getName();
     FutureValue<MapReduceResult<FilesByShard>> mapResult = futureCall(

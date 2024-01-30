@@ -4,10 +4,9 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.appengine.api.backends.BackendServiceFactory;
 import com.google.appengine.api.modules.ModulesServiceFactory;
-import lombok.Getter;
-import lombok.ToString;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineEnvironment;
+import lombok.*;
 
 import static com.google.appengine.tools.mapreduce.MapSettings.DEFAULT_BASE_URL;
 import static com.google.appengine.tools.mapreduce.MapSettings.WORKER_PATH;
@@ -24,6 +23,7 @@ import java.io.Serializable;
  * @author ohler@google.com (Christian Ohler)
  */
 @Getter
+@Builder(builderClassName = "Builder")
 @ToString
 public final class ShardedJobSettings implements Serializable {
 
@@ -33,135 +33,41 @@ public final class ShardedJobSettings implements Serializable {
 
   //q: does this need to get bucketName / credentials?
 
-  /*Nullable*/ private final String backend;
-  /*Nullable*/ private final String module;
+  /*Nullable*/ private final String service;
   /*Nullable*/ private final String version;
   // TODO(ohler): Integrate with pipeline and put this under /_ah/pipeline.
   /*Nullable*/ private final String pipelineStatusUrl;
+
+
   /*Nullable*/ private final String mrStatusUrl;
-  private final String controllerPath;
-  private final String workerPath;
-  private final String target;
-  private final String queueName;
-  private final int maxShardRetries;
-  private final int maxSliceRetries;
-  private final int sliceTimeoutMillis;
 
-  /**
-   * ShardedJobSettings builder.
-   */
-  public static class Builder {
+  @lombok.Builder.Default
+  @NonNull
+  private final String controllerPath = DEFAULT_BASE_URL + CONTROLLER_PATH;
 
-    private String backend;
-    private String module;
-    private String version;
-    private String pipelineStatusUrl;
-    private String mrStatusUrl;
-    private String controllerPath = DEFAULT_BASE_URL + CONTROLLER_PATH;
-    private String workerPath = DEFAULT_BASE_URL + WORKER_PATH;
-    private String queueName = "default";
-    private int maxShardRetries = DEFAULT_SHARD_RETRIES;
-    private int maxSliceRetries = DEFAULT_SLICE_RETRIES;
-    private int sliceTimeoutMillis = DEFAULT_SLICE_TIMEOUT_MILLIS;
+  @lombok.Builder.Default
+  @NonNull
+  private final String workerPath = DEFAULT_BASE_URL + WORKER_PATH;
 
-    public Builder setPipelineStatusUrl(String pipelineStatusUrl) {
-      this.pipelineStatusUrl = pipelineStatusUrl;
-      return this;
-    }
+  @NonNull
+  @lombok.Builder.Default
+  private final String queueName = "default";
 
-    public Builder setBackend(/*Nullable*/ String backend) {
-      this.backend = backend;
-      return this;
-    }
+  @lombok.Builder.Default
+  private final int maxShardRetries= DEFAULT_SHARD_RETRIES;
 
-    public Builder setModule(String module) {
-      this.module = module;
-      return this;
-    }
+  @lombok.Builder.Default
+  private final int maxSliceRetries = DEFAULT_SLICE_RETRIES;
 
-    public Builder setVersion(String version) {
-      this.version = version;
-      return this;
-    }
+  @lombok.Builder.Default
+  private final int sliceTimeoutMillis = DEFAULT_SLICE_TIMEOUT_MILLIS;
 
-    public Builder setControllerPath(String controllerPath) {
-      this.controllerPath = checkNotNull(controllerPath, "Null controllerPath");
-      return this;
-    }
 
-    public Builder setWorkerPath(String workerPath) {
-      this.workerPath = checkNotNull(workerPath, "Null workerPath");
-      return this;
-    }
-
-    public Builder setQueueName(String queueName) {
-      this.queueName = checkNotNull(queueName, "Null queueName");
-      return this;
-    }
-
-    public Builder setMaxShardRetries(int maxShardRetries) {
-      this.maxShardRetries = maxShardRetries;
-      return this;
-    }
-
-    public Builder setMaxSliceRetries(int maxSliceRetries) {
-      this.maxSliceRetries = maxSliceRetries;
-      return this;
-    }
-
-    public Builder setSliceTimeoutMillis(int sliceTimeoutMillis) {
-      this.sliceTimeoutMillis = sliceTimeoutMillis;
-      return this;
-    }
-
-    public Builder setMapReduceStatusUrl(String mrStatusUrl) {
-      this.mrStatusUrl = mrStatusUrl;
-      return this;
-    }
-
-    public ShardedJobSettings build() {
-      return new ShardedJobSettings(controllerPath, workerPath, mrStatusUrl, pipelineStatusUrl,
-          backend, module, version, queueName, maxShardRetries, maxSliceRetries,
-          sliceTimeoutMillis);
-    }
-  }
-
-  private ShardedJobSettings(String controllerPath, String workerPath, String mrStatusUrl,
-      String pipelineStatusUrl, String backend, String module, String version, String queueName,
-      int maxShardRetries, int maxSliceRetries, int sliceTimeoutMillis) {
-    this.controllerPath = controllerPath;
-    this.workerPath = workerPath;
-    this.mrStatusUrl = mrStatusUrl;
-    this.pipelineStatusUrl = pipelineStatusUrl;
-    this.backend = backend;
-    this.module = module;
-    this.version = version;
-    this.queueName = queueName;
-    this.maxShardRetries = maxShardRetries;
-    this.maxSliceRetries = maxSliceRetries;
-    this.sliceTimeoutMillis = sliceTimeoutMillis;
-    target = resolveTaskQueueTarget();
-  }
-
-  private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
-    in.defaultReadObject();
-  }
-
-  private String resolveTaskQueueTarget() {
-    if (backend != null) {
-      return BackendServiceFactory.getBackendService().getBackendAddress(backend);
-    }
-    return ModulesServiceFactory.getModulesService().getVersionHostname(module, version);
-  }
-
+  @Deprecated // dependency on Modules service; move this out/up
   public String getTaskQueueTarget() {
-    return target;
+    return ModulesServiceFactory.getModulesService().getVersionHostname(service, version);
   }
-
   /*Nullable*/ public String getMapReduceStatusUrl() {
     return mrStatusUrl;
   }
-
-
-
 }

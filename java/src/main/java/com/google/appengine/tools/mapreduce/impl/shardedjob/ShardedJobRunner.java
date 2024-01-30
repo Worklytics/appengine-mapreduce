@@ -5,20 +5,12 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob;
 import static com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode.ABORTED;
 import static com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode.DONE;
 import static com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode.ERROR;
+import static com.google.rpc.Code.NOT_FOUND;
 import static java.util.concurrent.Executors.callable;
 
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
 import com.github.rholder.retry.WaitStrategies;
-import com.google.appengine.api.datastore.CommittedButStillApplyingException;
-import com.google.appengine.api.datastore.DatastoreFailureException;
-import com.google.appengine.api.datastore.DatastoreService;
-import com.google.appengine.api.datastore.DatastoreServiceFactory;
-import com.google.appengine.api.datastore.DatastoreTimeoutException;
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.EntityNotFoundException;
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.Transaction;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.api.taskqueue.TransactionalTaskException;
@@ -34,6 +26,11 @@ import com.google.apphosting.api.ApiProxy.ArgumentException;
 import com.google.apphosting.api.ApiProxy.RequestTooLargeException;
 import com.google.apphosting.api.ApiProxy.ResponseTooLargeException;
 import com.google.apphosting.api.DeadlineExceededException;
+import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreException;
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.Key;
+import com.google.cloud.datastore.Transaction;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -41,7 +38,9 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
-import lombok.SneakyThrows;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.java.Log;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,10 +48,8 @@ import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.Random;
 import java.util.TreeMap;
-import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -67,6 +64,8 @@ import java.util.logging.Logger;
  *
  * @param <T> type of tasks that the job being processed consists of
  */
+@RequiredArgsConstructor
+@Log
 public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHandler {
 
   // High-level overview:
@@ -88,9 +87,8 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
   // aborted or deleted, and terminates if so.
 
 
-  private static final Logger log = Logger.getLogger(ShardedJobRunner.class.getName());
-
-  static final DatastoreService DATASTORE = DatastoreServiceFactory.getDatastoreService();
+  @NonNull
+  Datastore datastore;
 
   // NOTE: no StopStrategy set, must be set by the caller prior to build
   public static RetryerBuilder getRetryerBuilder() {
@@ -98,9 +96,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
       .withWaitStrategy(WaitStrategies.exponentialWait(30_000, TimeUnit.MILLISECONDS))
       .retryIfExceptionOfType(ApiProxyException.class)
       .retryIfExceptionOfType(ConcurrentModificationException.class)
-      .retryIfExceptionOfType(DatastoreFailureException.class)
-      .retryIfExceptionOfType(CommittedButStillApplyingException.class)
-      .retryIfExceptionOfType(DatastoreTimeoutException.class)
+      .retryIfExceptionOfType(DatastoreException.class) // q: split these based on error code?
       .retryIfExceptionOfType(TransientFailureException.class)
       .retryIfExceptionOfType(TransactionalTaskException.class);
   }
@@ -121,36 +117,54 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
 
   private ShardedJobStateImpl<T> lookupJobState(Transaction tx, String jobId) {
     try {
-      Entity entity = DATASTORE.get(tx, ShardedJobStateImpl.ShardedJobSerializer.makeKey(jobId));
-      return ShardedJobStateImpl.ShardedJobSerializer.fromEntity(entity);
-    } catch (EntityNotFoundException e) {
-      return null;
+      Entity entity = tx.get(ShardedJobStateImpl.ShardedJobSerializer.makeKey(tx.getDatastore(), jobId));
+      return ShardedJobStateImpl.ShardedJobSerializer.fromEntity(tx.getDatastore(), entity);
+    } catch (DatastoreException e) {
+      if (e.getCode() == NOT_FOUND.getNumber()) {
+        // canonical grpc not found, which claim is that datastore should send
+        // https://cloud.google.com/datastore/docs/concepts/errors#Error_Codes
+        return null;
+      } else {
+        throw e;
+      }
     }
   }
 
   @VisibleForTesting
   IncrementalTaskState<T> lookupTaskState(Transaction tx, String taskId) {
     try {
-      Entity entity = DATASTORE.get(tx, IncrementalTaskState.Serializer.makeKey(taskId));
-      return IncrementalTaskState.Serializer.fromEntity(entity);
-    } catch (EntityNotFoundException e) {
-      return null;
+      Entity entity = tx.get(IncrementalTaskState.Serializer.makeKey(taskId));
+      return IncrementalTaskState.Serializer.fromEntity(tx.getDatastore(), entity);
+    } catch (DatastoreException e) {
+      if (e.getCode() == NOT_FOUND.getNumber()) {
+        // canonical grpc not found, which claim is that datastore should send
+        // https://cloud.google.com/datastore/docs/concepts/errors#Error_Codes
+        return null;
+      } else {
+        throw e;
+      }
     }
   }
 
   @VisibleForTesting
-  ShardRetryState<T> lookupShardRetryState(String taskId) {
+  ShardRetryState<T> lookupShardRetryState(Datastore datastore, String taskId) {
     try {
-      Entity entity = DATASTORE.get(ShardRetryState.Serializer.makeKey(taskId));
-      return ShardRetryState.Serializer.fromEntity(entity);
-    } catch (EntityNotFoundException e) {
-      return null;
+      Entity entity = this.datastore.get(ShardRetryState.Serializer.makeKey(taskId));
+      return ShardRetryState.Serializer.fromEntity(datastore, entity);
+    } catch (DatastoreException e) {
+      if (e.getCode() == NOT_FOUND.getNumber()) {
+        // canonical grpc not found, which claim is that datastore should send
+        // https://cloud.google.com/datastore/docs/concepts/errors#Error_Codes
+        return null;
+      } else {
+        throw e;
+      }
     }
   }
 
   Iterator<IncrementalTaskState<T>> lookupTasks(
       final String jobId, final int taskCount, final boolean lenient) {
-    return new AbstractIterator<IncrementalTaskState<T>>() {
+    return new AbstractIterator<>() {
       private int lastCount;
       private Iterator<Entity> lastBatch = Collections.emptyIterator();
 
@@ -158,7 +172,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
       protected IncrementalTaskState<T> computeNext() {
         if (lastBatch.hasNext()) {
           Entity entity = lastBatch.next();
-          return IncrementalTaskState.Serializer.<T>fromEntity(entity, lenient);
+          return IncrementalTaskState.Serializer.fromEntity(datastore, entity, lenient);
         } else if (lastCount >= taskCount) {
           return endOfData();
         }
@@ -169,8 +183,9 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
           keys.add(key);
         }
         TreeMap<Integer, Entity> ordered = new TreeMap<>();
-        for (Entry<Key, Entity> entry : DATASTORE.get(keys).entrySet()) {
-          ordered.put(parseTaskNumberFromTaskId(jobId, entry.getKey().getName()), entry.getValue());
+        Iterator<Entity> it = datastore.get(keys);
+        for (Entity entity = it.next(); it.hasNext(); entity = it.next()) {
+          ordered.put(parseTaskNumberFromTaskId(jobId, entity.getKey().getName()), entity);
         }
         lastBatch = ordered.values().iterator();
         return computeNext();
@@ -196,7 +211,9 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
         .param(JOB_ID_PARAM, jobId)
         .param(TASK_ID_PARAM, taskId);
     taskOptions.header("Host", settings.getTaskQueueTarget());
-    QueueFactory.getQueue(settings.getQueueName()).add(tx, taskOptions);
+    // TODO: migrate to https://cloud.google.com/tasks/docs/samples/cloud-tasks-enqueue?hl=en,
+    // and do this inside of the transaction
+    QueueFactory.getQueue(settings.getQueueName()).add(taskOptions);
   }
 
   private void scheduleWorkerTask(Transaction tx, ShardedJobSettings settings,
@@ -210,7 +227,9 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
     if (eta != null) {
       taskOptions.etaMillis(eta);
     }
-    QueueFactory.getQueue(settings.getQueueName()).add(tx, taskOptions);
+    // TODO: migrate to https://cloud.google.com/tasks/docs/samples/cloud-tasks-enqueue?hl=en,
+    // and do this inside of the transaction
+    QueueFactory.getQueue(settings.getQueueName()).add(taskOptions);
   }
 
   @Override
@@ -218,7 +237,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
     log.info("Polling task states for job " + jobId);
     final int shardNumber = parseTaskNumberFromTaskId(jobId, taskId);
     ShardedJobStateImpl<T> jobState = (ShardedJobStateImpl<T>) RetryExecutor.call(getRetryerBuilder().withStopStrategy(StopStrategies.stopAfterAttempt(8)), () -> {
-      Transaction tx = DATASTORE.beginTransaction();
+      Transaction tx = datastore.newTransaction();
       try {
         ShardedJobStateImpl<T> jobState1 = lookupJobState(tx, jobId);
         if (jobState1 == null) {
@@ -231,7 +250,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
         if (jobState1.getActiveTaskCount() == 0 && jobState1.getStatus().isActive()) {
           jobState1.setStatus(new Status(DONE));
         }
-        DATASTORE.put(tx, ShardedJobStateImpl.ShardedJobSerializer.toEntity(tx, jobState1));
+        tx.put(ShardedJobStateImpl.ShardedJobSerializer.toEntity(tx, jobState1));
         tx.commit();
         return jobState1;
       } finally {
@@ -354,7 +373,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
     taskState.getLockInfo().lock();
     Entity entity = IncrementalTaskState.Serializer.toEntity(tx, taskState);
     try {
-      DATASTORE.put(tx, entity);
+      tx.put(entity);
       tx.commit();
       locked = true;
     } catch (ConcurrentModificationException ex) {
@@ -378,7 +397,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
       log.info(taskId + ": Job is gone, ignoring runTask call.");
       return;
     }
-    Transaction tx = DATASTORE.beginTransaction();
+    Transaction tx = datastore.newTransaction();
     try {
       IncrementalTaskState<T> taskState =
           getAndValidateTaskState(tx, taskId, sequenceNumber, jobState);
@@ -453,7 +472,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
 
   private ShardRetryState<T> handleShardFailure(ShardedJobStateImpl<T> jobState,
       IncrementalTaskState<T> taskState, Exception ex) {
-    ShardRetryState<T> retryState = lookupShardRetryState(taskState.getTaskId());
+    ShardRetryState<T> retryState = lookupShardRetryState(datastore, taskState.getTaskId());
     if (retryState.incrementAndGet() > jobState.getSettings().getMaxShardRetries()) {
       log.log(Level.SEVERE, "Shard exceeded its max attempts, setting job state to ERROR.", ex);
       handleJobFailure(taskState, ex);
@@ -484,7 +503,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
       callable(new Runnable() {
         @Override
         public void run() {
-          Transaction tx = DATASTORE.beginTransaction();
+          Transaction tx = datastore.newTransaction();
           try {
             String taskId = taskState.getTaskId();
             IncrementalTaskState<T> existing = lookupTaskState(tx, taskId);
@@ -511,10 +530,10 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
             ShardRetryState<T> shardRetryState, Transaction tx) {
           Entity taskStateEntity = IncrementalTaskState.Serializer.toEntity(tx, taskState);
           if (shardRetryState == null) {
-            DATASTORE.put(tx, taskStateEntity);
+            tx.put(taskStateEntity);
           } else {
             Entity retryStateEntity = ShardRetryState.Serializer.toEntity(tx, shardRetryState);
-            DATASTORE.put(tx, Arrays.asList(taskStateEntity, retryStateEntity));
+            tx.put(Arrays.asList(taskStateEntity, retryStateEntity).stream().toArray(Entity[]::new));
           }
         }
 
@@ -551,7 +570,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
       // number, just because they are created in the same order and happen to use their ordinal.
       // We should have way to inject the "shard-id" to the task.
       String taskId = getTaskId(jobId, id++);
-      Transaction tx = DATASTORE.beginTransaction();
+      Transaction tx = datastore.newTransaction();
       try {
         IncrementalTaskState<T> taskState = lookupTaskState(tx, taskId);
         if (taskState != null) {
@@ -560,8 +579,8 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
         }
         taskState = IncrementalTaskState.<T>create(taskId, jobId, startTimeMillis, initialTask);
         ShardRetryState<T> retryState = ShardRetryState.createFor(taskState);
-        DATASTORE.put(tx, Arrays.asList(IncrementalTaskState.Serializer.toEntity(tx, taskState),
-            ShardRetryState.Serializer.toEntity(tx, retryState)));
+        tx.put(IncrementalTaskState.Serializer.toEntity(tx, taskState),
+            ShardRetryState.Serializer.toEntity(tx, retryState));
         scheduleWorkerTask(tx, settings, taskState, null);
         tx.commit();
       } finally {
@@ -572,11 +591,11 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
 
   private void writeInitialJobState(ShardedJobStateImpl<T> jobState) {
     String jobId = jobState.getJobId();
-    Transaction tx = DATASTORE.beginTransaction();
+    Transaction tx = datastore.newTransaction();
     try {
       ShardedJobStateImpl<T> existing = lookupJobState(tx, jobId);
       if (existing == null) {
-        DATASTORE.put(tx, ShardedJobStateImpl.ShardedJobSerializer.toEntity(tx, jobState));
+        tx.put(ShardedJobStateImpl.ShardedJobSerializer.toEntity(tx, jobState));
         tx.commit();
         log.info(jobId + ": Writing initial job state");
       } else {
@@ -597,7 +616,9 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
     if (initialTasks.isEmpty()) {
       log.info(jobId + ": No tasks, immediately complete: " + controller);
       jobState.setStatus(new Status(DONE));
-      DATASTORE.put(ShardedJobStateImpl.ShardedJobSerializer.toEntity(null, jobState));
+      Transaction tx = datastore.newTransaction();
+      tx.put(ShardedJobStateImpl.ShardedJobSerializer.toEntity(tx, jobState));
+      tx.commit();
       controller.completed(Collections.<T>emptyIterator());
     } else {
       writeInitialJobState(jobState);
@@ -608,16 +629,20 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
 
   ShardedJobState getJobState(String jobId) {
     try {
-      Entity entity = DATASTORE.get(null, ShardedJobStateImpl.ShardedJobSerializer.makeKey(jobId));
-      return ShardedJobStateImpl.ShardedJobSerializer.fromEntity(entity, true);
-    } catch (EntityNotFoundException e) {
-      return null;
+      Entity entity = datastore.get(ShardedJobStateImpl.ShardedJobSerializer.makeKey(datastore, jobId));
+      return ShardedJobStateImpl.ShardedJobSerializer.fromEntity(datastore, entity, true);
+    } catch (DatastoreException e) {
+      if (e.getCode() == NOT_FOUND.getNumber()) {
+        return null;
+      } else {
+        throw e;
+      }
     }
   }
 
   private void changeJobStatus(String jobId,  Status status) {
     log.info(jobId + ": Changing job status to " + status);
-    Transaction tx = DATASTORE.beginTransaction();
+    Transaction tx = datastore.newTransaction();
     try {
       ShardedJobStateImpl<T> jobState = lookupJobState(tx, jobId);
       if (jobState == null || !jobState.getStatus().isActive()) {
@@ -625,7 +650,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
         return;
       }
       jobState.setStatus(status);
-      DATASTORE.put(tx, ShardedJobStateImpl.ShardedJobSerializer.toEntity(tx, jobState));
+      tx.put(ShardedJobStateImpl.ShardedJobSerializer.toEntity(tx, jobState));
       tx.commit();
     } finally {
       rollbackIfActive(tx);
@@ -659,9 +684,9 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
       PipelineService pipeline = PipelineServiceFactory.newPipelineService();
       pipeline.startNewPipeline(new DeleteShardedJob(jobId, taskCount));
     }
-    final Key jobKey = ShardedJobStateImpl.ShardedJobSerializer.makeKey(jobId);
+    final Key jobKey = ShardedJobStateImpl.ShardedJobSerializer.makeKey(datastore, jobId);
 
-    RetryExecutor.call(getRetryerBuilder().withStopStrategy(StopStrategies.stopAfterAttempt(8)), callable(() -> DATASTORE.delete(jobKey)));
+    RetryExecutor.call(getRetryerBuilder().withStopStrategy(StopStrategies.stopAfterAttempt(8)), callable(() -> datastore.delete(jobKey)));
     return true;
   }
 }

@@ -11,7 +11,11 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.appengine.tools.mapreduce.MapReduceJob;
 import com.google.appengine.tools.mapreduce.MapReduceServlet;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
+import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreOptions;
 import com.google.common.collect.ImmutableMap;
+import lombok.NoArgsConstructor;
+import lombok.extern.java.Log;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,14 +24,20 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 /**
  */
+@NoArgsConstructor
+@Log
 public final class MapReduceServletImpl {
 
-  private static final Logger log = Logger.getLogger(MapReduceServlet.class.getName());
+  @Inject
+  transient Datastore datastore;
+
+
   private static final Map<String, Resource> RESOURCES = ImmutableMap.<String, Resource>builder()
       .put("status", new Resource("/_ah/pipeline/list?class_path=" + MapReduceJob.class.getName()))
       .put("detail", new Resource("detail.html", "text/html"))
@@ -70,13 +80,10 @@ public final class MapReduceServletImpl {
     }
   }
 
-  private MapReduceServletImpl() {
-  }
-
   /**
    * Handle GET http requests.
    */
-  public static void doGet(HttpServletRequest request, HttpServletResponse response)
+  public void doGet(HttpServletRequest request, HttpServletResponse response)
       throws IOException {
     String handler = getHandler(request);
     if (handler.startsWith(COMMAND_PATH)) {
@@ -92,21 +99,22 @@ public final class MapReduceServletImpl {
   /**
    * Handle POST http requests.
    */
-  public static void doPost(HttpServletRequest request, HttpServletResponse response)
+  public  void doPost(HttpServletRequest request, HttpServletResponse response)
       throws IOException {
+
     String handler = getHandler(request);
     if (handler.startsWith(CONTROLLER_PATH)) {
       if (!checkForTaskQueue(request, response)) {
         return;
       }
-      new ShardedJobRunner<>().completeShard(
+      new ShardedJobRunner<>(datastore).completeShard(
           checkNotNull(request.getParameter(JOB_ID_PARAM), "Null job id"),
           checkNotNull(request.getParameter(TASK_ID_PARAM), "Null task id"));
     } else if (handler.startsWith(WORKER_PATH)) {
       if (!checkForTaskQueue(request, response)) {
         return;
       }
-      new ShardedJobRunner<>().runTask(
+      new ShardedJobRunner<>(datastore).runTask(
           checkNotNull(request.getParameter(JOB_ID_PARAM), "Null job id"),
           checkNotNull(request.getParameter(TASK_ID_PARAM), "Null task id"),
           Integer.parseInt(request.getParameter(SEQUENCE_NUMBER_PARAM)));

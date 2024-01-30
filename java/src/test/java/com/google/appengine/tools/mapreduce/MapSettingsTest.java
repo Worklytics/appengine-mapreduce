@@ -10,24 +10,26 @@ import static com.google.appengine.tools.mapreduce.MapSettings.DEFAULT_SHARD_RET
 import static com.google.appengine.tools.mapreduce.MapSettings.DEFAULT_SLICE_RETRIES;
 import static com.google.appengine.tools.mapreduce.MapSettings.WORKER_PATH;
 import static com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet.makeViewerUrl;
+import static org.junit.jupiter.api.Assertions.*;
 
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
-import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
+import com.google.appengine.tools.mapreduce.testutil.PipelineSetupExtensions;
 import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.JobSetting.OnBackend;
 import com.google.appengine.tools.pipeline.JobSetting.OnService;
 import com.google.appengine.tools.pipeline.JobSetting.OnQueue;
 import com.google.appengine.tools.pipeline.JobSetting.StatusConsoleUrl;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineEnvironment;
 import com.google.apphosting.api.ApiProxy;
 import com.google.apphosting.api.ApiProxy.Environment;
 
 import com.google.cloud.datastore.Key;
-import junit.framework.TestCase;
 
 import org.easymock.EasyMock;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.ParameterizedType;
 import java.util.HashMap;
@@ -37,19 +39,18 @@ import java.util.Set;
 
 /**
  */
+@PipelineSetupExtensions
 @SuppressWarnings("deprecation")
-public class MapSettingsTest extends TestCase {
+public class MapSettingsTest{
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper(
-      new LocalDatastoreServiceTestConfig(),
-      new LocalTaskQueueTestConfig(),
       new LocalModulesServiceTestConfig()
         .addBasicScalingModuleVersion("module1", "v1", 10)
         .addBasicScalingModuleVersion("module1", "v2", 10)
         .addBasicScalingModuleVersion("default", "1", 1)
         .addBasicScalingModuleVersion("default", "2", 1));
 
-  @Override
+  @BeforeEach
   public void setUp() {
     helper.setUp();
     Map<String, Object> attributes = ApiProxy.getCurrentEnvironment().getAttributes();
@@ -63,9 +64,9 @@ public class MapSettingsTest extends TestCase {
     portMap.put("b1", "backend-hostname");
   }
 
+  @Test
   public void testDefaultSettings() {
-    MapSettings mrSettings = new MapSettings.Builder().build();
-    assertNull(mrSettings.getBackend());
+    MapSettings mrSettings = MapSettings.builder().build();
     assertNull(mrSettings.getModule());
     assertNull(mrSettings.getWorkerQueueName());
     assertEquals(DEFAULT_BASE_URL, mrSettings.getBaseUrl());
@@ -75,72 +76,70 @@ public class MapSettingsTest extends TestCase {
     assertEquals(DEFAULT_SLICE_TIMEOUT_RATIO, mrSettings.getSliceTimeoutRatio());
   }
 
+  @Test
   public void testNonDefaultSettings() {
-    MapSettings.Builder builder = new MapSettings.Builder();
-    builder.setBackend("b1");
+    MapSettings.MapSettingsBuilder builder = MapSettings.builder();
     try {
-      builder.setModule("m").build();
+      builder.module("m").build();
       fail("Expected IllegalArgumentException to be thrown");
     } catch (IllegalArgumentException ex) {
       // expected
-      builder.setModule(null);
+      builder.module(null);
     }
-    builder.setWorkerQueueName("queue1");
-    builder.setBaseUrl("base-url");
-    builder.setMillisPerSlice(10);
+    builder.workerQueueName("queue1");
+    builder.baseUrl("base-url");
+    builder.millisPerSlice(10);
     try {
-      builder.setMillisPerSlice(-1);
+      builder.millisPerSlice(-1);
       fail("Expected IllegalArgumentException to be thrown");
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder.setSliceTimeoutRatio(1.5);
+    builder.sliceTimeoutRatio(1.5);
     try {
-      builder.setSliceTimeoutRatio(0.8);
+      builder.sliceTimeoutRatio(0.8);
       fail("Expected IllegalArgumentException to be thrown");
     } catch (IllegalArgumentException ex) {
       //expected
     }
-    builder.setMaxShardRetries(1);
+    builder.maxShardRetries(1);
     try {
-      builder.setMaxShardRetries(-1);
+      builder.maxShardRetries(-1);
       fail("Expected IllegalArgumentException to be thrown");
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder.setMaxSliceRetries(0);
+    builder.maxSliceRetries(0);
     try {
-      builder.setMaxSliceRetries(-1);
+      builder.maxSliceRetries(-1);
       fail("Expected IllegalArgumentException to be thrown");
     } catch (IllegalArgumentException ex) {
       // expected
     }
     MapSettings settings = builder.build();
     assertNull(settings.getModule());
-    assertEquals("b1", settings.getBackend());
     assertEquals("queue1", settings.getWorkerQueueName());
     assertEquals("base-url", settings.getBaseUrl());
     assertEquals(10, settings.getMillisPerSlice());
     assertEquals(1, settings.getMaxShardRetries());
     assertEquals(0, settings.getMaxSliceRetries());
-    builder.setModule("m1");
+    builder.module("m1");
     try {
       builder.build();
       fail("Expected IllegalArgumentException to be thrown");
     } catch (IllegalArgumentException ex) {
       // expected
-      builder.setBackend(null);
+
     }
     settings = builder.build();
-    assertNull(settings.getBackend());
     assertEquals("m1", settings.getModule());
   }
 
   public void testValidate() throws Exception {
-    MapSettings.Builder builder = new MapSettings.Builder();
+    MapSettings.MapSettingsBuilder builder = MapSettings.builder();
     // TODO(user): replace "bad_queue" with "bad-queue". The latter is just
     // an invalid name and does not check if queue exists. see b/13910616
-    builder.setWorkerQueueName("bad_queue");
+    builder.workerQueueName("bad_queue");
     try {
       builder.build();
       fail("was expecting failure due to bad queue");
@@ -149,17 +148,17 @@ public class MapSettingsTest extends TestCase {
     }
   }
 
+  @Test
   public void testBuilderWithSettings() {
-    MapSettings settings = new MapSettings.Builder()
-        .setModule("m")
-        .setBaseUrl("url")
-        .setMaxShardRetries(10)
-        .setMaxSliceRetries(20)
-        .setMillisPerSlice(30)
-        .setWorkerQueueName("good-queue")
+    MapSettings settings = MapSettings.builder()
+        .module("m")
+        .baseUrl("url")
+        .maxShardRetries(10)
+        .maxSliceRetries(20)
+        .millisPerSlice(30)
+        .workerQueueName("good-queue")
         .build();
-    settings = new MapSettings.Builder(settings).build();
-    assertNull(settings.getBackend());
+    settings = settings.toBuilder().build();
     assertEquals("m", settings.getModule());
     assertEquals("url", settings.getBaseUrl());
     assertEquals(10, settings.getMaxShardRetries());
@@ -168,12 +167,12 @@ public class MapSettingsTest extends TestCase {
     assertEquals("good-queue", settings.getWorkerQueueName());
   }
 
-  public void testMakeShardedJobSettings() {
+  @Test
+  public void testMakeShardedJobSettings(AppEngineEnvironment environment) {
     Key key = Key.newBuilder(" test-project", "Kind1", "value1").build();
-    MapSettings settings = new MapSettings.Builder().setWorkerQueueName("good-queue").build();
-    ShardedJobSettings sjSettings = settings.toShardedJobSettings("job1", key);
-    assertNull(sjSettings.getBackend());
-    assertEquals("default", sjSettings.getModule());
+    MapSettings settings = MapSettings.builder().workerQueueName("good-queue").build();
+    ShardedJobSettings sjSettings = settings.toShardedJobSettings(environment, "job1", key);
+    assertEquals("default", sjSettings.getService());
     assertEquals("1", sjSettings.getVersion());
     assertEquals("1.default.test.localhost", sjSettings.getTaskQueueTarget());
     assertEquals(settings.getWorkerQueueName(), sjSettings.getQueueName());
@@ -183,20 +182,8 @@ public class MapSettingsTest extends TestCase {
     assertEquals(settings.getMaxShardRetries(), sjSettings.getMaxShardRetries());
     assertEquals(settings.getMaxSliceRetries(), sjSettings.getMaxSliceRetries());
 
-    settings = new MapSettings.Builder(settings).setModule(null).setBackend("b1").build();
-    sjSettings = settings.toShardedJobSettings("job1", key);
-    assertEquals("backend-hostname", sjSettings.getTaskQueueTarget());
-    assertEquals("b1", sjSettings.getBackend());
-    assertNull(sjSettings.getModule());
-    assertNull(sjSettings.getVersion());
 
-    settings = new MapSettings.Builder(settings).setBackend(null).setModule("module1").build();
-    sjSettings = settings.toShardedJobSettings("job1", key);
-    assertNull(sjSettings.getBackend());
-    assertEquals("module1", sjSettings.getModule());
-    assertEquals("v1", sjSettings.getVersion());
-
-    settings = new MapSettings.Builder(settings).setModule("default").build();
+    settings = settings.toBuilder().module("default").build();
     Environment env = ApiProxy.getCurrentEnvironment();
     Environment mockEnv = EasyMock.createNiceMock(Environment.class);
     EasyMock.expect(mockEnv.getModuleId()).andReturn("default").atLeastOnce();
@@ -206,9 +193,8 @@ public class MapSettingsTest extends TestCase {
     ApiProxy.setEnvironmentForCurrentThread(mockEnv);
     // Test when current module is the same as requested module
     try {
-      sjSettings = settings.toShardedJobSettings("job1", key);
-      assertNull(sjSettings.getBackend());
-      assertEquals("default", sjSettings.getModule());
+      sjSettings = settings.toShardedJobSettings(environment, "job1", key);
+      assertEquals("default", sjSettings.getService());
       assertEquals("2", sjSettings.getVersion());
     } finally {
       ApiProxy.setEnvironmentForCurrentThread(env);
@@ -221,15 +207,15 @@ public class MapSettingsTest extends TestCase {
   }
 
   public void testPipelineSettings() {
-    MapSettings mrSettings = new MapSettings.Builder().setWorkerQueueName("queue1").build();
+    MapSettings mrSettings = MapSettings.builder().workerQueueName("queue1").build();
     verifyPipelineSettings(mrSettings.toJobSettings(),
         new BackendValidator(null), new ServiceValidator(null), new QueueValidator("queue1"));
 
-    mrSettings = new MapSettings.Builder().setBackend("backend1").build();
+    mrSettings = MapSettings.builder().module("m1`").build();
     verifyPipelineSettings(mrSettings.toJobSettings(),
-        new BackendValidator("backend1"), new ServiceValidator(null), new QueueValidator(null));
+        new ServiceValidator("m1"), new QueueValidator(null));
 
-    mrSettings = new MapSettings.Builder().setModule("m1").build();
+    mrSettings = mrSettings.toBuilder().build();
     verifyPipelineSettings(mrSettings.toJobSettings(new StatusConsoleUrl("u1")),
         new BackendValidator(null), new ServiceValidator("m1"),
         new QueueValidator(null), new StatusConsoleValidator("u1"));

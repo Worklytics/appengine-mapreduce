@@ -2,6 +2,9 @@
 
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
+import com.google.cloud.datastore.Datastore;
+import lombok.AllArgsConstructor;
+
 import java.util.Iterator;
 import java.util.List;
 
@@ -10,7 +13,10 @@ import java.util.List;
  *
  * @author ohler@google.com (Christian Ohler)
  */
+@AllArgsConstructor
 class ShardedJobServiceImpl implements ShardedJobService {
+
+  Datastore datastore;
 
   @Override
   public <T extends IncrementalTask> void startJob(
@@ -18,26 +24,26 @@ class ShardedJobServiceImpl implements ShardedJobService {
       List<? extends T> initialTasks,
       ShardedJobController<T> controller,
       ShardedJobSettings settings) {
-    new ShardedJobRunner<T>().startJob(jobId, initialTasks, controller, settings);
+    new ShardedJobRunner<T>(datastore).startJob(jobId, initialTasks, controller, settings);
   }
 
   @Override
   public ShardedJobState getJobState(String jobId) {
-    return new ShardedJobRunner<>().getJobState(jobId);
+    return new ShardedJobRunner<>(datastore).getJobState(jobId);
   }
 
   @Override
   public Iterator<IncrementalTaskState<IncrementalTask>> lookupTasks(ShardedJobState state) {
-    return new ShardedJobRunner<>().lookupTasks(state.getJobId(), state.getTotalTaskCount(), true);
+    return new ShardedJobRunner<>(datastore).lookupTasks(state.getJobId(), state.getTotalTaskCount(), true);
   }
 
   @Override
   public void abortJob(String jobId) {
-    new ShardedJobRunner<>().abortJob(jobId);
+    new ShardedJobRunner<>(datastore).abortJob(jobId);
   }
 
   @Override
   public boolean cleanupJob(String jobId) {
-    return new ShardedJobRunner<>().cleanupJob(jobId);
+    return new ShardedJobRunner<>(datastore).cleanupJob(jobId);
   }
 }

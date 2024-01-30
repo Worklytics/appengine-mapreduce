@@ -2,11 +2,7 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline;
 
 import static java.util.concurrent.Executors.callable;
 
-import com.github.rholder.retry.RetryException;
 import com.github.rholder.retry.StopStrategies;
-import com.google.appengine.api.datastore.DatastoreServiceFactory;
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
 import com.google.appengine.tools.mapreduce.RetryExecutor;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTask;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskState;
@@ -16,14 +12,10 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.pipeline.Job0;
 import com.google.appengine.tools.pipeline.Value;
-import com.google.common.base.Throwables;
+import com.google.cloud.datastore.*;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
+import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * A pipeline job for finalizing the shards information and cleaning up unnecessary state.
@@ -46,8 +38,12 @@ public class FinalizeShardsInfos extends Job0<Void> {
 
   @Override
   public Value<Void> run() {
+    //TODO: inject this or something
+    // (q: should we obtain from Job? maybe, as property of execution context?? )
+    Datastore datastore = DatastoreOptions.newBuilder().build().getService();
+
     final List<Key> toFetch = new ArrayList<>(end - start);
-    final List<Entity> toUpdate = new ArrayList<>();
+    final Queue<Entity> toUpdate = new ConcurrentLinkedQueue<>();
     final List<Key> toDelete = new ArrayList<>();
     for (int i = start; i < end; i++) {
       String taskId = ShardedJobRunner.getTaskId(jobId, i);
@@ -62,33 +58,28 @@ public class FinalizeShardsInfos extends Job0<Void> {
     RetryExecutor.call(
       ShardedJobRunner.getRetryerBuilder().withStopStrategy(StopStrategies.neverStop()),
       callable(() -> {
-      Future<Void> deleteAsync =
-        DatastoreServiceFactory.getAsyncDatastoreService().delete(null, toDelete);
-      Map<Key, Entity> entities = DatastoreServiceFactory.getDatastoreService().get(toFetch);
-      Iterator<Key> keysIter = toFetch.iterator();
-      while (keysIter.hasNext()) {
-        Entity entity = entities.get(keysIter.next());
-        if (entity != null) {
-          IncrementalTaskState<IncrementalTask> taskState =
-            IncrementalTaskState.Serializer.fromEntity(entity, true);
-          if (taskState.getTask() != null) {
-            taskState.getTask().jobCompleted(status);
-            toUpdate.add(IncrementalTaskState.Serializer.toEntity(null, taskState));
-          }
+
+
+
+
+      Iterator<Entity> entities = datastore.get(toFetch);
+      entities.forEachRemaining(entity -> {
+        IncrementalTaskState<IncrementalTask> taskState =
+          IncrementalTaskState.Serializer.fromEntity(datastore, entity, true);
+        if (taskState.getTask() != null) {
+          taskState.getTask().jobCompleted(status);
+          toUpdate.add(IncrementalTaskState.Serializer.toEntity(null, taskState));
         }
-      }
+      });
+
       if (!toUpdate.isEmpty()) {
-        DatastoreServiceFactory.getDatastoreService().put(null, toUpdate);
+        datastore.put(toUpdate.stream().toArray(Entity[]::new));
       }
-      try {
-        deleteAsync.get();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new RuntimeException("Request interrupted");
-      } catch (ExecutionException e) {
-        Throwables.propagateIfPossible(e.getCause());
-        throw new RuntimeException("Async get failed", e);
-      }
+
+        Runnable deletion = () -> {
+          datastore.delete(toDelete.stream().toArray(Key[]::new));
+        };
+        deletion.run();
     }));
 
     return null;
