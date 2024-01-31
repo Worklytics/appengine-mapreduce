@@ -49,17 +49,6 @@
     <url-pattern>/entitycount</url-pattern>
   </servlet-mapping>
 
-  <servlet>
-    <servlet-name>bigqueryload</servlet-name>
-    <servlet-class>
-      com.google.appengine.demos.mapreduce.bigqueryload.RandomDataLoadServlet
-    </servlet-class>
-  </servlet>
-  <servlet-mapping>
-    <servlet-name>bigqueryload</servlet-name>
-    <url-pattern>/bigqueryload</url-pattern>
-  </servlet-mapping>
-
   <!-- In this example we put an admin constraint, since kicking off a MapReduce 
     can use a significant amount of resources. -->
   <security-constraint>
