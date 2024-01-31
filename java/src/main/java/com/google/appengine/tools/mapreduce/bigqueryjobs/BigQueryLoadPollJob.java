@@ -22,7 +22,7 @@ import lombok.RequiredArgsConstructor;
 import java.io.IOException;
 import java.util.logging.Logger;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * A pipeline job to poll the status of a bigquery load {@link Job}. It polls until the job goes to
