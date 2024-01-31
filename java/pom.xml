@@ -34,8 +34,8 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <github.global.server>github</github.global.server>
-    <jackson.version>[2.7, 2.15.4)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
-    <google.http.client.version>1.43.3</google.http.client.version>
+    <jackson.version>[2.7,3.0)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
+    <google.http.client.version>1.44.1</google.http.client.version>
   </properties>
   <repositories>
     <repository>
@@ -89,14 +89,12 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-        <version>3.2.0</version>
+        <version>3.3.0</version>
         <configuration>
           <archive>
             <manifest>
-              <addDefaultImplementationEntries>true
-              </addDefaultImplementationEntries>
-              <addDefaultSpecificationEntries>true
-              </addDefaultSpecificationEntries>
+              <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+              <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
             </manifest>
           </archive>
         </configuration>
@@ -163,12 +161,12 @@
     <dependency>
       <groupId>org.json</groupId>
       <artifactId>json</artifactId>
-      <version>20230227</version>
+      <version>20231013</version>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>3.25.1</version>
+      <version>3.25.2</version>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>

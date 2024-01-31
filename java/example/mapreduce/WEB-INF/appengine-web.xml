@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <appengine-web-app xmlns="http://appengine.google.com/ns/1.0">
   <application>mapreduce-example</application>
-  <module>mapreduce</module>
+  <service>mapreduce</service>
   <version>one</version>
-  <threadsafe>true</threadsafe>
+  <app-engine-apis>true</app-engine-apis>
+  <runtime>java17</runtime>
 
   <!-- Larger / higher memory instances are useful for their improved sorting performance -->
   <instance-class>F4</instance-class>
