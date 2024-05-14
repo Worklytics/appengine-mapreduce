@@ -30,7 +30,7 @@
     </license>
   </licenses>
   <properties>
-    <appengine.target.version>[2.0.4, 2.0.23)</appengine.target.version>
+    <appengine.target.version>[2.0.4, 2.0.27)</appengine.target.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <github.global.server>github</github.global.server>
