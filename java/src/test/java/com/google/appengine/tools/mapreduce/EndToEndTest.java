@@ -47,11 +47,8 @@ import com.google.common.collect.Sets;
 
 import lombok.RequiredArgsConstructor;
 import org.easymock.EasyMock;
-import org.junit.Before;
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.BlockJUnit4ClassRunner;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -75,8 +72,6 @@ import java.util.logging.Logger;
 /**
  * @author ohler@google.com (Christian Ohler)
  */
-@SuppressWarnings("deprecation")
-@RunWith(BlockJUnit4ClassRunner.class)
 public class EndToEndTest extends EndToEndTestCase {
 
   private static final Logger log = Logger.getLogger(EndToEndTest.class.getName());
@@ -87,8 +82,7 @@ public class EndToEndTest extends EndToEndTestCase {
   GoogleCloudStorageFileOutput.Options cloudStorageFileOutputOptions;
   MapReduceSettings testSettings;
 
-  @Before
-  @Override
+  @BeforeEach
   public void setUp() throws Exception {
     super.setUp();
     pipelineService = PipelineServiceFactory.newPipelineService();

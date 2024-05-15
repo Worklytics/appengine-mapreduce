@@ -12,9 +12,6 @@ import com.google.appengine.api.datastore.Query;
 import com.google.appengine.tools.mapreduce.EndToEndTestCase;
 
 import org.junit.jupiter.api.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.BlockJUnit4ClassRunner;
-
 import java.util.Iterator;
 import java.util.Map;
 
@@ -22,7 +19,6 @@ import java.util.Map;
  * Tests the format in which ShardedJobs are written to the datastore.
  *
  */
-@RunWith(BlockJUnit4ClassRunner.class)
 public class ShardedJobStorageTest extends EndToEndTestCase {
 
   private static final DatastoreService DATASTORE = DatastoreServiceFactory.getDatastoreService();
