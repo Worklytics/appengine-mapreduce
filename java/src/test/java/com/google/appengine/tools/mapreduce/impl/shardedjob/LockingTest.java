@@ -2,8 +2,7 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
 import static com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode.DONE;
 import static com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode.RUNNING;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo.TaskStateInfo;
 import com.google.appengine.tools.mapreduce.EndToEndTestCase;
