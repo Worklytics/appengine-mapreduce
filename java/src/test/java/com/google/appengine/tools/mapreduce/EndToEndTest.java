@@ -15,17 +15,11 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import com.google.appengine.api.datastore.DatastoreService;
-import com.google.appengine.api.datastore.DatastoreServiceFactory;
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.KeyFactory;
-import com.google.appengine.api.datastore.Query;
 import com.google.appengine.tools.mapreduce.impl.HashingSharder;
 import com.google.appengine.tools.mapreduce.impl.InProcessMap;
 import com.google.appengine.tools.mapreduce.impl.InProcessMapReduce;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardFailureException;
 import com.google.appengine.tools.mapreduce.inputs.ConsecutiveLongInput;
-import com.google.appengine.tools.mapreduce.inputs.DatastoreInput;
 import com.google.appengine.tools.mapreduce.inputs.ForwardingInputReader;
 import com.google.appengine.tools.mapreduce.inputs.NoInput;
 import com.google.appengine.tools.mapreduce.inputs.RandomLongInput;
@@ -915,14 +909,22 @@ public class EndToEndTest extends EndToEndTestCase {
   }
 
   @Test
-  public void testDatastoreData() throws Exception {
+  public void testInMemoryData() throws Exception {
     final int SHARD_COUNT = 3;
-    final DatastoreService datastoreService = DatastoreServiceFactory.getDatastoreService();
-    // Datastore restriction: id cannot be zero.
-    for (long i = 1; i <= 100; ++i) {
-      datastoreService.put(new Entity(KeyFactory.createKey("Test", i)));
+    final int SHARD_SIZE = 30;
+
+    List<List<Long>> data = new ArrayList<>();
+    for (long i = 0; i < SHARD_COUNT; ++i) {
+      for (long j = 0; j < SHARD_SIZE; ++j) {
+        data.add(ImmutableList.of(i*SHARD_SIZE + j));
+      }
     }
-    runTest(new MapReduceSpecification.Builder<>(new DatastoreInput("Test", SHARD_COUNT), new TestMapper(),
+
+    Input<Long> input = new InMemoryInput(data);
+
+    runTest(new MapReduceSpecification.Builder<>(
+        input,
+        new TestMapper(),
         new TestReducer(), new InMemoryOutput<>())
         .setKeyMarshaller(Marshallers.getStringMarshaller())
         .setValueMarshaller(Marshallers.getLongMarshaller()).setJobName("Test MR").build(),
@@ -934,20 +936,14 @@ public class EndToEndTest extends EndToEndTestCase {
             log.info("counters=" + counters);
             assertNotNull(counters);
 
-            assertEquals(100, counters.getCounter("map").getValue());
+            assertEquals(SHARD_COUNT*SHARD_SIZE, counters.getCounter("map").getValue());
             assertEquals(SHARD_COUNT, counters.getCounter("beginShard").getValue());
             assertEquals(SHARD_COUNT, counters.getCounter("endShard").getValue());
             assertEquals(SHARD_COUNT, counters.getCounter("beginSlice").getValue());
             assertEquals(SHARD_COUNT, counters.getCounter("endSlice").getValue());
 
-            assertEquals(100, counters.getCounter(CounterNames.MAPPER_CALLS).getValue());
+            assertEquals(SHARD_COUNT*SHARD_SIZE, counters.getCounter(CounterNames.MAPPER_CALLS).getValue());
             assertTrue(counters.getCounter(CounterNames.MAPPER_WALLTIME_MILLIS).getValue() > 0);
-
-            Query query = new Query("Test");
-            for (Entity e : datastoreService.prepare(query).asIterable()) {
-              Object mark = e.getProperty("mark");
-              assertNotNull(mark);
-            }
 
             List<KeyValue<String, List<Long>>> output =
                 Iterables.getOnlyElement(result.getOutputResult());
@@ -956,14 +952,14 @@ public class EndToEndTest extends EndToEndTestCase {
             List<Long> evenValues = new ArrayList<>(output.get(0).getValue());
             Collections.sort(evenValues);
             List<Long> expected = new ArrayList<>();
-            for (long i = 2; i <= 100; i += 2) {
+            for (long i = 2; i <= SHARD_COUNT*SHARD_SIZE; i += 2) {
               expected.add(i);
             }
             assertEquals(expected, evenValues);
             assertEquals("multiple-of-ten", output.get(1).getKey());
             List<Long> multiplesOfTen = new ArrayList<>(output.get(1).getValue());
             Collections.sort(multiplesOfTen);
-            assertEquals(ImmutableList.of(10L, 20L, 30L, 40L, 50L, 60L, 70L, 80L, 90L, 100L),
+            assertEquals(ImmutableList.of(0L, 10L, 20L, 30L, 40L, 50L, 60L, 70L, 80L),
                 multiplesOfTen);
           }
         });
@@ -971,7 +967,17 @@ public class EndToEndTest extends EndToEndTestCase {
 
   @Test
   public void testNoData() throws Exception {
-    runTest(new MapReduceSpecification.Builder<>(new DatastoreInput("Test", 2), new TestMapper(),
+
+    List<List<Long>> data = Arrays.asList(
+      new ArrayList<Long>(),
+      new ArrayList<Long>(),
+    )0;
+
+    Input<Long> input = new InMemoryInput(data);
+
+    runTest(new MapReduceSpecification.Builder<>(
+        new InMemoryInput(data),
+        new TestMapper(),
         NoReducer.<String, Long, Void>create(), new NoOutput<Void, Void>())
         .setKeyMarshaller(Marshallers.getStringMarshaller())
         .setValueMarshaller(Marshallers.getLongMarshaller()).setJobName("Test MR").build(),
@@ -1277,28 +1283,22 @@ public class EndToEndTest extends EndToEndTestCase {
   }
 
   @SuppressWarnings("serial")
-  static class TestMapper extends Mapper<Entity, String, Long> {
-
-    transient DatastoreMutationPool pool;
-
+  static class TestMapper extends Mapper<Long, String, Long> {
     @Override
-    public void map(Entity entity) {
+    public void map(Long i) {
       getContext().incrementCounter("map");
       try {
         Thread.sleep(1);
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }
-      long key = entity.getKey().getId();
-      log.info("map(" + key + ")");
-      if (key % 2 == 0) {
-        emit("even", key);
+      log.info("map(" + i + ")");
+      if (i % 2 == 0) {
+        emit("even", i);
       }
-      if (key % 10 == 0) {
-        emit("multiple-of-ten", key);
+      if (i % 10 == 0) {
+        emit("multiple-of-ten", i);
       }
-      entity.setProperty("mark", Boolean.TRUE);
-      pool.put(entity);
     }
 
     @Override
@@ -1313,13 +1313,11 @@ public class EndToEndTest extends EndToEndTestCase {
 
     @Override
     public void beginSlice() {
-      pool = DatastoreMutationPool.create();
       getContext().incrementCounter("beginSlice");
     }
 
     @Override
     public void endSlice() {
-      pool.flush();
       getContext().incrementCounter("endSlice");
     }
   }

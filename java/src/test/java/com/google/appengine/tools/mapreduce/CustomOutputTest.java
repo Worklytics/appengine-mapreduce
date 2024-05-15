@@ -5,7 +5,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import com.google.appengine.api.datastore.Entity;
 import com.google.appengine.tools.mapreduce.EndToEndTest.TestMapper;
 import com.google.appengine.tools.mapreduce.inputs.DatastoreInput;
 import com.google.appengine.tools.mapreduce.reducers.ValueProjectionReducer;
@@ -78,9 +77,23 @@ public class CustomOutputTest extends EndToEndTestCase {
 
   @Test
   public void testOutputInOrder() throws Exception {
-    MapReduceSpecification.Builder<Entity, String, Long, Long, Boolean> mrSpecBuilder =
+
+    final int SHARD_COUNT = 3;
+    final int SHARD_SIZE = 30;
+
+    List<List<Long>> data = new ArrayList<>();
+    for (long i = 0; i < SHARD_COUNT; ++i) {
+      for (long j = 0; j < SHARD_SIZE; ++j) {
+        data.add(ImmutableList.of(i*SHARD_SIZE + j));
+      }
+    }
+
+    Input<Long> input = new InMemoryInput(data);
+
+
+    MapReduceSpecification.Builder<Long, String, Long, Long, Boolean> mrSpecBuilder =
         new MapReduceSpecification.Builder<>();
-    mrSpecBuilder.setJobName("Test MR").setInput(new DatastoreInput("Test", 2))
+    mrSpecBuilder.setJobName("Test MR").setInput(input)
         .setMapper(new TestMapper()).setKeyMarshaller(Marshallers.getStringMarshaller())
         .setValueMarshaller(Marshallers.getLongMarshaller())
         .setReducer(ValueProjectionReducer.<String, Long>create())
