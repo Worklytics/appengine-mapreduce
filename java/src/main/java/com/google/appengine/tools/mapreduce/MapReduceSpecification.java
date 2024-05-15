@@ -96,6 +96,12 @@ public final class MapReduceSpecification<I, K, V, O, R> extends BaseSpecificati
       return this;
     }
 
+    public Builder<I, K, V, O, R> setJobName(String jobName) {
+      super.setJobName(jobName);
+      return this;
+    }
+
+
     public MapReduceSpecification<I, K, V, O, R> build() {
       return new MapReduceSpecification<>(this);
     }

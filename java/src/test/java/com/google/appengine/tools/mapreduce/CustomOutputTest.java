@@ -6,7 +6,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import com.google.appengine.tools.mapreduce.EndToEndTest.TestMapper;
-import com.google.appengine.tools.mapreduce.inputs.DatastoreInput;
+import com.google.appengine.tools.mapreduce.inputs.InMemoryInput;
 import com.google.appengine.tools.mapreduce.reducers.ValueProjectionReducer;
 import com.google.appengine.tools.pipeline.JobInfo;
 import com.google.appengine.tools.pipeline.JobInfo.State;
@@ -83,9 +83,11 @@ public class CustomOutputTest extends EndToEndTestCase {
 
     List<List<Long>> data = new ArrayList<>();
     for (long i = 0; i < SHARD_COUNT; ++i) {
+      List<Long> row = new ArrayList<>();
       for (long j = 0; j < SHARD_SIZE; ++j) {
-        data.add(ImmutableList.of(i*SHARD_SIZE + j));
+        row.add(i*SHARD_SIZE + j);
       }
+      data.add(row);
     }
 
     Input<Long> input = new InMemoryInput(data);

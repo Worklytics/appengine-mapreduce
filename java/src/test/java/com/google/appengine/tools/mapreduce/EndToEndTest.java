@@ -23,6 +23,7 @@ import com.google.appengine.tools.mapreduce.inputs.ConsecutiveLongInput;
 import com.google.appengine.tools.mapreduce.inputs.ForwardingInputReader;
 import com.google.appengine.tools.mapreduce.inputs.NoInput;
 import com.google.appengine.tools.mapreduce.inputs.RandomLongInput;
+import com.google.appengine.tools.mapreduce.inputs.InMemoryInput;
 import com.google.appengine.tools.mapreduce.outputs.ForwardingOutputWriter;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutputWriter;
@@ -915,9 +916,11 @@ public class EndToEndTest extends EndToEndTestCase {
 
     List<List<Long>> data = new ArrayList<>();
     for (long i = 0; i < SHARD_COUNT; ++i) {
+      List<Long> row = new ArrayList<>();
       for (long j = 0; j < SHARD_SIZE; ++j) {
-        data.add(ImmutableList.of(i*SHARD_SIZE + j));
+        row.add(i*SHARD_SIZE + j);
       }
+      data.add(row);
     }
 
     Input<Long> input = new InMemoryInput(data);
@@ -970,8 +973,8 @@ public class EndToEndTest extends EndToEndTestCase {
 
     List<List<Long>> data = Arrays.asList(
       new ArrayList<Long>(),
-      new ArrayList<Long>(),
-    )0;
+      new ArrayList<Long>()
+    );
 
     Input<Long> input = new InMemoryInput(data);
 
@@ -980,7 +983,9 @@ public class EndToEndTest extends EndToEndTestCase {
         new TestMapper(),
         NoReducer.<String, Long, Void>create(), new NoOutput<Void, Void>())
         .setKeyMarshaller(Marshallers.getStringMarshaller())
-        .setValueMarshaller(Marshallers.getLongMarshaller()).setJobName("Test MR").build(),
+        .setValueMarshaller(Marshallers.getLongMarshaller())
+        .setJobName("Test MR")
+        .build(),
         new Verifier<Void>() {
           @Override
           public void verify(MapReduceResult<Void> result) throws Exception {
