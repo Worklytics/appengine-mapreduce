@@ -8,13 +8,15 @@ import com.google.appengine.tools.mapreduce.Sharder;
 import com.google.appengine.tools.mapreduce.impl.HashingSharder;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class ShardingOutputWriterTest extends TestCase {
+
+public class ShardingOutputWriterTest  {
 
   private static final class TestShardingOutputWriter extends
       ShardingOutputWriter<Integer, Integer, OutputWriter<KeyValue<Integer, Integer>>> {
@@ -37,6 +39,7 @@ public class ShardingOutputWriterTest extends TestCase {
     }
   }
 
+  @Test
   public void testCreatorCalled() throws IOException {
     int numShards = 10;
     TestShardingOutputWriter writer = new TestShardingOutputWriter(
@@ -59,6 +62,7 @@ public class ShardingOutputWriterTest extends TestCase {
     assertEquals(numShards, writer.shardsCreated);
   }
 
+  @Test
   public void testMethodsCalled() throws IOException {
     int numShards = 10;
     final AtomicInteger itemsWritten = new AtomicInteger(0);

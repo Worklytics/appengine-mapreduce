@@ -43,9 +43,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.TreeMultimap;
 
 import lombok.Getter;
-import org.junit.*;
-import org.junit.runner.RunWith;
-import org.junit.runners.BlockJUnit4ClassRunner;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -68,7 +68,6 @@ import javax.servlet.http.HttpServletResponse;
 /**
  * Tests for {@link ShufflerServlet}
  */
-@RunWith(BlockJUnit4ClassRunner.class)
 public class ShufflerServletTest {
 
   private static final Logger log = Logger.getLogger(ShufflerServletTest.class.getName());
@@ -130,12 +129,8 @@ public class ShufflerServletTest {
   @Getter
   CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
 
-  @BeforeClass
-  public static void setupStorage() {
 
-  }
-
-  @Before
+  @BeforeEach
   public void setUp() throws Exception {
     helper.setUp();
     ApiProxyLocal proxy = (ApiProxyLocal) ApiProxy.getDelegate();
@@ -148,7 +143,7 @@ public class ShufflerServletTest {
 
 
 
-  @After
+  @AfterEach
   public void tearDown() throws Exception {
     for (int count = 0; getQueueDepth() > 0; count++) {
       if (count > 10) {

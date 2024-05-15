@@ -10,30 +10,34 @@ import static com.google.appengine.tools.mapreduce.MapSettings.DEFAULT_BASE_URL;
 import static com.google.appengine.tools.mapreduce.MapSettings.DEFAULT_MILLIS_PER_SLICE;
 import static com.google.appengine.tools.mapreduce.MapSettings.DEFAULT_SHARD_RETRIES;
 import static com.google.appengine.tools.mapreduce.MapSettings.DEFAULT_SLICE_RETRIES;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import junit.framework.TestCase;
 
 /**
  */
 @SuppressWarnings("deprecation")
-public class MapReduceSettingsTest extends TestCase {
+public class MapReduceSettingsTest {
 
   private final LocalServiceTestHelper helper = // work around for b/17977352
       new LocalServiceTestHelper(new LocalTaskQueueTestConfig().setDisableAutoTaskExecution(true));
 
-  @Override
+  @BeforeEach
   public void setUp() {
     helper.setUp();
   }
 
-  @Override
+  @AfterEach
   public void tearDown() {
     helper.tearDown();
   }
 
+  @Test
   public void testDefaultSettings() {
     MapReduceSettings mrSettings = new MapReduceSettings.Builder().build();
     assertNull(mrSettings.getBackend());

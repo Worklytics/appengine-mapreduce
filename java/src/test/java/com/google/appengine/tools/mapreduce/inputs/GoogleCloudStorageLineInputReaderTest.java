@@ -1,13 +1,16 @@
 package com.google.appengine.tools.mapreduce.inputs;
 
-import com.google.appengine.tools.mapreduce.CloudStorageIntegrationTestHelper;
 import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  */
@@ -21,13 +24,14 @@ public class GoogleCloudStorageLineInputReaderTest extends GoogleCloudStorageLin
   long fileSize;
   GoogleCloudStorageLineInput.BaseOptions inputOptions;
 
-  @Override
-  public void setUp() throws Exception {
-    super.setUp();
+  @BeforeEach
+  public void prepareFile() throws Exception {
     filename = new GcsFilename(cloudStorageIntegrationTestHelper.getBucket(), FILENAME);
     fileSize = createFile(filename.getObjectName(), RECORD, RECORDS_COUNT);
     inputOptions = GoogleCloudStorageLineInput.BaseOptions.defaults().withServiceAccountKey(cloudStorageIntegrationTestHelper.getBase64EncodedServiceAccountKey());
   }
+
+  @Test
 
   public void testSingleSplitPoint() throws Exception {
     List<GoogleCloudStorageLineInputReader> readers = new ArrayList<>();
@@ -37,6 +41,7 @@ public class GoogleCloudStorageLineInputReaderTest extends GoogleCloudStorageLin
     verifyReaders(readers, false);
   }
 
+  @Test
   public void testSingleSplitPointsWithSerialization() throws Exception {
     List<GoogleCloudStorageLineInputReader> readers = new ArrayList<>();
     readers.add(new GoogleCloudStorageLineInputReader(filename, 0, RECORD.length(), (byte) '\n', inputOptions));
@@ -45,6 +50,7 @@ public class GoogleCloudStorageLineInputReaderTest extends GoogleCloudStorageLin
     verifyReaders(readers, true);
   }
 
+  @Test
   public void testAllSplitPoints() throws Exception {
     for (int splitPoint = 1; splitPoint < fileSize - 1; splitPoint++) {
       List<GoogleCloudStorageLineInputReader> readers = new ArrayList<>();
@@ -55,6 +61,7 @@ public class GoogleCloudStorageLineInputReaderTest extends GoogleCloudStorageLin
     }
   }
 
+  @Test
   public void testAllSplitPointsWithSerialization() throws Exception {
     for (int splitPoint = 1; splitPoint < fileSize - 1; splitPoint++) {
       List<GoogleCloudStorageLineInputReader> readers = new ArrayList<>();
@@ -99,6 +106,6 @@ public class GoogleCloudStorageLineInputReaderTest extends GoogleCloudStorageLin
       reader.endShard();
     }
 
-    assertEquals("Number of records read", RECORDS_COUNT, recordsRead);
+    assertEquals(RECORDS_COUNT, recordsRead, "Number of records read");
   }
 }

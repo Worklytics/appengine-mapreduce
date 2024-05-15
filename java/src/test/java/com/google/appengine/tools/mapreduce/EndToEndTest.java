@@ -49,7 +49,7 @@ import lombok.RequiredArgsConstructor;
 import org.easymock.EasyMock;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.BlockJUnit4ClassRunner;
 

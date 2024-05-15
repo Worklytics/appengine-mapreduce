@@ -6,15 +6,18 @@ import com.google.appengine.tools.mapreduce.Marshallers;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 
 import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.NoSuchElementException;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 /**
  * Unit test for {@code PeekingInputReader}.
  */
-public class PeekingInputReaderTest extends TestCase {
+public class PeekingInputReaderTest {
 
   private static final Marshaller<Long> MARSHALLER = Marshallers.getLongMarshaller();
 
@@ -39,6 +42,7 @@ public class PeekingInputReaderTest extends TestCase {
     }
   }
 
+  @Test
   public void testPeeking() throws IOException {
     int numRecords = 10;
     PeekingInputReader<Long> reader = new PeekingInputReader<>(new MarshallingInputReader<>(
@@ -51,6 +55,7 @@ public class PeekingInputReaderTest extends TestCase {
     assertThrowsNoSuchElement(reader);
   }
 
+  @Test
   public void testPeekingTwice() throws IOException {
     int numRecords = 10;
     PeekingInputReader<Long> reader = new PeekingInputReader<>(new MarshallingInputReader<>(
@@ -64,6 +69,7 @@ public class PeekingInputReaderTest extends TestCase {
     assertThrowsNoSuchElement(reader);
   }
 
+  @Test
   public void testNotPeeking() throws IOException {
     int numRecords = 10;
     PeekingInputReader<Long> reader = new PeekingInputReader<>(new MarshallingInputReader<>(
@@ -74,6 +80,7 @@ public class PeekingInputReaderTest extends TestCase {
     assertThrowsNoSuchElement(reader);
   }
 
+  @Test
   public void testSerializeWithoutPeeking() throws IOException {
     int numRecords = 10;
     PeekingInputReader<Long> reader = new PeekingInputReader<>(new MarshallingInputReader<>(
@@ -89,6 +96,7 @@ public class PeekingInputReaderTest extends TestCase {
   /**
    * Tests Peeking after Reconstruct with nothing peeked.
    */
+  @Test
   public void testPeekingAfterSerialization() throws IOException {
     int numRecords = 10;
     PeekingInputReader<Long> reader = new PeekingInputReader<>(new MarshallingInputReader<>(
@@ -106,6 +114,7 @@ public class PeekingInputReaderTest extends TestCase {
   /**
    * Tests Next after Reconstruct with nothing peeked.
    */
+  @Test
   public void testNextAfterSerialization() throws IOException {
     int numRecords = 10;
     PeekingInputReader<Long> reader = new PeekingInputReader<>(new MarshallingInputReader<>(
@@ -124,6 +133,7 @@ public class PeekingInputReaderTest extends TestCase {
    * Peek after Reconstruct with something peeked.
    * Next after Reconstruct with something peeked.
    */
+  @Test
   public void testPeekingWithSerialization() throws IOException {
     int numRecords = 10;
     PeekingInputReader<Long> reader = new PeekingInputReader<>(new MarshallingInputReader<>(

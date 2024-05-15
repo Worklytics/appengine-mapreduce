@@ -28,6 +28,8 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
@@ -66,7 +68,7 @@ public abstract class EndToEndTestCase {
   @Getter
   private CloudStorageIntegrationTestHelper storageTestHelper;
 
-  @Before
+  @BeforeEach
   public void setUp() throws Exception {
     helper.setUp();
     Map<String, String> envAttributes = getEnvAttributes();
@@ -81,7 +83,7 @@ public abstract class EndToEndTestCase {
     storageTestHelper.setUp();
   }
 
-  @After
+  @AfterEach
   public void tearDown() throws Exception {
     helper.tearDown();
     storageTestHelper.tearDown();

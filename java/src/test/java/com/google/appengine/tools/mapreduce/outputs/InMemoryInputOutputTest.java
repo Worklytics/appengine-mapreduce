@@ -5,21 +5,24 @@ import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.mapreduce.inputs.InMemoryInput;
 import com.google.common.collect.ImmutableList;
-
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+
 /**
  * Validates that data written by the InMemoryOutputWriter and InMemoryInputReader pass along the
  * data as is.
  *
  */
-public class InMemoryInputOutputTest extends TestCase {
+public class InMemoryInputOutputTest {
 
+  @Test
   public void testReaderWriter() throws IOException {
     InMemoryOutput<Object> output = new InMemoryOutput<>();
     Collection<? extends OutputWriter<Object>> writers = output.createWriters(1);
@@ -54,6 +57,7 @@ public class InMemoryInputOutputTest extends TestCase {
     reader.endSlice();
   }
 
+  @Test
   public void testManyShards() {
     int numShards = 10;
     InMemoryOutput<Object> output = new InMemoryOutput<>();

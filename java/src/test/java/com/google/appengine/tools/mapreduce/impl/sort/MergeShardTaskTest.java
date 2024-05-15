@@ -5,14 +5,16 @@ import com.google.appengine.tools.mapreduce.KeyValue;
 import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class MergeShardTaskTest extends TestCase {
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+public class MergeShardTaskTest {
 
   static class MockInputReader extends InputReader<KeyValue<ByteBuffer, Iterator<ByteBuffer>>> {
     private static final long serialVersionUID = 1L;
@@ -33,6 +35,7 @@ public class MergeShardTaskTest extends TestCase {
     }
   }
 
+  @Test
   public void testOutputSegmented() {
     MockOutputWriter writer = new MockOutputWriter();
     MergeShardTask task =
@@ -52,6 +55,8 @@ public class MergeShardTaskTest extends TestCase {
       assertEquals((int) writer.written.get(i), 32);
     }
   }
+
+  @Test
 
   public void testSerialization() {
     MergeShardTask task =
