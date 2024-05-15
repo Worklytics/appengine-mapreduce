@@ -13,7 +13,6 @@ import com.google.appengine.tools.pipeline.JobInfo.State;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.PipelineServiceFactory;
 
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.BlockJUnit4ClassRunner;
@@ -28,12 +27,6 @@ import java.util.List;
  */
 @RunWith(BlockJUnit4ClassRunner.class)
 public class CustomOutputTest extends EndToEndTestCase {
-
-  @Before
-  @Override
-  public void setUp() throws Exception {
-    super.setUp();
-  }
 
   @SuppressWarnings("serial")
   static class CustomWriter extends OutputWriter<Long> {
