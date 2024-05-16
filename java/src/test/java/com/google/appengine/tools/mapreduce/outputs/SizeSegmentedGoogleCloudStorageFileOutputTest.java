@@ -7,8 +7,10 @@ import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 
 import com.google.cloud.storage.Blob;
-import junit.framework.TestCase;
 import lombok.Getter;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -16,7 +18,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+public class SizeSegmentedGoogleCloudStorageFileOutputTest {
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper();
 
@@ -31,9 +36,9 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
 
   GoogleCloudStorageFileOutput.Options options;
 
-  @Override
+  @BeforeEach
   protected void setUp() throws Exception {
-    super.setUp();
+
     helper.setUp();
     cloudStorageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
     cloudStorageIntegrationTestHelper.setUp();
@@ -41,12 +46,12 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
 
   }
 
-  @Override
+  @AfterEach
   protected void tearDown() throws Exception {
-    super.tearDown();
     helper.tearDown();
   }
 
+  @Test
   public void testFilesWritten() throws IOException {
     int segmentSizeLimit = 10;
     String fileNamePattern = String.format(GCS_FILE_NAME_FORMAT, "testJob");
@@ -81,6 +86,7 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest extends TestCase {
     }
   }
 
+  @Test
   public void testSegmentation() throws IOException {
     int segmentSizeLimit = 10;
     SizeSegmentedGoogleCloudStorageFileOutput segmenter =

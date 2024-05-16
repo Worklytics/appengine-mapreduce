@@ -24,10 +24,8 @@ import com.google.apphosting.api.ApiProxy;
 import com.google.common.base.CharMatcher;
 
 import lombok.Getter;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
@@ -42,8 +40,6 @@ import java.util.logging.Logger;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-/**
- */
 public abstract class EndToEndTestCase {
 
   private static final Logger logger = Logger.getLogger(EndToEndTestCase.class.getName());
@@ -66,7 +62,7 @@ public abstract class EndToEndTestCase {
   @Getter
   private CloudStorageIntegrationTestHelper storageTestHelper;
 
-  @Before
+  @BeforeEach
   public void setUp() throws Exception {
     helper.setUp();
     Map<String, String> envAttributes = getEnvAttributes();
@@ -81,7 +77,7 @@ public abstract class EndToEndTestCase {
     storageTestHelper.setUp();
   }
 
-  @After
+  @AfterEach
   public void tearDown() throws Exception {
     helper.tearDown();
     storageTestHelper.tearDown();

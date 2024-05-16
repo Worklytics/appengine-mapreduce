@@ -7,6 +7,9 @@ import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
 import junit.framework.TestCase;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -18,11 +21,14 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Random;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+
 /**
  * Test class for {@link GoogleCloudStorageMapOutput}.
  *
  */
-public class GoogleCloudStorageMapOutputTest extends TestCase {
+public class GoogleCloudStorageMapOutputTest {
 
   private static final String JOB = "JOB1";
   private static final Marshaller<Long> KEY_MARSHALLER = Marshallers.getLongMarshaller();
@@ -36,29 +42,31 @@ public class GoogleCloudStorageMapOutputTest extends TestCase {
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper();
   private final CloudStorageIntegrationTestHelper cloudStorageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
 
-  @Override
+  @BeforeEach
   public void setUp() {
     helper.setUp();
     System.setProperty(COMPONENTS_PER_COMPOSE_PROPERTY, String.valueOf(COMPONENTS_PER_COMPOSE));
     cloudStorageIntegrationTestHelper.setUp();
   }
 
-  @Override
+  @AfterEach
   public void tearDown() {
     helper.tearDown();
     System.clearProperty(COMPONENTS_PER_COMPOSE_PROPERTY);
     cloudStorageIntegrationTestHelper.tearDown();
   }
 
+  @Test
   public void testNoContent() throws IOException {
     writeAndVerifyContent(SliceData.of(0, 0, 0));
   }
-
+  @Test
   public void testSingleFilePartNoIntermediateCompositeParts() throws IOException {
     writeAndVerifyContent(SliceData.of(1, 100, 100));
     writeAndVerifyContent(SliceData.of(FILES_PER_COMPOSE - 1, 100, 100));
   }
 
+  @Test
   public void testSingleFilePartWithIntermediateCompositeParts() throws IOException {
     writeAndVerifyContent(SliceData.of(FILES_PER_COMPOSE, 100, 100));
     writeAndVerifyContent(SliceData.of(FILES_PER_COMPOSE + 1, 100, 100));
@@ -67,6 +75,7 @@ public class GoogleCloudStorageMapOutputTest extends TestCase {
     writeAndVerifyContent(SliceData.of(COMPONENTS_PER_COMPOSE -  1, 100, 100));
   }
 
+  @Test
   public void testWithMultipleFileParts() throws IOException  {
     writeAndVerifyContent(SliceData.of(COMPONENTS_PER_COMPOSE, 100, 100));
     writeAndVerifyContent(SliceData.of(COMPONENTS_PER_COMPOSE + 1, 100, 100));

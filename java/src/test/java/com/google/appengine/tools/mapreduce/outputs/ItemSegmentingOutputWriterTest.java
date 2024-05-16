@@ -2,14 +2,16 @@ package com.google.appengine.tools.mapreduce.outputs;
 
 import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
+import org.junit.jupiter.api.Test;
 
-import junit.framework.TestCase;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ItemSegmentingOutputWriterTest extends TestCase {
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+public class ItemSegmentingOutputWriterTest {
 
   private static class CountingMockWriter extends OutputWriter<Integer> {
     private static final long serialVersionUID = 1L;
@@ -79,6 +81,7 @@ public class ItemSegmentingOutputWriterTest extends TestCase {
     }
   }
 
+  @Test
   public void testMethodsPassThrough() throws IOException {
     CountingMockWriterCreator writer = new CountingMockWriterCreator();
     writer.beginShard();
@@ -101,6 +104,7 @@ public class ItemSegmentingOutputWriterTest extends TestCase {
     writer.created.get(0).assertValues(1, 1, 2, 1, 1);
   }
 
+  @Test
   public void testSegmentation() throws IOException {
     CountingMockWriterCreator writer = new CountingMockWriterCreator();
     writer.beginShard();
@@ -120,6 +124,7 @@ public class ItemSegmentingOutputWriterTest extends TestCase {
     writer.created.get(2).assertValues(1, 1, 1, 1, 1);
   }
 
+  @Test
   public void testSlicing() throws IOException {
     CountingMockWriterCreator writer = new CountingMockWriterCreator();
     writer.beginShard();

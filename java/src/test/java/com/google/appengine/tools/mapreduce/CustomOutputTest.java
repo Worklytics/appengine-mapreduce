@@ -13,9 +13,7 @@ import com.google.appengine.tools.pipeline.JobInfo.State;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.PipelineServiceFactory;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.BlockJUnit4ClassRunner;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -25,7 +23,6 @@ import java.util.List;
 /**
  * Tests that custom output classes work.
  */
-@RunWith(BlockJUnit4ClassRunner.class)
 public class CustomOutputTest extends EndToEndTestCase {
 
   @SuppressWarnings("serial")

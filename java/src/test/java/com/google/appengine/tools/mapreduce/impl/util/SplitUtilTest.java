@@ -5,9 +5,7 @@ import static org.junit.Assert.assertFalse;
 
 import com.google.common.collect.ImmutableList;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.BlockJUnit4ClassRunner;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -15,7 +13,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-@RunWith(BlockJUnit4ClassRunner.class)
 public class SplitUtilTest {
 
   @Test

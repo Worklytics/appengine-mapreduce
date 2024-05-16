@@ -1,6 +1,7 @@
 package com.google.appengine.tools.mapreduce.impl.sort;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.appengine.tools.mapreduce.KeyValue;
 import com.google.appengine.tools.mapreduce.OutputWriter;
@@ -8,7 +9,7 @@ import com.google.appengine.tools.mapreduce.impl.IncrementalTaskContext;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -24,7 +25,7 @@ import java.util.UUID;
 /**
  * Tests for {@link SortWorker}
  */
-public class SortTest extends TestCase {
+public class SortTest {
   private static class StringStringGenerator implements Iterator<KeyValue<ByteBuffer, ByteBuffer>> {
 
     private static final int KEY_SIZE = 36;
@@ -102,14 +103,16 @@ public class SortTest extends TestCase {
     }
   }
 
+  @Test
   public void testDoesNotRunOutOfMemory() {
     SortWorker s = new SortWorker(null, Integer.MAX_VALUE);
     s.prepare();
     Map<ByteBuffer, List<ByteBuffer>> map =
         sortUntilFull(s, new StringStringGenerator(Integer.MAX_VALUE), null);
-    assertTrue("Map size was: " + map.size(), map.size() > 50000); // Works down to 32mb vm.
+    assertTrue(map.size() > 50000, "Map size was: " + map.size()); // Works down to 32mb vm.
   }
 
+  @Test
   public void testThrowsOnOverfill() {
     final int numberToWrite = 4;
     SortWorker s = createWorker(numberToWrite);
@@ -123,6 +126,7 @@ public class SortTest extends TestCase {
     }
   }
 
+  @Test
   public void testCorrectOrder() {
     final int numberToWrite = 100000;
     SortWorker s = createWorker(numberToWrite);
@@ -134,11 +138,12 @@ public class SortTest extends TestCase {
     String last = "\0";
     for (ByteBuffer key : map.keySet()) {
       String current = US_ASCII.decode(key).toString();
-      assertTrue("Last: " + last + " vs " + current, last.compareTo(current) < 0);
+      assertTrue(last.compareTo(current) < 0, "Last: " + last + " vs " + current);
       last = current;
     }
   }
 
+  @Test
   public void testZeroByteKey() {
     final int numberToWrite = 40;
     SortWorker s = createWorker(numberToWrite);
@@ -152,11 +157,13 @@ public class SortTest extends TestCase {
     for (ByteBuffer key : map.keySet()) {
       String string = US_ASCII.decode(key).toString();
       if (last != null) {
-        assertTrue("Last: " + last + " vs " + string, last.compareTo(string) < 0);
+        assertTrue(last.compareTo(string) < 0, "Last: " + last + " vs " + string);
       }
       last = string;
     }
   }
+
+  @Test
 
   public void testLeftOverFirst() {
     final int numberToWrite = 4000;
@@ -171,11 +178,12 @@ public class SortTest extends TestCase {
     String last = "\0";
     for (ByteBuffer key : map.keySet()) {
       String string = US_ASCII.decode(key).toString();
-      assertTrue("Last: " + last + " vs " + string, last.compareTo(string) < 0);
+      assertTrue( last.compareTo(string) < 0, "Last: " + last + " vs " + string);
       last = string;
     }
   }
 
+  @Test
   public void testLeftOverLast() {
     final int numberToWrite = 4000;
     SortWorker s = createWorker(numberToWrite);
@@ -189,11 +197,13 @@ public class SortTest extends TestCase {
     String last = "\0";
     for (ByteBuffer key : map.keySet()) {
       String string = US_ASCII.decode(key).toString();
-      assertTrue("Last: " + last + " vs " + string, last.compareTo(string) < 0);
+      assertTrue(last.compareTo(string) < 0, "Last: " + last + " vs " + string);
       last = string;
     }
   }
 
+
+  @Test
   public void testLeftOverEqualToMax() {
     final int numberToWrite = 4000;
     SortWorker s = createWorker(numberToWrite);
@@ -209,7 +219,7 @@ public class SortTest extends TestCase {
     String previous = "\0";
     for (ByteBuffer key : map.keySet()) {
       String string = US_ASCII.decode(key).toString();
-      assertTrue("Last: " + previous + " vs " + string, previous.compareTo(string) <= 0);
+      assertTrue(previous.compareTo(string) <= 0, "Last: " + previous + " vs " + string);
       previous = string;
     }
   }
@@ -222,6 +232,8 @@ public class SortTest extends TestCase {
     worker.prepare();
     return worker;
   }
+
+  @Test
 
   public void testValuesSegmentation() {
     int uniqueItems = 10;
@@ -257,6 +269,7 @@ public class SortTest extends TestCase {
     }
   }
 
+  @Test
   public void testMultipleValues() {
     Iterator<KeyValue<ByteBuffer, ByteBuffer>> datax4 = Iterators.concat(
         new StringStringGenerator(1000), new StringStringGenerator(1000),
@@ -277,6 +290,7 @@ public class SortTest extends TestCase {
     }
   }
 
+  @Test
   public void testPointersFormat() {
     SortWorker worker = createWorker(1000);
     worker.addPointer(1, 10, 11, 100);
@@ -291,6 +305,8 @@ public class SortTest extends TestCase {
     assertEquals(200, pointer.getInt(8));
   }
 
+
+  @Test
   public void testKeyValuesRoundTrip() {
     SortWorker worker = createWorker(1000);
     ByteBuffer key = ByteBuffer.wrap(new byte[] {1, 2, 3, 4, 5, 6, 7});
@@ -303,6 +319,7 @@ public class SortTest extends TestCase {
     assertEquals(key, buffer);
   }
 
+  @Test
   public void testSwap() {
     SortWorker worker = createWorker(1000);
     ByteBuffer key1 = ByteBuffer.wrap(new byte[] {1, 2, 3});
@@ -322,6 +339,7 @@ public class SortTest extends TestCase {
     assertEquals(key1, worker.getKeyFromPointer(1));
   }
 
+  @Test
   public void testStoredData() {
     int size = 1000;
     SortWorker worker = new SortWorker(256 * 1024L, 0);
@@ -340,6 +358,7 @@ public class SortTest extends TestCase {
     }
   }
 
+  @Test
   public void testDetectsFull() {
     SortWorker worker = new SortWorker(1000L, Integer.MAX_VALUE);
     worker.prepare();

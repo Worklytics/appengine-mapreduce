@@ -21,7 +21,8 @@ import com.google.common.collect.Lists;
 import com.google.common.io.CountingInputStream;
 import com.google.common.primitives.Bytes;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
@@ -30,11 +31,13 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 /**
  * Unit test for {@code InputStreamIterator}.
  *
  */
-public class LineInputReaderTest extends TestCase {
+public class LineInputReaderTest {
 
   private static class TestLineInputReader extends LineInputStream {
 
@@ -60,9 +63,8 @@ public class LineInputReaderTest extends TestCase {
       ImmutableList.of("I", "am", "RecordReader", "Hello", "", "world", "!");
   private final List<Long> byteContentOffsets = Lists.newArrayListWithCapacity(content.size());
 
-  @Override
+  @BeforeEach
   protected void setUp() throws Exception {
-    super.setUp();
     byte[] terminator = new byte[] { -1 };
     byte[] byteContent = new byte[0];
     for (String str : content) {
@@ -73,6 +75,7 @@ public class LineInputReaderTest extends TestCase {
   }
 
   /** Tests leading split the size of the record. Should return this and the next record. */
+  @Test
   public void testLeadingGreaterThanRecord() throws Exception {
     int startIndex = 3;
     long start = byteContentOffsets.get(startIndex);
@@ -81,6 +84,7 @@ public class LineInputReaderTest extends TestCase {
   }
 
   /** Tests leading split smaller than a record. Should return one record. */
+  @Test
   public void testLeadingSmallerThanRecord() throws Exception {
     int startIndex = 3;
     long start = byteContentOffsets.get(startIndex);
@@ -88,11 +92,13 @@ public class LineInputReaderTest extends TestCase {
   }
 
   /** Tests iterating over all items. */
+  @Test
   public void testAllItems() throws Exception {
     test(0, Long.MAX_VALUE, false, 0, content.size());
   }
 
   /** Tests leading split of length 0 with an empty record. Should return this record. */
+  @Test
   public void testLeadingWithEmptyRecord() throws Exception {
     int startIndex = 4;
     long start = byteContentOffsets.get(startIndex);
@@ -108,6 +114,7 @@ public class LineInputReaderTest extends TestCase {
   }
 
   /** Tests non-leading split smaller than a record. Should return no records. */
+  @Test
   public void testNonLeadingSmallerThanRecord() throws Exception {
     int startIndex = 3;
     long start = byteContentOffsets.get(startIndex);
@@ -118,6 +125,7 @@ public class LineInputReaderTest extends TestCase {
    * Tests non-leading split starting at the previous record. Should return this and the next
    * records.
    */
+  @Test
   public void testNonLeadingStartingAtRecord() throws Exception {
     int startIndex = 3;
     long start = byteContentOffsets.get(startIndex);
@@ -129,6 +137,7 @@ public class LineInputReaderTest extends TestCase {
    * Tests non-leading split starting at the terminator of the previous record. Should return
    * this and the next records.
    */
+  @Test
   public void testNonLeadingStartingAtRecordTerminator() throws Exception {
     int startIndex = 3;
     long start = byteContentOffsets.get(startIndex);
@@ -136,6 +145,7 @@ public class LineInputReaderTest extends TestCase {
         true, startIndex, startIndex + 2);
   }
 
+  @Test
   public void testExceptionHandling() throws Exception {
     // Create an input stream than has 2 records in the first 9 bytes and exception while the 3rd
     // record is read
@@ -175,8 +185,7 @@ public class LineInputReaderTest extends TestCase {
     } catch (NoSuchElementException e) {
       // Used as break
     }
-    assertEquals("pairs between " + start + " and " + end, expectedIndexEnd - expectedIndexStart,
-        totalCount);
+    assertEquals(expectedIndexEnd - expectedIndexStart, totalCount, "pairs between " + start + " and " + end);
   }
 
   /**

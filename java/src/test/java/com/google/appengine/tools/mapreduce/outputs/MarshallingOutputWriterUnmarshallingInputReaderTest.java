@@ -6,7 +6,7 @@ import com.google.appengine.tools.mapreduce.Marshallers;
 import com.google.appengine.tools.mapreduce.inputs.InMemoryInput;
 import com.google.appengine.tools.mapreduce.inputs.UnmarshallingInput;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -14,13 +14,16 @@ import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 /**
  * Validates that data written by the marshallingOutputWriter can be read by the
  * unmarshallingInputWriter
  *
  */
-public class MarshallingOutputWriterUnmarshallingInputReaderTest extends TestCase {
+public class MarshallingOutputWriterUnmarshallingInputReaderTest {
 
+  @Test
   public void testReaderWriter() throws IOException {
     Marshaller<String> stringMarshaller = Marshallers.getStringMarshaller();
     MarshallingOutput<String, List<List<ByteBuffer>>> output =
@@ -59,6 +62,7 @@ public class MarshallingOutputWriterUnmarshallingInputReaderTest extends TestCas
     reader.endShard();
   }
 
+  @Test
   public void testInputOutput() throws IOException {
     int numShards = 10;
     Marshaller<String> stringMarshaller = Marshallers.getStringMarshaller();

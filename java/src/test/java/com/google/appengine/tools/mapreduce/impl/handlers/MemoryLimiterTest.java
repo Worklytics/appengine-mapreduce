@@ -2,14 +2,17 @@ package com.google.appengine.tools.mapreduce.impl.handlers;
 
 import com.google.appengine.tools.mapreduce.impl.shardedjob.RejectRequestException;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests MemoryLimiter
  *
  */
-public class MemoryLimiterTest extends TestCase {
+public class MemoryLimiterTest {
 
+  @Test
   public void testZero() {
     MemoryLimiter limiter = new MemoryLimiter();
     long claimed = limiter.claim(0);
@@ -17,6 +20,7 @@ public class MemoryLimiterTest extends TestCase {
     limiter.release(claimed);
   }
 
+  @Test
   public void testRequestsGoThrough() {
     MemoryLimiter limiter = new MemoryLimiter();
     long claimed = limiter.claim(10);
@@ -24,6 +28,7 @@ public class MemoryLimiterTest extends TestCase {
     limiter.release(claimed);
   }
 
+  @Test
   public void testAboveMaxAllocation() {
     MemoryLimiter limiter = new MemoryLimiter();
     long claimed = limiter.claim(Integer.MAX_VALUE);
@@ -40,6 +45,7 @@ public class MemoryLimiterTest extends TestCase {
     limiter.release(claimed);
   }
 
+  @Test
   public void testSmallBehindLargeOne() {
     MemoryLimiter limiter = new MemoryLimiter();
     long mediumClaimed = limiter.claim(10);

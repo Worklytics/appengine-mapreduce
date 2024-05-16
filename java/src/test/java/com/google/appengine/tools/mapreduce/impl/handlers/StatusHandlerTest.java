@@ -2,10 +2,6 @@
 
 package com.google.appengine.tools.mapreduce.impl.handlers;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 import com.google.appengine.api.datastore.DatastoreService;
 import com.google.appengine.api.datastore.DatastoreServiceFactory;
@@ -24,9 +20,7 @@ import com.google.common.collect.ImmutableList;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.BlockJUnit4ClassRunner;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Array;
 import java.util.HashMap;
@@ -35,10 +29,8 @@ import java.util.Map;
 import java.util.Random;
 import java.util.regex.Pattern;
 
-/**
- *
- */
-@RunWith(BlockJUnit4ClassRunner.class)
+import static org.junit.jupiter.api.Assertions.*;
+
 public class StatusHandlerTest extends EndToEndTestCase {
 
   private static final class DummyWorkerController
@@ -196,11 +188,10 @@ public class StatusHandlerTest extends EndToEndTestCase {
       String key = keys.next();
       Object value = jsonObj.get(key);
       Object expectedValue = expectedMap.remove(key);
-      assertNotNull("Missing " + key, expectedValue);
+      assertNotNull(expectedValue, "Missing " + key );
       if (expectedValue instanceof Pattern) {
         Pattern pattern = (Pattern) expectedValue;
-        assertTrue(value + " does not match " + pattern,
-            pattern.matcher(value.toString()).matches());
+        assertTrue(pattern.matcher(value.toString()).matches(), value + " does not match " + pattern);
       } else if (value instanceof JSONObject) {
         if (!expectedValue.getClass().isArray()) {
           expectedValue = new Tuple<?>[] {(Tuple<?>) expectedValue};
@@ -218,12 +209,12 @@ public class StatusHandlerTest extends EndToEndTestCase {
         assertEquals(expectedValue, value);
       }
     }
-    assertTrue("Unexpected leftover: " + expectedMap, expectedMap.isEmpty());
+    assertTrue(expectedMap.isEmpty(), "Unexpected leftover: " + expectedMap);
   }
 
   private void verify(JSONArray jsonArray, Object array) throws JSONException {
     int length = Array.getLength(array);
-    assertEquals(jsonArray + " length is not " + length, length, jsonArray.length());
+    assertEquals(length, jsonArray.length(), jsonArray + " length is not " + length);
     for (int i = 0; i < length; i++) {
       Object value = jsonArray.get(i);
       Object expected = Array.get(array, i);
@@ -232,7 +223,7 @@ public class StatusHandlerTest extends EndToEndTestCase {
       } else if (value instanceof JSONArray) {
         verify((JSONArray) value, expected);
       } else {
-        assertEquals("mismatch array[" + i + "] " + value + " != " + expected, expected, value);
+        assertEquals(expected, value, "mismatch array[" + i + "] " + value + " != " + expected);
       }
     }
   }

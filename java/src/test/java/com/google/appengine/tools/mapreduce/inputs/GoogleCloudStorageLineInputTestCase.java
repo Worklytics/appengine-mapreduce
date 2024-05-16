@@ -8,23 +8,22 @@ import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
-import junit.framework.TestCase;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-/**
- */
-abstract class GoogleCloudStorageLineInputTestCase extends TestCase  {
+
+abstract class GoogleCloudStorageLineInputTestCase {
 
   CloudStorageIntegrationTestHelper cloudStorageIntegrationTestHelper;
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper(
       new LocalDatastoreServiceTestConfig());
 
-  @Override
+  @BeforeEach
   public void setUp() throws Exception {
-    super.setUp();
     helper.setUp();
     cloudStorageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
     cloudStorageIntegrationTestHelper.setUp();
@@ -40,10 +39,9 @@ abstract class GoogleCloudStorageLineInputTestCase extends TestCase  {
     return cloudStorageIntegrationTestHelper.getStorage().get(BlobId.of(cloudStorageIntegrationTestHelper.getBucket(), filename)).getSize();
   }
 
-  @Override
+  @AfterEach
   public void tearDown() throws Exception {
     helper.tearDown();
     cloudStorageIntegrationTestHelper.tearDown();
-    super.tearDown();
   }
 }

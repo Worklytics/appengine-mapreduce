@@ -5,8 +5,7 @@ package com.google.appengine.tools.mapreduce;
 
 import com.google.appengine.tools.mapreduce.impl.InProcessMapReduce;
 import com.google.common.collect.ImmutableList;
-
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -14,9 +13,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 /**
  */
-public class MapReduceSpecificationTest extends TestCase {
+public class MapReduceSpecificationTest{
 
   @SuppressWarnings("serial")
   private static class InputReader1 extends InputReader<Long> {
@@ -126,6 +127,7 @@ public class MapReduceSpecificationTest extends TestCase {
     }
   }
 
+  @Test
   public void testDefaultConstructor() throws Exception {
     MapReduceSpecification.Builder<Number, Short, Integer, Integer, Number> builder =
         new MapReduceSpecification.Builder<Number, Short, Integer, Integer, Number>()
@@ -154,6 +156,8 @@ public class MapReduceSpecificationTest extends TestCase {
     assertEquals(9, result.intValue());
   }
 
+
+  @Test
   public void testConstructorWithValues() throws Exception {
     MapReduceSpecification.Builder<Long, Short, Integer, Number, Integer> builder =
         new MapReduceSpecification.Builder<>(new Input1(), new Mapper2(), new Reducer2(),
@@ -167,6 +171,8 @@ public class MapReduceSpecificationTest extends TestCase {
     assertEquals(9, result.intValue());
   }
 
+
+  @Test
   public void testConstructorWithValuesSkipOptionalValues() throws Exception {
     MapReduceSpecification.Builder<Long, Short, Integer, Number, Integer> builder =
         new MapReduceSpecification.Builder<>(new Input1(), new Mapper2(), new Reducer2(),

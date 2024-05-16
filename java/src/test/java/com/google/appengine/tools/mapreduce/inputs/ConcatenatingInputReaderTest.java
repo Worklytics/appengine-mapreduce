@@ -2,17 +2,19 @@ package com.google.appengine.tools.mapreduce.inputs;
 
 import com.google.appengine.tools.mapreduce.InputReader;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 /**
  * Test that ConcatenatingInputReader does what it's name implies
  */
-public class ConcatenatingInputReaderTest extends TestCase {
+public class ConcatenatingInputReaderTest {
 
   private List<InputReader<Long>> createReaders(int num) {
     ArrayList<InputReader<Long>> result = new ArrayList<>(num);
@@ -22,6 +24,7 @@ public class ConcatenatingInputReaderTest extends TestCase {
     return result;
   }
 
+  @Test
   public void testConcatenates() throws NoSuchElementException, IOException {
     final int numReader = 10;
     ConcatenatingInputReader<Long> cat = new ConcatenatingInputReader<>(createReaders(numReader));
@@ -38,6 +41,7 @@ public class ConcatenatingInputReaderTest extends TestCase {
     }
   }
 
+  @Test
   public void testProgress() throws NoSuchElementException, IOException {
     final int numReader = 10;
     ConcatenatingInputReader<Long> cat = new ConcatenatingInputReader<>(createReaders(numReader));
@@ -45,8 +49,7 @@ public class ConcatenatingInputReaderTest extends TestCase {
     assertEquals(0.0, progress);
     for (int i = 0; i < 10 * numReader; i++) {
       cat.next();
-      assertTrue("Progress was " + progress + " is now " + cat.getProgress(),
-          progress <= cat.getProgress());
+      assertTrue(progress <= cat.getProgress(), "Progress was " + progress + " is now " + cat.getProgress());
       progress = cat.getProgress();
     }
     assertEquals(1.0, progress);

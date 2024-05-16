@@ -1,14 +1,15 @@
 package com.google.appengine.tools.mapreduce.outputs;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import com.google.appengine.tools.mapreduce.CorruptDataException;
 import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.mapreduce.inputs.LevelDbInputReader;
-
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -25,7 +26,7 @@ import java.util.Random;
 /**
  * Tests for {@link LevelDbInputReader} and {@link LevelDbOutputWriter}
  */
-public class LevelDbTest extends TestCase {
+public class LevelDbTest {
 
   private static final int BLOCK_SIZE = LevelDbConstants.BLOCK_SIZE;
   private static final int MAX_SINGLE_BLOCK_RECORD_SIZE =
@@ -75,16 +76,8 @@ public class LevelDbTest extends TestCase {
     }
   }
 
-  @Override
-  protected void setUp() throws Exception {
-    super.setUp();
-  }
 
-  @Override
-  protected void tearDown() throws Exception {
-    super.tearDown();
-  }
-
+  @Test
   public void testDataCorruption() throws IOException {
     Random r = new Random(0);
     int overriddenBlockSize = 100;
@@ -116,6 +109,7 @@ public class LevelDbTest extends TestCase {
    * This really does not test much since levelDb explicitly tolerates truncation at record
    * boundaries. So all it really validates is that we don't throw some weird error.
    */
+  @Test
   public void testDataTruncation() throws IOException {
     Random r = new Random(0);
     int overriddenBlockSize = 100;
@@ -139,14 +133,18 @@ public class LevelDbTest extends TestCase {
     }
   }
 
+  @Test
   public void testZeroSizeItems() throws IOException {
     verifyRandomContentRoundTrips(20000, 0);
   }
 
+  @Test
   public void testSmallItems() throws IOException {
     verifyRandomContentRoundTrips(2000, 1000);
   }
 
+
+  @Test
   public void testSlicingOneBlockPad() throws IOException {
     ByteArrayOutputWriter arrayOutputWriter = new ByteArrayOutputWriter();
     LevelDbOutputWriter writer = new LevelDbOutputWriter(arrayOutputWriter);
@@ -168,36 +166,44 @@ public class LevelDbTest extends TestCase {
     verifyWrittenData(written, reader);
   }
 
+  @Test
   public void testNearBlockSizeItems() throws IOException {
     for (int i = 0; i <= 64; i++) {
       verifyRandomContentRoundTrips(5, BLOCK_SIZE - i);
     }
   }
 
+
+  @Test
   public void testBlockAlignedItems() throws IOException {
     int number = 100;
     int size = MAX_SINGLE_BLOCK_RECORD_SIZE;
     verifyRandomContentRoundTrips(number, size);
   }
 
+  @Test
   public void testLargerThanBlockItems() throws IOException {
     int number = 100;
     int size = MAX_SINGLE_BLOCK_RECORD_SIZE + 1;
     verifyRandomContentRoundTrips(number, size);
   }
 
+
+  @Test
   public void testSmallerThanBlockItems() throws IOException {
     int number = 100;
     int size = MAX_SINGLE_BLOCK_RECORD_SIZE - 1;
     verifyRandomContentRoundTrips(number, size);
   }
 
+  @Test
   public void testMultiBlockAlignedItems() throws IOException {
     int number = 2;
     int size = MAX_SINGLE_BLOCK_RECORD_SIZE * 64;
     verifyRandomContentRoundTrips(number, size);
   }
 
+  @Test
   public void testLargerThanMultiBlockItems() throws IOException {
     verifyRandomContentRoundTrips(1, BLOCK_SIZE * 64 - 1);
     for (int i = 1; i < 10; i++) {

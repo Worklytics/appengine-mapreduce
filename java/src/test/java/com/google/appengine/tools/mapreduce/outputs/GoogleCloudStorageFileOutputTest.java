@@ -11,6 +11,10 @@ import junit.framework.TestCase;
 import lombok.Getter;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -23,8 +27,9 @@ import java.util.List;
 import java.util.Random;
 
 import static com.google.cloud.MetadataConfig.getProjectId;
+import static org.junit.jupiter.api.Assertions.*;
 
-public class GoogleCloudStorageFileOutputTest extends TestCase {
+public class GoogleCloudStorageFileOutputTest {
 
   private static final String FILE_NAME_PATTERN = "shard-%02x";
   private static final String MIME_TYPE = "text/ascii";
@@ -42,9 +47,8 @@ public class GoogleCloudStorageFileOutputTest extends TestCase {
   public static void setupStorage() {
 
   }
-  @Override
+  @BeforeEach
   protected void setUp() throws Exception {
-    super.setUp();
     storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
     storageIntegrationTestHelper.setUp();
 
@@ -54,12 +58,12 @@ public class GoogleCloudStorageFileOutputTest extends TestCase {
   }
 
 
-  @Override
+  @AfterEach
   protected void tearDown() throws Exception {
     storageIntegrationTestHelper.tearDown();
-    super.tearDown();
   }
 
+  @Test
   public void testFilesAreWritten() throws IOException {
     GoogleCloudStorageFileOutput creator =
         new GoogleCloudStorageFileOutput(storageIntegrationTestHelper.getBucket(), FILE_NAME_PATTERN, MIME_TYPE, GoogleCloudStorageFileOutput.BaseOptions.defaults().withServiceAccountKey(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey()).withProjectId(getProjectId()));
@@ -89,10 +93,12 @@ public class GoogleCloudStorageFileOutputTest extends TestCase {
     }
   }
 
+  @Test
   public void testSmallSlicing() throws IOException, ClassNotFoundException {
     testSlicing(SMALL_CONTENT);
   }
 
+  @Test
   public void testLargeSlicing() throws IOException, ClassNotFoundException {
     testSlicing(LARGE_CONTENT);
   }

@@ -4,13 +4,18 @@ import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.GoogleCloudStorageFileSet;
 
 import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
-public class FilesByShardTest extends TestCase {
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+
+public class FilesByShardTest {
 
 
+  @Test
   public void testAdd() {
     FilesByShard fbs = new FilesByShard(10, "Foo");
     fbs.addFileToShard(1, "Bar");
@@ -25,6 +30,8 @@ public class FilesByShardTest extends TestCase {
     assertEquals("Bat", files.get(2).getObjectName());
   }
 
+
+  @Test
   public void testAddAll() {
     FilesByShard fbs = new FilesByShard(10, "Foo");
     fbs.addFilesToShard(1, Arrays.asList("Bar", "Baz", "Bat"));
@@ -37,6 +44,8 @@ public class FilesByShardTest extends TestCase {
     assertEquals("Bat", files.get(2).getObjectName());
   }
 
+
+  @Test
   public void testEmptyShards() {
     FilesByShard fbs = new FilesByShard(10, "Foo");
     GoogleCloudStorageFileSet forShard = fbs.getFilesForShard(1);
@@ -44,6 +53,8 @@ public class FilesByShardTest extends TestCase {
     assertEquals(0, files.size());
   }
 
+
+  @Test
   public void testSplit() {
     FilesByShard fbs = new FilesByShard(2, "Foo");
     fbs.addFilesToShard(0, Arrays.asList("Bar0", "Baz0", "Bat0"));
@@ -56,6 +67,8 @@ public class FilesByShardTest extends TestCase {
     assertEquals(Arrays.asList("Bat1"), fbs.getFilesForShard(3).getFileNames());
   }
 
+
+  @Test
   public void testSplitNotNeeded() {
     FilesByShard fbs = new FilesByShard(5, "Foo");
     fbs.addFilesToShard(0, Arrays.asList("Bar0", "Baz0", "Bat0"));
@@ -77,6 +90,7 @@ public class FilesByShardTest extends TestCase {
     assertFalse(copy.equals(fbs));
   }
 
+  @Test
   public void testSparseSplit() {
     FilesByShard fbs = new FilesByShard(5, "Foo");
     fbs.addFilesToShard(0, Arrays.asList("Bar0", "Baz0", "Bat0"));
@@ -94,6 +108,8 @@ public class FilesByShardTest extends TestCase {
     }
   }
 
+
+  @Test
   public void testSplitWithRemainder() {
     FilesByShard fbs = new FilesByShard(5, "Foo");
     fbs.addFilesToShard(0, Arrays.asList("Bar0", "Baz0", "Bat0"));

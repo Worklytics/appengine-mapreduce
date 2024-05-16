@@ -1,12 +1,15 @@
 package com.google.appengine.tools.mapreduce.impl;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.appengine.tools.mapreduce.Marshaller;
 import com.google.appengine.tools.mapreduce.Marshallers;
 import com.google.common.primitives.Ints;
 
 import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -18,7 +21,7 @@ import java.util.Random;
  * Tests for {@link HashingSharder}
  *
  */
-public class HashingSharderTest extends TestCase {
+public class HashingSharderTest {
 
   private interface KeyMaker {
     ByteBuffer createKey(Random r);
@@ -37,10 +40,11 @@ public class HashingSharderTest extends TestCase {
     }
     int max = Ints.max(counts);
     int min = Ints.min(counts);
-    assertTrue("Min: " + min + " max: " + max, min > targetPerShard * .9);
-    assertTrue("Min: " + min + " max: " + max, max < targetPerShard * 1.1);
+    assertTrue( min > targetPerShard * .9, "Min: " + min + " max: " + max);
+    assertTrue( max < targetPerShard * 1.1, "Min: " + min + " max: " + max);
   }
 
+  @Test
   public void testRandomUniform() {
     KeyMaker keyMaker = new KeyMaker() {
       @Override
@@ -54,6 +58,7 @@ public class HashingSharderTest extends TestCase {
     verifyWithKeyMaker(512, keyMaker);
   }
 
+  @Test
   public void testStringSequencesUniform() {
     KeyMaker keyMaker = new KeyMaker() {
       private int i = 0;
@@ -68,6 +73,7 @@ public class HashingSharderTest extends TestCase {
     verifyWithKeyMaker(2, keyMaker);
   }
 
+  @Test
   public void testIntegersUniform() {
     final Marshaller<Integer> marshaller = Marshallers.getIntegerMarshaller();
     KeyMaker keyMaker = new KeyMaker() {
@@ -83,6 +89,8 @@ public class HashingSharderTest extends TestCase {
     verifyWithKeyMaker(2, keyMaker);
   }
 
+  //TODO: parameterized test
+  @Test
   public void testSubdivision() {
     testSubdivision(2, 8);
     testSubdivision(3, 9);
@@ -125,8 +133,8 @@ public class HashingSharderTest extends TestCase {
         }
       }
       double expectNum = ((double) numRehashedShards) / numInitialShards;
-      assertTrue("Expected about, " + expectNum + " but found " + rehashedShardCount.size(),
-          rehashedShardCount.size() <= Math.ceil(expectNum) + 1);
+      assertTrue(          rehashedShardCount.size() <= Math.ceil(expectNum) + 1,
+        "Expected about, " + expectNum + " but found " + rehashedShardCount.size());
     }
   }
 

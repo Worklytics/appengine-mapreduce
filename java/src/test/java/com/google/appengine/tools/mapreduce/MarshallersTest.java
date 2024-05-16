@@ -4,18 +4,20 @@ package com.google.appengine.tools.mapreduce;
 
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableList;
-
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Random;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
+
 /**
  * @author ohler@google.com (Christian Ohler)
  */
-public class MarshallersTest extends TestCase {
+public class MarshallersTest {
 
   private <T> void checkByteOrder(Marshaller<T> m, T value) {
     {
@@ -113,6 +115,8 @@ public class MarshallersTest extends TestCase {
     preformValidChecks(m, KeyValue.of(42L, KeyValue.of(42L, KeyValue.of(42L, "foo"))));
   }
 
+
+  @Test
   public void testLongMarshaller() throws Exception {
     // The serialized format is unspecified, so we only check if the round-trip
     // works, not what the actual bytes are.
@@ -125,6 +129,7 @@ public class MarshallersTest extends TestCase {
     }
   }
 
+  @Test
   public void testIntegerMarshaller() throws Exception {
     // The serialized format is unspecified, so we only check if the round-trip
     // works, not what the actual bytes are.
@@ -137,6 +142,7 @@ public class MarshallersTest extends TestCase {
     }
   }
 
+  @Test
   public void testStringMarshaller() throws Exception {
     // The serialized format is unspecified, so we only check if the round-trip
     // works, not what the actual bytes are.
@@ -148,6 +154,8 @@ public class MarshallersTest extends TestCase {
     }
   }
 
+
+  @Test
   public void testKeyValueLongMarshaller() throws Exception {
     // The serialized format is unspecified, so we only check if the round-trip
     // works, not what the actual bytes are.
@@ -159,6 +167,7 @@ public class MarshallersTest extends TestCase {
     }
   }
 
+  @Test
   public void testKeyValueStringMarshaller() throws Exception {
     // The serialized format is unspecified, so we only check if the round-trip
     // works, not what the actual bytes are.
@@ -170,6 +179,7 @@ public class MarshallersTest extends TestCase {
     }
   }
 
+  @Test
   public void testKeyValueIntegers() {
     Marshaller<Integer> intMarshaller = Marshallers.getIntegerMarshaller();
     Marshaller<KeyValue<Integer, Integer>> m =
@@ -179,6 +189,8 @@ public class MarshallersTest extends TestCase {
     }
   }
 
+
+  @Test
   public void testKeyValueNested() {
     Marshaller<Integer> intMarshaller = Marshallers.getIntegerMarshaller();
     Marshaller<String> stringMarshaller = Marshallers.getStringMarshaller();
