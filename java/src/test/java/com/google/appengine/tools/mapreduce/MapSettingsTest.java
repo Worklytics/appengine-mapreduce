@@ -10,6 +10,7 @@ import static com.google.appengine.tools.mapreduce.MapSettings.DEFAULT_SHARD_RET
 import static com.google.appengine.tools.mapreduce.MapSettings.DEFAULT_SLICE_RETRIES;
 import static com.google.appengine.tools.mapreduce.MapSettings.WORKER_PATH;
 import static com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet.makeViewerUrl;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.appengine.api.datastore.Key;
 import com.google.appengine.api.datastore.KeyFactory;
@@ -26,9 +27,9 @@ import com.google.appengine.tools.pipeline.JobSetting.StatusConsoleUrl;
 import com.google.apphosting.api.ApiProxy;
 import com.google.apphosting.api.ApiProxy.Environment;
 
-import junit.framework.TestCase;
-
 import org.easymock.EasyMock;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.ParameterizedType;
 import java.util.HashMap;
@@ -39,7 +40,7 @@ import java.util.Set;
 /**
  */
 @SuppressWarnings("deprecation")
-public class MapSettingsTest extends TestCase {
+public class MapSettingsTest {
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper(
       new LocalDatastoreServiceTestConfig(),
@@ -50,7 +51,7 @@ public class MapSettingsTest extends TestCase {
         .addBasicScalingModuleVersion("default", "1", 1)
         .addBasicScalingModuleVersion("default", "2", 1));
 
-  @Override
+  @BeforeEach
   public void setUp() {
     helper.setUp();
     Map<String, Object> attributes = ApiProxy.getCurrentEnvironment().getAttributes();
@@ -64,6 +65,7 @@ public class MapSettingsTest extends TestCase {
     portMap.put("b1", "backend-hostname");
   }
 
+  @Test
   public void testDefaultSettings() {
     MapSettings mrSettings = new MapSettings.Builder().build();
     assertNull(mrSettings.getBackend());

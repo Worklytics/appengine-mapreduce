@@ -3,6 +3,8 @@
 package com.google.appengine.tools.mapreduce.impl.util;
 
 import static java.util.Arrays.asList;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.appengine.api.datastore.DatastoreService;
 import com.google.appengine.api.datastore.DatastoreServiceFactory;
@@ -13,7 +15,9 @@ import com.google.appengine.api.datastore.Transaction;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.CompressionType;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
@@ -24,22 +28,23 @@ import java.util.Random;
 /**
  * @author ohler@google.com (Christian Ohler)
  */
-public class SerializationUtilTest extends TestCase {
+public class SerializationUtilTest {
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper();
   private DatastoreService datastore;
 
-  @Override
+  @BeforeEach
   protected void setUp() throws Exception {
     helper.setUp();
     datastore = DatastoreServiceFactory.getDatastoreService();
   }
 
-  @Override
+  @AfterEach
   protected void tearDown() throws Exception {
     helper.tearDown();
   }
 
+  @Test
   public void testGetBytes_slice1() throws Exception {
     ByteBuffer b = ByteBuffer.allocate(10);
     b.putShort((short) 0x1234);
@@ -51,6 +56,7 @@ public class SerializationUtilTest extends TestCase {
     assertTrue(Arrays.equals(new byte[] { 0x12, 0x34 }, bytes));
   }
 
+  @Test
   public void testGetBytes_slice2() throws Exception {
     ByteBuffer b = ByteBuffer.allocate(10);
     b.position(2);
@@ -63,6 +69,7 @@ public class SerializationUtilTest extends TestCase {
     assertTrue(Arrays.equals(new byte[] { 0x12, 0x34 }, bytes));
   }
 
+  @Test
   public void testSerializeToFromByteArrayWithNoParams() throws Exception {
     Serializable original = "hello";
     byte[] bytes = SerializationUtil.serializeToByteArray(original);
@@ -79,6 +86,7 @@ public class SerializationUtilTest extends TestCase {
     assertEquals(original, restored);
   }
 
+  @Test
   public void testSerializeToFromByteArray() throws Exception {
     Iterable<CompressionType> compressionTypes =
         asList(CompressionType.NONE, CompressionType.GZIP, null);
@@ -125,6 +133,7 @@ public class SerializationUtilTest extends TestCase {
     }
   }
 
+  @Test
   public void testSerializeToDatastore() throws Exception {
     Key key = KeyFactory.createKey("mr-entity", 1);
     List<Value> values = asList(null, new Value(0), new Value(500), new Value(2000),

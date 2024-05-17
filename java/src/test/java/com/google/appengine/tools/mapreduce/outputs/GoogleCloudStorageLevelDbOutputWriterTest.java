@@ -3,8 +3,9 @@ package com.google.appengine.tools.mapreduce.outputs;
 import static com.google.appengine.tools.mapreduce.impl.MapReduceConstants.GCS_IO_BLOCK_SIZE;
 import static com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants.BLOCK_SIZE;
 import static com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants.HEADER_LENGTH;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -12,14 +13,17 @@ import java.nio.ByteBuffer;
 /**
  * Tests for {@link GoogleCloudStorageLevelDbOutputWriter}
  */
-public class GoogleCloudStorageLevelDbOutputWriterTest extends TestCase {
+public class GoogleCloudStorageLevelDbOutputWriterTest {
 
+
+  @Test
   public void testParsesOK() throws IOException {
     runSlicingTest(10, 100);
     runSlicingTest(10, 100000);
     runSlicingTest(100, 1000);
   }
 
+  @Test
   public void testIsPadded() throws IOException {
     LevelDbTest.ByteArrayOutputWriter arrayOutputWriter = new LevelDbTest.ByteArrayOutputWriter();
     LevelDbOutputWriter writer = new GoogleCloudStorageLevelDbOutputWriter(arrayOutputWriter);
@@ -32,6 +36,8 @@ public class GoogleCloudStorageLevelDbOutputWriterTest extends TestCase {
     assertEquals(GCS_IO_BLOCK_SIZE, arrayOutputWriter.bout.size());
   }
 
+
+  @Test
   public void testSliceBoundries() throws IOException {
     for (int i = 0; i < 3; i++) {
       runSlicingTest(1, BLOCK_SIZE - i * HEADER_LENGTH);

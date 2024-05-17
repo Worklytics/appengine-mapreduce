@@ -8,6 +8,7 @@ import com.google.appengine.tools.mapreduce.inputs.PeekingInputReader;
 import com.google.common.collect.Iterators;
 
 import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -17,10 +18,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 /**
  * Tests for {@link MergingReader}
  */
-public class MergingReaderTest extends TestCase {
+public class MergingReaderTest  {
 
   private static class StaticInputReader extends InputReader<ByteBuffer> {
 
@@ -55,6 +58,7 @@ public class MergingReaderTest extends TestCase {
     }
   }
 
+  @Test
   public void testNoReaders() throws IOException {
     List<PeekingInputReader<KeyValue<ByteBuffer, ? extends Iterable<Long>>>> readers =
         new ArrayList<>();
@@ -68,6 +72,8 @@ public class MergingReaderTest extends TestCase {
       // expected
     }
   }
+
+  @Test
 
   public void testReaderWithEmptyIteraors() throws IOException {
     List<PeekingInputReader<KeyValue<ByteBuffer, ? extends Iterable<Integer>>>> readers =
@@ -87,6 +93,7 @@ public class MergingReaderTest extends TestCase {
     }
   }
 
+  @Test
   public void testOneReader() throws IOException {
     List<PeekingInputReader<KeyValue<ByteBuffer, ? extends Iterable<Integer>>>> readers =
         new ArrayList<>();
@@ -112,6 +119,7 @@ public class MergingReaderTest extends TestCase {
     }
   }
 
+  @Test
   public void testMultipleReaders() throws IOException {
     List<PeekingInputReader<KeyValue<ByteBuffer, ? extends Iterable<Integer>>>> readers =
         new ArrayList<>();
@@ -127,6 +135,8 @@ public class MergingReaderTest extends TestCase {
     verifyExpectedOutput(readerCount, numKeys, valuesPerKey, merging);
   }
 
+
+  @Test
   public void testSerializingMultipleReaders() throws IOException {
     List<PeekingInputReader<KeyValue<ByteBuffer, ? extends Iterable<Integer>>>> readers =
         new ArrayList<>();
@@ -167,6 +177,8 @@ public class MergingReaderTest extends TestCase {
     }
   }
 
+
+  @Test
   public void testNonCombining() throws IOException {
     List<PeekingInputReader<KeyValue<ByteBuffer, ? extends Iterable<Integer>>>> readers =
         new ArrayList<>();
@@ -209,6 +221,7 @@ public class MergingReaderTest extends TestCase {
     }
   }
 
+  @Test
   public void testNonCombiningIgnoringValues() throws IOException {
     List<PeekingInputReader<KeyValue<ByteBuffer, ? extends Iterable<Integer>>>> readers =
         new ArrayList<>();
@@ -248,6 +261,7 @@ public class MergingReaderTest extends TestCase {
     }
   }
 
+  @Test
   public void testSerializingIgnoringValues() throws IOException {
     List<PeekingInputReader<KeyValue<ByteBuffer, ? extends Iterable<Integer>>>> readers =
         new ArrayList<>();

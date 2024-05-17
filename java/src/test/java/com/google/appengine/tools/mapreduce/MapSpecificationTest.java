@@ -2,8 +2,7 @@ package com.google.appengine.tools.mapreduce;
 
 import com.google.appengine.tools.mapreduce.impl.InProcessMap;
 import com.google.common.collect.ImmutableList;
-
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -11,9 +10,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
 /**
  */
-public class MapSpecificationTest extends TestCase {
+public class MapSpecificationTest {
 
   @SuppressWarnings("serial")
   private static class InputReader1 extends InputReader<Long> {
@@ -127,6 +129,8 @@ public class MapSpecificationTest extends TestCase {
     }
   }
 
+
+  @Test
   public void testDefaultConstructor() throws Exception {
     MapSpecification.Builder<Number, Integer, Number> builder =
         new MapSpecification.Builder<Number, Integer, Number>()
@@ -151,6 +155,8 @@ public class MapSpecificationTest extends TestCase {
     assertEquals(15, result.intValue());
   }
 
+  @Test
+
   public void testConstructorForMapWithNoOuput() throws Exception {
     MapSpecification.Builder<Long, Void, Void> builder =
         new MapSpecification.Builder<>(new Input1(), new MapOnlyMapper2());
@@ -165,6 +171,7 @@ public class MapSpecificationTest extends TestCase {
     assertNull(result);
   }
 
+  @Test
   public void testConstructorForMapWithOuput() throws Exception {
     MapSpecification.Builder<Long, Number, Integer> builder =
         new MapSpecification.Builder<>(new Input1(), new MapOnlyMapper3(), new Output1());

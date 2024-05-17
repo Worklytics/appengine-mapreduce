@@ -6,9 +6,13 @@ import com.google.appengine.tools.mapreduce.Marshaller;
 import com.google.appengine.tools.mapreduce.Marshallers;
 
 import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.Random;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Tests for {@link KeyValueMarshaller} This asserts that both the item can be read back once
@@ -16,7 +20,7 @@ import java.util.Random;
  * means the serialization cannot depend on identity in anyway.
  *
  */
-public class KeyValueMarshallerTest extends TestCase {
+public class KeyValueMarshallerTest {
 
   private <K, V> void assertRoundTripEquality(KeyValueMarshaller<K, V> marshaller,
       KeyValue<K, V> keyValue) {
@@ -26,6 +30,7 @@ public class KeyValueMarshallerTest extends TestCase {
     assertEquals(bytes, marshaller.toBytes(reconstructed));
   }
 
+  @Test
   public void testThrowsCorruptDataException() {
     Marshaller<ByteBuffer> byteBufferMarshaller = Marshallers.getByteBufferMarshaller();
     KeyValueMarshaller<ByteBuffer, ByteBuffer> m =
@@ -46,6 +51,7 @@ public class KeyValueMarshallerTest extends TestCase {
     }
   }
 
+  @Test
   public void testRandomData() {
     Marshaller<ByteBuffer> byteBufferMarshaller = Marshallers.getByteBufferMarshaller();
     KeyValueMarshaller<ByteBuffer, ByteBuffer> m =

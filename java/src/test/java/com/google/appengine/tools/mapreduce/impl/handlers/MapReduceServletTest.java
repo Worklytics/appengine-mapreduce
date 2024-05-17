@@ -21,6 +21,7 @@ import static org.easymock.EasyMock.createMock;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.verify;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalMemcacheServiceTestConfig;
@@ -32,6 +33,9 @@ import com.google.appengine.tools.mapreduce.MapReduceServlet;
 import junit.framework.TestCase;
 
 import org.easymock.EasyMock;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.PrintWriter;
 
@@ -43,7 +47,7 @@ import javax.servlet.http.HttpServletResponse;
  * Tests MapReduceServlet
  *
  */
-public class MapReduceServletTest extends TestCase {
+public class MapReduceServletTest{
 
   private final LocalServiceTestHelper helper =
       new LocalServiceTestHelper(new LocalDatastoreServiceTestConfig(),
@@ -51,19 +55,18 @@ public class MapReduceServletTest extends TestCase {
 
   private MapReduceServlet servlet;
 
-  @Override
+  @BeforeEach
   public void setUp() throws Exception {
-    super.setUp();
     helper.setUp();
     servlet = new MapReduceServlet();
   }
 
-  @Override
+  @AfterEach
   public void tearDown() throws Exception {
     helper.tearDown();
-    super.tearDown();
   }
 
+  @Test
   public void testBailsOnBadHandler() throws Exception {
     HttpServletRequest request = createMockRequest("fizzle", true, true);
     HttpServletResponse response = createMock(HttpServletResponse.class);
@@ -111,6 +114,7 @@ public class MapReduceServletTest extends TestCase {
     verify(request, response, responseWriter);
   }
 
+  @Test
   public void testControllerCSRF() throws Exception {
     // Send it as an AJAX request but not a task queue request - should be denied.
     HttpServletRequest request = createMockRequest(CONTROLLER_PATH, false, true);
@@ -121,6 +125,7 @@ public class MapReduceServletTest extends TestCase {
     verify(request, response);
   }
 
+  @Test
   public void testGetJobDetailCSRF() throws Exception {
     // Send it as a task queue request but not an ajax request - should be denied.
     HttpServletRequest request = createMockRequest(
@@ -139,6 +144,7 @@ public class MapReduceServletTest extends TestCase {
     verify(request, response);
   }
 
+  @Test
   public void testStaticResources_jQuery() throws Exception {
     HttpServletResponse resp = createMock(HttpServletResponse.class);
     resp.setContentType("text/javascript");
@@ -154,6 +160,7 @@ public class MapReduceServletTest extends TestCase {
     verify(resp, sos);
   }
 
+  @Test
   public void testStaticResources_status() throws Exception {
     HttpServletResponse resp = createMock(HttpServletResponse.class);
     resp.sendRedirect("/_ah/pipeline/list?class_path=" + MapReduceJob.class.getName());

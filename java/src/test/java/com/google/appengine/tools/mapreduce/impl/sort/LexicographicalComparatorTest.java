@@ -2,10 +2,12 @@ package com.google.appengine.tools.mapreduce.impl.sort;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.appengine.tools.mapreduce.Marshallers;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -14,8 +16,9 @@ import java.util.Random;
 /**
  * Tests for {@link LexicographicalComparator}
  */
-public class LexicographicalComparatorTest extends TestCase {
+public class LexicographicalComparatorTest {
 
+  @Test
   public void testSelfCompare() {
     LexicographicalComparator comp = new LexicographicalComparator();
     ByteBuffer value = ByteBuffer.wrap("A long Test String".getBytes(US_ASCII));
@@ -35,6 +38,8 @@ public class LexicographicalComparatorTest extends TestCase {
     assertEquals(0, comp.compare(value, same));
   }
 
+
+  @Test
   public void testCompare() {
     LexicographicalComparator comp = new LexicographicalComparator();
     ByteBuffer left = ByteBuffer.wrap("502539523".getBytes(US_ASCII));
@@ -60,6 +65,7 @@ public class LexicographicalComparatorTest extends TestCase {
     assertTrue(comp.compare(left, right) > 0);
   }
 
+  @Test
   public void testEpilogue() {
     LexicographicalComparator comp = new LexicographicalComparator();
     Random r = new Random(0);
@@ -87,6 +93,7 @@ public class LexicographicalComparatorTest extends TestCase {
     }
   }
 
+  @Test
   public void testRandomStrings() {
     LexicographicalComparator comp = new LexicographicalComparator();
     Random r = new Random(0);
@@ -108,6 +115,7 @@ public class LexicographicalComparatorTest extends TestCase {
     return UTF_8.decode(UTF_8.encode(chars)).toString();
   }
 
+  @Test
   public void testNumbersCompare() {
     LexicographicalComparator comp = new LexicographicalComparator();
     ByteBuffer min = Marshallers.getIntegerMarshaller().toBytes(Integer.MIN_VALUE);

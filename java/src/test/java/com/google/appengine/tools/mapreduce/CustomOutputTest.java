@@ -5,18 +5,15 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import com.google.appengine.api.datastore.Entity;
 import com.google.appengine.tools.mapreduce.EndToEndTest.TestMapper;
-import com.google.appengine.tools.mapreduce.inputs.DatastoreInput;
+import com.google.appengine.tools.mapreduce.inputs.InMemoryInput;
 import com.google.appengine.tools.mapreduce.reducers.ValueProjectionReducer;
 import com.google.appengine.tools.pipeline.JobInfo;
 import com.google.appengine.tools.pipeline.JobInfo.State;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.PipelineServiceFactory;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.BlockJUnit4ClassRunner;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -26,7 +23,6 @@ import java.util.List;
 /**
  * Tests that custom output classes work.
  */
-@RunWith(BlockJUnit4ClassRunner.class)
 public class CustomOutputTest extends EndToEndTestCase {
 
   @SuppressWarnings("serial")
@@ -78,9 +74,25 @@ public class CustomOutputTest extends EndToEndTestCase {
 
   @Test
   public void testOutputInOrder() throws Exception {
-    MapReduceSpecification.Builder<Entity, String, Long, Long, Boolean> mrSpecBuilder =
+
+    final int SHARD_COUNT = 3;
+    final int SHARD_SIZE = 30;
+
+    List<List<Long>> data = new ArrayList<>();
+    for (long i = 0; i < SHARD_COUNT; ++i) {
+      List<Long> row = new ArrayList<>();
+      for (long j = 0; j < SHARD_SIZE; ++j) {
+        row.add(i*SHARD_SIZE + j);
+      }
+      data.add(row);
+    }
+
+    Input<Long> input = new InMemoryInput(data);
+
+
+    MapReduceSpecification.Builder<Long, String, Long, Long, Boolean> mrSpecBuilder =
         new MapReduceSpecification.Builder<>();
-    mrSpecBuilder.setJobName("Test MR").setInput(new DatastoreInput("Test", 2))
+    mrSpecBuilder.setJobName("Test MR").setInput(input)
         .setMapper(new TestMapper()).setKeyMarshaller(Marshallers.getStringMarshaller())
         .setValueMarshaller(Marshallers.getLongMarshaller())
         .setReducer(ValueProjectionReducer.<String, Long>create())
@@ -89,6 +101,7 @@ public class CustomOutputTest extends EndToEndTestCase {
     PipelineService pipelineService = PipelineServiceFactory.newPipelineService();
     MapReduceSettings mrSettings = new MapReduceSettings.Builder()
       .setServiceAccountKey(getStorageTestHelper().getBase64EncodedServiceAccountKey())
+      .setBucketName(getStorageTestHelper().getBucket())
       .build();
     String jobId = pipelineService.startNewPipeline(
         new MapReduceJob<>(mrSpecBuilder.build(), mrSettings));

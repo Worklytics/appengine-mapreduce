@@ -2,9 +2,7 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
 import static com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode.DONE;
 import static com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode.RUNNING;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo.TaskStateInfo;
 import com.google.appengine.tools.mapreduce.EndToEndTestCase;
@@ -13,11 +11,9 @@ import com.google.apphosting.api.ApiProxy.Environment;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.SettableFuture;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.BlockJUnit4ClassRunner;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.UnsupportedEncodingException;
 import java.util.concurrent.Semaphore;
@@ -26,17 +22,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Tests that locking prevents concurrent execution.
  */
-@RunWith(BlockJUnit4ClassRunner.class)
 public class LockingTest extends EndToEndTestCase {
 
   private final ShardedJobService service = ShardedJobServiceFactory.getShardedJobService();
   private final String queueName = "default";
   private ShardedJobSettings settings;
 
-  @Before
-  @Override
-  public void setUp() throws Exception {
-    super.setUp();
+  @BeforeEach
+  public void initSettings() throws Exception {
     settings = new ShardedJobSettings.Builder().build();
   }
 
@@ -72,8 +65,7 @@ public class LockingTest extends EndToEndTestCase {
     }
   }
 
-  @After
-  @Before
+  @AfterEach
   public void cleanup() {
     StaticBlockingTask.resetStatus();
   }
@@ -155,7 +147,7 @@ public class LockingTest extends EndToEndTestCase {
     assertEquals(new Status(RUNNING), state.getStatus());
     assertEquals(1, state.getActiveTaskCount());
     assertEquals(1, state.getTotalTaskCount());
-    assertEquals("Something was left in the queue", 0, getTasks(queueName).size());
+    assertEquals( 0, getTasks(queueName).size(), "Something was left in the queue");
 
     //Duplicate task (first task is still running)
     executeTask(jobId, taskFromQueue); //Should not block because will not execute run.
@@ -200,7 +192,7 @@ public class LockingTest extends EndToEndTestCase {
     assertEquals(new Status(RUNNING), state.getStatus());
     assertEquals(1, state.getActiveTaskCount());
     assertEquals(1, state.getTotalTaskCount());
-    assertEquals("Something was left in the queue", 0, getTasks(queueName).size());
+    assertEquals(0, getTasks(queueName).size(), "Something was left in the queue");
     assertEquals(0, getShardRetryCount(taskFromQueue));
 
     //Duplicate task
@@ -228,7 +220,7 @@ public class LockingTest extends EndToEndTestCase {
     assertEquals(new Status(RUNNING), state.getStatus());
     assertEquals(1, state.getActiveTaskCount());
     assertEquals(1, state.getTotalTaskCount());
-    assertEquals("Something was left in the queue", 0, getTasks(queueName).size());
+    assertEquals(0, getTasks(queueName).size(), "Something was left in the queue");
     StaticBlockingTask.finishRun.release();
     result.get();
 

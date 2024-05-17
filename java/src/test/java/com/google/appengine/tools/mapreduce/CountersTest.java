@@ -3,7 +3,7 @@ package com.google.appengine.tools.mapreduce;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.appengine.tools.mapreduce.impl.CountersImpl;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.assertEquals;
 

@@ -6,6 +6,7 @@ import com.google.appengine.tools.mapreduce.Marshaller;
 import com.google.appengine.tools.mapreduce.Marshallers;
 
 import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -13,13 +14,15 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 /**
  * Tests for {@link KeyValuesMarshaller}. This asserts that both the item can be read back once
  * written and that the read back item if written again will produce an identical byte array. This
  * means the serialization cannot depend on identity in anyway.
  *
  */
-public class KeyValuesMarshallerTest extends TestCase {
+public class KeyValuesMarshallerTest {
 
   private <K, V> void assertRoundTripEquality(KeyValuesMarshaller<K, V> marshaller, K key,
       List<V> values) {
@@ -40,6 +43,8 @@ public class KeyValuesMarshallerTest extends TestCase {
     assertFalse(reconValues.hasNext());
   }
 
+  @Test
+
   public void testRandomData() {
     Marshaller<ByteBuffer> byteBufferMarshaller = Marshallers.getByteBufferMarshaller();
     KeyValuesMarshaller<ByteBuffer, ByteBuffer> m =
@@ -55,6 +60,7 @@ public class KeyValuesMarshallerTest extends TestCase {
     }
   }
 
+  @Test
   public void testNoValues() {
     Marshaller<String> stringMarshaller = Marshallers.getStringMarshaller();
     KeyValuesMarshaller<String, String> m =
@@ -63,6 +69,8 @@ public class KeyValuesMarshallerTest extends TestCase {
     assertRoundTripEquality(m, key, new ArrayList<String>(0));
   }
 
+
+  @Test
   public void testThrowsCorruptDataException() {
     Marshaller<ByteBuffer> byteBufferMarshaller = Marshallers.getByteBufferMarshaller();
     KeyValuesMarshaller<ByteBuffer, ByteBuffer> m =
@@ -83,6 +91,8 @@ public class KeyValuesMarshallerTest extends TestCase {
     }
   }
 
+
+  @Test
   public void testNested() {
     Marshaller<Integer> intMarshaller = Marshallers.getIntegerMarshaller();
     Marshaller<String> stringMarshaller = Marshallers.getStringMarshaller();
