@@ -8,6 +8,8 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobServiceFac
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.pipeline.Job0;
 import com.google.appengine.tools.pipeline.Value;
+import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreOptions;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
@@ -24,6 +26,8 @@ public class ShardedJob<T extends IncrementalTask> extends Job0<Void> {
 
   private static final long serialVersionUID = 1L;
 
+  // alternatively, put namespace on SharedJobSettings; project+databaseId+namespace there; or something else
+  @NonNull private final DatastoreOptions datastoreOptions;
   @NonNull private final String jobId;
   @NonNull private final List<? extends T> workers;
   @NonNull private final ShardedJobController<T> controller;
@@ -31,7 +35,8 @@ public class ShardedJob<T extends IncrementalTask> extends Job0<Void> {
 
   @Override
   public Value<Void> run() {
-    ShardedJobServiceFactory.getShardedJobService().startJob(jobId, workers, controller, settings);
+    Datastore datastore = datastoreOptions.getService();
+    ShardedJobServiceFactory.getShardedJobService().startJob(datastore, jobId, workers, controller, settings);
     setStatusConsoleUrl(settings.getMapReduceStatusUrl());
     return null;
   }

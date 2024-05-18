@@ -12,7 +12,6 @@ import com.google.appengine.api.taskqueue.dev.QueueStateInfo;
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo.HeaderWrapper;
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo.TaskStateInfo;
 import com.google.appengine.tools.development.ApiProxyLocal;
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalMemcacheServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
@@ -21,6 +20,7 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobHandler;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.apphosting.api.ApiProxy;
+import com.google.cloud.datastore.Datastore;
 import com.google.common.base.CharMatcher;
 
 import lombok.Getter;
@@ -40,6 +40,7 @@ import java.util.logging.Logger;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+@PipelineSetupExtensions
 public abstract class EndToEndTestCase {
 
   private static final Logger logger = Logger.getLogger(EndToEndTestCase.class.getName());
@@ -48,7 +49,6 @@ public abstract class EndToEndTestCase {
   private final PipelineServlet pipelineServlet = new PipelineServlet();
   private final LocalServiceTestHelper helper =
       new LocalServiceTestHelper(
-          new LocalDatastoreServiceTestConfig(),
           new LocalTaskQueueTestConfig().setDisableAutoTaskExecution(true),
           new LocalMemcacheServiceTestConfig(),
           new LocalModulesServiceTestConfig());
@@ -57,6 +57,14 @@ public abstract class EndToEndTestCase {
   /** Implement in sub-classes to set system environment properties for tests. */
   protected Map<String, String> getEnvAttributes() throws Exception {
     return null;
+  }
+
+  @Getter
+  Datastore datastore;
+
+  @BeforeEach
+  public void injectDatastore(Datastore datastore ) {
+    this.datastore = datastore;
   }
 
   @Getter

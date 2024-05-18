@@ -2,11 +2,7 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline;
 
 import static java.util.concurrent.Executors.callable;
 
-import com.github.rholder.retry.RetryException;
 import com.github.rholder.retry.StopStrategies;
-import com.google.appengine.api.datastore.DatastoreServiceFactory;
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
 import com.google.appengine.tools.mapreduce.RetryExecutor;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTask;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskState;
@@ -16,43 +12,35 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.pipeline.Job0;
 import com.google.appengine.tools.pipeline.Value;
-import com.google.common.base.Throwables;
+import com.google.cloud.datastore.*;
+import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-
 /**
  * A pipeline job for finalizing the shards information and cleaning up unnecessary state.
  */
+@RequiredArgsConstructor
 public class FinalizeShardsInfos extends Job0<Void> {
 
-  private static final long serialVersionUID = -2315635076911526336L;
+  private static final long serialVersionUID = 1L;
 
+  private final DatastoreOptions datastoreOptions;
   private final String jobId;
   private final Status status;
   private final int start;
   private final int end;
 
-  FinalizeShardsInfos(String jobId, Status status, int start, int end) {
-    this.jobId = jobId;
-    this.status = status;
-    this.start = start;
-    this.end = end;
-  }
-
   @Override
   public Value<Void> run() {
+    Datastore datastore = datastoreOptions.getService();
     final List<Key> toFetch = new ArrayList<>(end - start);
     final List<Entity> toUpdate = new ArrayList<>();
     final List<Key> toDelete = new ArrayList<>();
     for (int i = start; i < end; i++) {
       String taskId = ShardedJobRunner.getTaskId(jobId, i);
-      toFetch.add(IncrementalTaskState.Serializer.makeKey(taskId));
-      Key retryStateKey = ShardRetryState.Serializer.makeKey(taskId);
+      toFetch.add(IncrementalTaskState.Serializer.makeKey(datastore, taskId));
+      Key retryStateKey = ShardRetryState.Serializer.makeKey(datastore, taskId);
       toDelete.add(retryStateKey);
       for (Key key : SerializationUtil.getShardedValueKeysFor(null, retryStateKey, null)) {
         toDelete.add(key);
@@ -62,34 +50,27 @@ public class FinalizeShardsInfos extends Job0<Void> {
     RetryExecutor.call(
       ShardedJobRunner.getRetryerBuilder().withStopStrategy(StopStrategies.neverStop()),
       callable(() -> {
-      Future<Void> deleteAsync =
-        DatastoreServiceFactory.getAsyncDatastoreService().delete(null, toDelete);
-      Map<Key, Entity> entities = DatastoreServiceFactory.getDatastoreService().get(toFetch);
-      Iterator<Key> keysIter = toFetch.iterator();
-      while (keysIter.hasNext()) {
-        Entity entity = entities.get(keysIter.next());
-        if (entity != null) {
-          IncrementalTaskState<IncrementalTask> taskState =
-            IncrementalTaskState.Serializer.fromEntity(entity, true);
-          if (taskState.getTask() != null) {
-            taskState.getTask().jobCompleted(status);
-            toUpdate.add(IncrementalTaskState.Serializer.toEntity(null, taskState));
+        Transaction tx = datastore.newTransaction();
+
+        tx.delete(toDelete.toArray(new Key[toDelete.size()]));
+
+        List<Entity> entities = tx.fetch(toFetch.toArray(new Key[toFetch.size()]));
+        for (Entity entity : entities) {
+
+          if (entity != null) {
+            IncrementalTaskState<IncrementalTask> taskState =
+              IncrementalTaskState.Serializer.fromEntity(tx, entity, true);
+            if (taskState.getTask() != null) {
+              taskState.getTask().jobCompleted(status);
+              toUpdate.add(IncrementalTaskState.Serializer.toEntity(tx, taskState));
+            }
           }
         }
-      }
-      if (!toUpdate.isEmpty()) {
-        DatastoreServiceFactory.getDatastoreService().put(null, toUpdate);
-      }
-      try {
-        deleteAsync.get();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new RuntimeException("Request interrupted");
-      } catch (ExecutionException e) {
-        Throwables.propagateIfPossible(e.getCause());
-        throw new RuntimeException("Async get failed", e);
-      }
-    }));
+        if (!toUpdate.isEmpty()) {
+          tx.put(toUpdate.toArray(new Entity[toUpdate.size()]));
+        }
+        tx.commit();
+      }));
 
     return null;
   }

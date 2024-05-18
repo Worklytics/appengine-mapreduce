@@ -60,7 +60,7 @@
       <dependency>
         <groupId>com.google.cloud</groupId>
         <artifactId>libraries-bom</artifactId>
-        <version>5.1.0</version>
+        <version>26.27.0</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -153,6 +153,10 @@
           <artifactId>guava-jdk5</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-datastore</artifactId>
     </dependency>
     <dependency>
       <groupId>com.google.appengine.tools</groupId>

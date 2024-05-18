@@ -16,22 +16,11 @@
 
 package com.google.appengine.tools.mapreduce.impl.util;
 
-import com.google.appengine.api.datastore.Blob;
-import com.google.appengine.api.datastore.DatastoreService;
-import com.google.appengine.api.datastore.DatastoreServiceFactory;
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.PreparedQuery;
-import com.google.appengine.api.datastore.Query;
-import com.google.appengine.api.datastore.Query.FilterOperator;
-import com.google.appengine.api.datastore.Query.FilterPredicate;
-import com.google.appengine.api.datastore.Transaction;
+import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.CorruptDataException;
 import com.google.appengine.tools.mapreduce.Marshaller;
 import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.Externalizable;
@@ -48,11 +37,11 @@ import java.io.StreamCorruptedException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.Inflater;
@@ -65,7 +54,6 @@ import java.util.zip.InflaterInputStream;
 public class SerializationUtil {
 
   private static final Logger log = Logger.getLogger(SerializationUtil.class.getName());
-  private static final DatastoreService DATASTORE = DatastoreServiceFactory.getDatastoreService();
   // 1MB - 200K slack for the rest of the properties and entity overhead
   private static final int MAX_BLOB_BYTE_SIZE = 1024 * 1024 - 200 * 1024;
   private static final String SHARDED_VALUE_KIND = "MR-ShardedValue";
@@ -314,28 +302,38 @@ public class SerializationUtil {
   }
 
   public static <T extends Serializable> T deserializeFromDatastoreProperty(
-      Entity entity, String property) {
-    return deserializeFromDatastoreProperty(entity, property, false);
+    Transaction tx, Entity entity, String property) {
+    return deserializeFromDatastoreProperty(tx, entity, property, false);
   }
 
   @SuppressWarnings("unchecked")
   public static <T extends Serializable> T deserializeFromDatastoreProperty(
-      Entity entity, String property, boolean lenient) {
-    Object value = entity.getProperty(property);
+    Transaction tx, Entity entity, String property, boolean lenient) {
+
     try {
       byte[] bytes;
-      if (value instanceof Blob) {
-        bytes = ((Blob) value).getBytes();
-      } else {
-        Collection<Key> keys = (Collection<Key>) value;
-        Map<Key, Entity> shards = DATASTORE.get(keys);
+      try {
+        Blob value = entity.getBlob(property);
+        bytes = value.toByteArray();
+      } catch (ClassCastException e) {
+        List<Value<Key>> keys = entity.getList(property);
+
+        //NOTE: fetch() important here; unlike get(), fetch() will return null for missing entities AND return in order
+        List<Entity> shards = tx.fetch(keys.toArray(new Key[keys.size()]));
         ByteArrayOutputStream bout = new ByteArrayOutputStream();
-        for (Key key : keys) {
-          Entity shard = shards.get(key);
+        for (int i = 0; i < shards.size(); i++) {
+          Entity shard = shards.get(i);
           if (shard == null) {
-            throw new CorruptDataException("Missing data shard " + key);
+            throw new CorruptDataException("Missing data shard: " + i);
           }
-          byte[] shardBytes = ((Blob) shard.getProperty("content")).getBytes();
+          byte[] shardBytes = shard.getBlob("content").toByteArray();
+          bout.write(shardBytes, 0, shardBytes.length);
+        }
+        for (Entity shard : shards) {
+          if (shard == null) {
+            throw new CorruptDataException("Missing data shard");
+          }
+          byte[] shardBytes = ((Blob) shard.getBlob("content")).toByteArray();
           bout.write(shardBytes, 0, shardBytes.length);
         }
         bytes = bout.toByteArray();
@@ -352,32 +350,45 @@ public class SerializationUtil {
   }
 
   public static void serializeToDatastoreProperty(
-      Transaction tx, Entity entity, String property, Serializable o) {
+      Transaction tx, Entity.Builder entity, String property, Serializable o) {
     serializeToDatastoreProperty(tx, entity, property, o, null);
   }
 
   public static Iterable<Key> getShardedValueKeysFor(Transaction tx, Key parent, String property) {
-    Query query = new Query(SHARDED_VALUE_KIND);
-    query.setAncestor(parent);
+
+    KeyQuery.Builder queryBuilder = Query.newKeyQueryBuilder()
+      .setKind(SHARDED_VALUE_KIND)
+      .setFilter(StructuredQuery.PropertyFilter.hasAncestor(parent));
+
     if (property != null) {
-      query.setFilter(new FilterPredicate("property", FilterOperator.EQUAL, property));
+      queryBuilder.setFilter(StructuredQuery.PropertyFilter.eq("property", property));
     }
-    query.setKeysOnly();
-    PreparedQuery preparedQuery = DATASTORE.prepare(tx, query);
-    return Iterables.transform(preparedQuery.asIterable(), ENTITY_TO_KEY);
+
+    KeyQuery query = queryBuilder.build();
+
+    QueryResults<Key> results = tx.run(query);
+
+    List<Key> keys = new ArrayList<>();
+    while (results.hasNext()) {
+      keys.add(results.next());
+    }
+
+    return keys;
+
   }
 
   public static void serializeToDatastoreProperty(
-      Transaction tx, Entity entity, String property, Serializable o, CompressionType compression) {
+      Transaction tx, Entity.Builder entity, String property, Serializable o, CompressionType compression) {
     byte[] bytes = serializeToByteArray(o, false, compression);
 
-    // deleting previous shards
-    List<Key> toDelete = Lists.newArrayList(getShardedValueKeysFor(tx, entity.getKey(), property));
+    Key key = entity.build().getKey();
 
-    Object value;
+    // deleting previous shards
+    List<Key> toDelete = Lists.newArrayList(getShardedValueKeysFor(tx, key, property));
+
     if (bytes.length < MAX_BLOB_BYTE_SIZE) {
-      value = new Blob(bytes);
-      DATASTORE.delete(tx, toDelete);
+      tx.delete(toDelete.toArray(new Key[toDelete.size()]));
+      entity.set(property, BlobValue.of(Blob.copyFrom(bytes)));
     } else {
       int shardId = 0;
       int offset = 0;
@@ -387,17 +398,32 @@ public class SerializationUtil {
         byte[] chunk = Arrays.copyOfRange(bytes, offset, Math.min(limit, bytes.length));
         offset = limit;
         String keyName = String.format("shard-%02d", ++shardId);
-        Entity shard = new Entity(SHARDED_VALUE_KIND, keyName, entity.getKey());
-        shard.setProperty("property", property);
-        shard.setUnindexedProperty("content", new Blob(chunk));
+        KeyFactory keyFactory = tx.getDatastore().newKeyFactory().addAncestors(key.getAncestors());
+        PathElement parentPathElement;
+        if (key.hasId()) {
+          parentPathElement = PathElement.of(key.getKind(), key.getId());
+        } else {
+          parentPathElement = PathElement.of(key.getKind(), key.getName());
+        }
+        keyFactory.addAncestor(parentPathElement);
+        keyFactory.setKind(SHARDED_VALUE_KIND);
+
+        Entity shard = Entity.newBuilder(keyFactory.newKey(keyName))
+            .set("property", property)
+            .set("content", BlobValue.newBuilder(Blob.copyFrom(chunk)).setExcludeFromIndexes(true).build())
+            .build();
         shards.add(shard);
       }
       if (shards.size() < toDelete.size()) {
-        DATASTORE.delete(tx, toDelete.subList(shards.size(), toDelete.size()));
+        tx.delete(toDelete.toArray(new Key[toDelete.size()]));
       }
-      value = DATASTORE.put(tx, shards);
+      tx.put(shards.toArray(new Entity[shards.size()]));
+      List<KeyValue> value = shards.stream()
+        .map(ENTITY_TO_KEY)
+        .map(k -> KeyValue.newBuilder(k).setExcludeFromIndexes(true).build())
+        .collect(Collectors.toList());
+      entity.set(property, ListValue.newBuilder().set(value).build());
     }
-    entity.setUnindexedProperty(property, value);
   }
 
   public static byte[] serializeToByteArray(Serializable o) {

@@ -11,6 +11,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.appengine.tools.mapreduce.MapReduceJob;
 import com.google.appengine.tools.mapreduce.MapReduceServlet;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
+import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreOptions;
 import com.google.common.collect.ImmutableMap;
 
 import java.io.IOException;
@@ -95,21 +97,23 @@ public final class MapReduceServletImpl {
   public static void doPost(HttpServletRequest request, HttpServletResponse response)
       throws IOException {
     String handler = getHandler(request);
+
+    //datastore, setting namespace for request somehow
+    Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
     if (handler.startsWith(CONTROLLER_PATH)) {
       if (!checkForTaskQueue(request, response)) {
         return;
       }
-      new ShardedJobRunner<>().completeShard(
-          checkNotNull(request.getParameter(JOB_ID_PARAM), "Null job id"),
-          checkNotNull(request.getParameter(TASK_ID_PARAM), "Null task id"));
+      new ShardedJobRunner<>().completeShard(datastore,
+              checkNotNull(request.getParameter(JOB_ID_PARAM), "Null job id"),
+              checkNotNull(request.getParameter(TASK_ID_PARAM), "Null task id"));
     } else if (handler.startsWith(WORKER_PATH)) {
       if (!checkForTaskQueue(request, response)) {
         return;
       }
-      new ShardedJobRunner<>().runTask(
-          checkNotNull(request.getParameter(JOB_ID_PARAM), "Null job id"),
-          checkNotNull(request.getParameter(TASK_ID_PARAM), "Null task id"),
-          Integer.parseInt(request.getParameter(SEQUENCE_NUMBER_PARAM)));
+      new ShardedJobRunner<>().runTask(datastore,
+        checkNotNull(request.getParameter(JOB_ID_PARAM), "Null job id"),
+        checkNotNull(request.getParameter(TASK_ID_PARAM), "Null task id"), Integer.parseInt(request.getParameter(SEQUENCE_NUMBER_PARAM)));
     } else if (handler.startsWith(COMMAND_PATH)) {
       if (!checkForAjax(request, response)) {
         return;

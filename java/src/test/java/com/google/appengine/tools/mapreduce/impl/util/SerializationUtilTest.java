@@ -6,15 +6,14 @@ import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.google.appengine.api.datastore.DatastoreService;
-import com.google.appengine.api.datastore.DatastoreServiceFactory;
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
-import com.google.appengine.api.datastore.Transaction;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
+import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.CompressionType;
 
+import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.Key;
+import com.google.cloud.datastore.Transaction;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,15 +27,21 @@ import java.util.Random;
 /**
  * @author ohler@google.com (Christian Ohler)
  */
+@PipelineSetupExtensions
 public class SerializationUtilTest {
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper();
-  private DatastoreService datastore;
+
+  Datastore datastore;
+
+  @BeforeEach
+  public void injectDatastore(Datastore datastore) {
+    this.datastore = datastore;
+  }
 
   @BeforeEach
   protected void setUp() throws Exception {
     helper.setUp();
-    datastore = DatastoreServiceFactory.getDatastoreService();
   }
 
   @AfterEach
@@ -135,20 +140,20 @@ public class SerializationUtilTest {
 
   @Test
   public void testSerializeToDatastore() throws Exception {
-    Key key = KeyFactory.createKey("mr-entity", 1);
+    Key key = this.datastore.newKeyFactory().setKind("mr-entity").newKey(1);
     List<Value> values = asList(null, new Value(0), new Value(500), new Value(2000),
         new Value(10000), new Value(1500));
     Iterable<CompressionType> compressionTypes =
         asList(CompressionType.NONE, CompressionType.GZIP, null);
     for (Value original : values) {
       for (CompressionType compression : compressionTypes) {
-        Transaction tx = datastore.beginTransaction();
-        Entity entity = new Entity(key);
+        Transaction tx = datastore.newTransaction();
+        Entity.Builder entity = Entity.newBuilder(key);
         SerializationUtil.serializeToDatastoreProperty(tx, entity, "foo", original, compression);
-        datastore.put(entity);
+        datastore.put(entity.build());
         tx.commit();
-        entity = datastore.get(key);
-        Serializable restored = SerializationUtil.deserializeFromDatastoreProperty(entity, "foo");
+        Entity fromDb = datastore.get(key);
+        Serializable restored = SerializationUtil.deserializeFromDatastoreProperty(tx, fromDb, "foo");
         assertEquals(original, restored);
       }
     }

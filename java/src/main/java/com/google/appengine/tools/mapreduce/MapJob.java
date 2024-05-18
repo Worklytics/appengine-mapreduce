@@ -19,6 +19,8 @@ import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.PipelineServiceFactory;
 import com.google.appengine.tools.pipeline.PromisedValue;
 import com.google.appengine.tools.pipeline.Value;
+import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreOptions;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -104,7 +106,8 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
     WorkerController<I, O, R, MapOnlyMapperContext<O>> workerController = new WorkerController<>(
         jobId, new CountersImpl(), output, resultAndStatus.getHandle());
     ShardedJob<?> shardedJob =
-        new ShardedJob<>(jobId, mapTasks.build(), workerController, shardedJobSettings);
+        new ShardedJob<>(DatastoreOptions.getDefaultInstance().toBuilder()
+            .setNamespace(settings.getNamespace()).build(), jobId, mapTasks.build(), workerController, shardedJobSettings);
     FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());
     JobSetting[] jobSetting = settings.toJobSettings(waitFor(shardedJobResult),
             statusConsoleUrl(shardedJobSettings.getMapReduceStatusUrl()), maxAttempts(1));
@@ -116,7 +119,9 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
    */
   public Value<MapReduceResult<R>> handleException(CancellationException ex) {
     String mrJobId = getJobKey().getName();
-    ShardedJobServiceFactory.getShardedJobService().abortJob(mrJobId);
+    Datastore datastore = DatastoreOptions.getDefaultInstance().toBuilder()
+        .setNamespace(settings.getNamespace()).build().getService();
+    ShardedJobServiceFactory.getShardedJobService().abortJob(datastore, mrJobId);
     return null;
   }
 

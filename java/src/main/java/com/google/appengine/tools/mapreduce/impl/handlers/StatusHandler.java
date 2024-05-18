@@ -12,6 +12,8 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskState
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobService;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobServiceFactory;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobState;
+import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreOptions;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.Longs;
 
@@ -56,9 +58,9 @@ final class StatusHandler {
   private StatusHandler() {
   }
 
-  private static JSONObject handleCleanupJob(String jobId) throws JSONException {
+  private static JSONObject handleCleanupJob(Datastore datastore, String jobId) throws JSONException {
     JSONObject retValue = new JSONObject();
-    if (ShardedJobServiceFactory.getShardedJobService().cleanupJob(jobId)) {
+    if (ShardedJobServiceFactory.getShardedJobService().cleanupJob(datastore, jobId)) {
       retValue.put("status", "Successfully deleted requested job.");
     } else {
       retValue.put("status", "Can't delete an active job");
@@ -66,9 +68,9 @@ final class StatusHandler {
     return retValue;
   }
 
-  private static JSONObject handleAbortJob(String jobId) throws JSONException {
+  private static JSONObject handleAbortJob(Datastore datastore, String jobId) throws JSONException {
     JSONObject retValue = new JSONObject();
-    ShardedJobServiceFactory.getShardedJobService().abortJob(jobId);
+    ShardedJobServiceFactory.getShardedJobService().abortJob(datastore, jobId);
     retValue.put("status", "Successfully aborted requested job.");
     return retValue;
   }
@@ -81,15 +83,18 @@ final class StatusHandler {
     response.setContentType("application/json");
     boolean isPost = "POST".equals(request.getMethod());
     JSONObject retValue = null;
+
+    //TODO: parse from request
+    Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
     try {
       if (command.equals(LIST_JOBS_PATH) && !isPost) {
         retValue = handleListJobs(request);
       } else if (command.equals(CLEANUP_JOB_PATH) && isPost) {
-        retValue = handleCleanupJob(request.getParameter("mapreduce_id"));
+        retValue = handleCleanupJob(datastore, request.getParameter("mapreduce_id"));
       } else if (command.equals(ABORT_JOB_PATH) && isPost) {
-        retValue = handleAbortJob(request.getParameter("mapreduce_id"));
+        retValue = handleAbortJob(datastore, request.getParameter("mapreduce_id"));
       } else if (command.equals(GET_JOB_DETAIL_PATH) && !isPost) {
-        retValue = handleGetJobDetail(request.getParameter("mapreduce_id"));
+        retValue = handleGetJobDetail(datastore, request.getParameter("mapreduce_id"));
       }
     } catch (Exception t) {
       log.log(Level.SEVERE, "Got exception while running command", t);
@@ -157,9 +162,9 @@ final class StatusHandler {
    * Handle the get_job_detail AJAX command.
    */
   @VisibleForTesting
-  static JSONObject handleGetJobDetail(String jobId) {
+  static JSONObject handleGetJobDetail(Datastore datastore, String jobId) {
     ShardedJobService shardedJobService = ShardedJobServiceFactory.getShardedJobService();
-    ShardedJobState state = shardedJobService.getJobState(jobId);
+    ShardedJobState state = shardedJobService.getJobState(datastore, jobId);
     if (state == null) {
       return null;
     }
@@ -194,7 +199,7 @@ final class StatusHandler {
       Counters totalCounters = new CountersImpl();
       int i = 0;
       long[] workerCallCounts = new long[state.getTotalTaskCount()];
-      Iterator<IncrementalTaskState<IncrementalTask>> tasks = shardedJobService.lookupTasks(state);
+      Iterator<IncrementalTaskState<IncrementalTask>> tasks = shardedJobService.lookupTasks(datastore.newTransaction(), state);
       while (tasks.hasNext()) {
         IncrementalTaskState<?> taskState = tasks.next();
         JSONObject shardObject = new JSONObject();

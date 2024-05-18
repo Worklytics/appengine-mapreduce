@@ -19,6 +19,7 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.common.base.Preconditions;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 
@@ -39,14 +40,14 @@ public class MapSettings implements Serializable {
 
   private static final long serialVersionUID = 51425056338041064L;
 
-  private static final RetryerBuilder getQueueRetryerBuilder() {
+  private static RetryerBuilder getQueueRetryerBuilder() {
     return RetryerBuilder.newBuilder()
       .withWaitStrategy(WaitStrategies.exponentialWait(20_000, TimeUnit.MILLISECONDS))
       .withStopStrategy(StopStrategies.stopAfterAttempt(8))
       .retryIfExceptionOfType(TransientFailureException.class);
   }
 
-  private static final RetryerBuilder getModulesRetryerBuilder() {
+  private static RetryerBuilder getModulesRetryerBuilder() {
     return RetryerBuilder.newBuilder()
       .withWaitStrategy(WaitStrategies.exponentialWait(20_000, TimeUnit.MILLISECONDS))
       .withStopStrategy(StopStrategies.stopAfterAttempt(8))
@@ -61,6 +62,8 @@ public class MapSettings implements Serializable {
   public static final int DEFAULT_SHARD_RETRIES = 4;
   public static final int DEFAULT_SLICE_RETRIES = 20;
 
+  @Getter
+  private final String namespace;
   private final String baseUrl;
   private final String backend;
   private final String module;
@@ -70,8 +73,10 @@ public class MapSettings implements Serializable {
   private final int maxShardRetries;
   private final int maxSliceRetries;
 
+  @ToString
   abstract static class BaseBuilder<B extends BaseBuilder<B>> {
 
+    protected String namespace;
     protected String baseUrl = DEFAULT_BASE_URL;
     protected String module;
     protected String backend;
@@ -85,6 +90,7 @@ public class MapSettings implements Serializable {
     }
 
     BaseBuilder(MapSettings settings) {
+      namespace = settings.getNamespace();
       baseUrl = settings.getBaseUrl();
       module = settings.getModule();
       backend = settings.getBackend();
@@ -96,6 +102,14 @@ public class MapSettings implements Serializable {
     }
 
     protected abstract B self();
+
+    /**
+     * Sets the namespace that will be used for all requests related to this job.
+     */
+    public B setNamespace(String namespace) {
+      this.namespace = namespace;
+      return self();
+    }
 
     /**
      * Sets the base URL that will be used for all requests related to this job.
@@ -194,6 +208,7 @@ public class MapSettings implements Serializable {
   MapSettings(BaseBuilder<?> builder) {
     Preconditions.checkArgument(
         builder.module == null || builder.backend == null, "Module and Backend cannot be combined");
+    namespace = builder.namespace;
     baseUrl = builder.baseUrl;
     module = builder.module;
     backend = builder.backend;
@@ -234,19 +249,6 @@ public class MapSettings implements Serializable {
 
   int getMaxSliceRetries() {
     return maxSliceRetries;
-  }
-
-  @Override
-  public String toString() {
-    return getClass().getSimpleName() + "("
-        + baseUrl + ", "
-        + backend + ", "
-        + module + ", "
-        + workerQueueName + ", "
-        + millisPerSlice + ", "
-        + sliceTimeoutRatio + ", "
-        + maxSliceRetries + ", "
-        + maxShardRetries + ")";
   }
 
   JobSetting[] toJobSettings(JobSetting... extra) {
