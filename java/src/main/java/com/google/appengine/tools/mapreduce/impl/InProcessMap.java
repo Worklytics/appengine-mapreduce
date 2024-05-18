@@ -19,11 +19,13 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.common.collect.ImmutableList;
 
+import lombok.SneakyThrows;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
@@ -95,10 +97,11 @@ public class InProcessMap<I, O, R> {
   }
 
 
+  @SneakyThrows
   @SuppressWarnings("unchecked")
   private MapOnlyMapper<I, O> getCopyOfMapper() {
     byte[] bytes = SerializationUtil.serializeToByteArray(mapper);
-    return (MapOnlyMapper<I, O>) SerializationUtil.deserializeFromByteArray(bytes);
+    return (MapOnlyMapper<I, O>) SerializationUtil.deserialize(bytes);
   }
 
   private static final DateTimeFormatter DATE_FORMAT =

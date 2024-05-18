@@ -7,8 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
-import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.CompressionType;
+import com.google.appengine.tools.mapreduce.DatastoreExtension;
 
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.Entity;
@@ -17,6 +16,7 @@ import com.google.cloud.datastore.Transaction;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
@@ -27,7 +27,11 @@ import java.util.Random;
 /**
  * @author ohler@google.com (Christian Ohler)
  */
-@PipelineSetupExtensions
+@ExtendWith({
+  DatastoreExtension.class,
+  //AppEngineEnvironmentExtension.class,
+  DatastoreExtension.ParameterResolver.class,
+})
 public class SerializationUtilTest {
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper();
@@ -79,37 +83,23 @@ public class SerializationUtilTest {
     Serializable original = "hello";
     byte[] bytes = SerializationUtil.serializeToByteArray(original);
     assertEquals(12, bytes.length);
-    bytes = SerializationUtil.serializeToByteArray(original, true);
-    assertEquals(12, bytes.length);
-    bytes = SerializationUtil.serializeToByteArray(original, true, CompressionType.NONE);
-    assertEquals(49, bytes.length);
 
-    bytes = SerializationUtil.serializeToByteArray(original, true, CompressionType.GZIP);
-    assertEquals(57, bytes.length);
     bytes = SerializationUtil.serializeToByteArray(original);
-    Object restored = SerializationUtil.deserializeFromByteArray(bytes);
+    Object restored = SerializationUtil.deserialize(bytes);
     assertEquals(original, restored);
   }
 
   @Test
   public void testSerializeToFromByteArray() throws Exception {
-    Iterable<CompressionType> compressionTypes =
-        asList(CompressionType.NONE, CompressionType.GZIP, null);
-    for (Serializable original : asList(10L, "hello", new Value(1000), CompressionType.GZIP)) {
-      for (boolean ignoreHeader : asList(true, false)) {
-        for (CompressionType compression : compressionTypes) {
-          byte[] bytes =
-              SerializationUtil.serializeToByteArray(original, ignoreHeader, compression);
-          Object restored = SerializationUtil.deserializeFromByteArray(bytes, ignoreHeader);
-          assertEquals(original, restored);
-          ByteBuffer buffer  = ByteBuffer.wrap(bytes);
-          restored = SerializationUtil.deserializeFromByteBuffer(buffer, ignoreHeader);
-          assertEquals(original, restored);
-          bytes = SerializationUtil.serializeToByteArray(original, ignoreHeader);
-          restored = SerializationUtil.deserializeFromByteArray(bytes, ignoreHeader);
-          assertEquals(original, restored);
-        }
-      }
+    for (Serializable original : asList(10L, "hello", new Value(1000))) {
+        byte[] bytes =
+            SerializationUtil.serializeToByteArray(original);
+        Object restored = SerializationUtil.deserialize(bytes);
+        assertEquals(original, restored);
+        bytes = SerializationUtil.serializeToByteArray(original);
+        restored = SerializationUtil.deserialize(bytes);
+        assertEquals(original, restored);
+
     }
   }
 
@@ -143,19 +133,15 @@ public class SerializationUtilTest {
     Key key = this.datastore.newKeyFactory().setKind("mr-entity").newKey(1);
     List<Value> values = asList(null, new Value(0), new Value(500), new Value(2000),
         new Value(10000), new Value(1500));
-    Iterable<CompressionType> compressionTypes =
-        asList(CompressionType.NONE, CompressionType.GZIP, null);
     for (Value original : values) {
-      for (CompressionType compression : compressionTypes) {
-        Transaction tx = datastore.newTransaction();
-        Entity.Builder entity = Entity.newBuilder(key);
-        SerializationUtil.serializeToDatastoreProperty(tx, entity, "foo", original, compression);
-        datastore.put(entity.build());
-        tx.commit();
-        Entity fromDb = datastore.get(key);
-        Serializable restored = SerializationUtil.deserializeFromDatastoreProperty(tx, fromDb, "foo");
-        assertEquals(original, restored);
-      }
+      Transaction tx = datastore.newTransaction();
+      Entity.Builder entity = Entity.newBuilder(key);
+      SerializationUtil.serializeToDatastoreProperty(tx, entity, "foo", original);
+      datastore.put(entity.build());
+      tx.commit();
+      Entity fromDb = datastore.get(key);
+      Serializable restored = SerializationUtil.deserializeFromDatastoreProperty(tx, fromDb, "foo");
+      assertEquals(original, restored);
     }
   }
 }

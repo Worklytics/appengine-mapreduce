@@ -2,14 +2,13 @@
 
 package com.google.appengine.tools.mapreduce.impl;
 
-import static com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.serializeToByteArray;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.appengine.tools.mapreduce.Counters;
 import com.google.appengine.tools.mapreduce.MapReduceResult;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.CompressionType;
+import lombok.NoArgsConstructor;
 
 import java.io.Externalizable;
 import java.io.IOException;
@@ -24,16 +23,13 @@ import java.io.Serializable;
  *
  * @param <R> type of result
  */
+@NoArgsConstructor
 public class MapReduceResultImpl<R> implements MapReduceResult<R>, Externalizable {
 
   private static final long serialVersionUID = 237070477689138395L;
 
   private R outputResult; // can be null
   private Counters counters;
-
-  public MapReduceResultImpl() {
-    // Needed for serialization
-  }
 
   public MapReduceResultImpl(R outputResult, Counters counters) {
     if (outputResult != null) {
@@ -65,7 +61,7 @@ public class MapReduceResultImpl<R> implements MapReduceResult<R>, Externalizabl
   public void writeExternal(ObjectOutput out) throws IOException {
     out.writeObject(counters);
     if (outputResult != null) {
-      byte[] bytes = serializeToByteArray((Serializable) outputResult, true, CompressionType.GZIP);
+      byte[] bytes = SerializationUtil.serialize((Serializable) outputResult);
       out.writeObject(bytes);
     } else {
       out.writeObject(null);
@@ -77,7 +73,7 @@ public class MapReduceResultImpl<R> implements MapReduceResult<R>, Externalizabl
     counters = (Counters) in.readObject();
     byte[] bytes = (byte[]) in.readObject();
     if (bytes != null) {
-      outputResult = SerializationUtil.deserializeFromByteArray(bytes, true);
+      outputResult = (R) SerializationUtil.deserialize(bytes);
     }
   }
 }

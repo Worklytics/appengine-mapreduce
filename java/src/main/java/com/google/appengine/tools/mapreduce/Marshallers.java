@@ -10,6 +10,7 @@ import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.SneakyThrows;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,14 +34,16 @@ public class Marshallers {
 
     private static final long serialVersionUID = 401446902678227352L;
 
+    @SneakyThrows
     @Override
     public ByteBuffer toBytes(T object) {
-      return ByteBuffer.wrap(SerializationUtil.serializeToByteArray(object, true));
+      return ByteBuffer.wrap(SerializationUtil.serialize(object));
     }
 
+    @SneakyThrows
     @Override
     public T fromBytes(ByteBuffer in) {
-      T value = SerializationUtil.deserializeFromByteBuffer(in, true);
+      T value = (T) SerializationUtil.deserialize(in.array());
       if (in.hasRemaining()) {
         throw new CorruptDataException("Trailing bytes after reading object");
       }

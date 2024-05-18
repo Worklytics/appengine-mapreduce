@@ -2,7 +2,6 @@
 
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
-import static com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.CompressionType.GZIP;
 import static com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.serializeToDatastoreProperty;
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -196,7 +195,7 @@ public class IncrementalTaskState<T extends IncrementalTask> {
       }
       taskState.set(SEQUENCE_NUMBER_PROPERTY, in.getSequenceNumber());
       taskState.set(RETRY_COUNT_PROPERTY, in.getRetryCount());
-      serializeToDatastoreProperty(tx, taskState, NEXT_TASK_PROPERTY, in.getTask(), GZIP);
+      serializeToDatastoreProperty(tx, taskState, NEXT_TASK_PROPERTY, in.getTask());
       serializeToDatastoreProperty(tx, taskState, STATUS_PROPERTY, in.getStatus());
       return taskState.build();
     }
