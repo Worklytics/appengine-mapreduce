@@ -23,7 +23,7 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
   private final GcsFilename file;
   @NonNull
   private final GoogleCloudStorageLineInputReader.Options options;
-  private double length = -1;
+  private long length = -1;
 
   private transient Storage client;
 
@@ -62,7 +62,7 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
     if (length == 0f) {
       return null;
     }
-    return getBytesRead() / length;
+    return getBytesRead() / (double) length;
   }
 
   @Override

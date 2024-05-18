@@ -5,6 +5,7 @@ import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.CloudStorageIntegrationTestHelper;
 import com.google.appengine.tools.mapreduce.GcsFilename;
+import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
@@ -29,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Tests for {@link GoogleCloudStorageLevelDbInput}
  */
+@PipelineSetupExtensions
 public class GoogleCloudStorageLevelDbInputReaderTest {
 
   private static final int BLOCK_SIZE = LevelDbConstants.BLOCK_SIZE;
@@ -37,14 +39,12 @@ public class GoogleCloudStorageLevelDbInputReaderTest {
   private CloudStorageIntegrationTestHelper storageHelper;
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper(
-      new LocalTaskQueueTestConfig(),
-      new LocalDatastoreServiceTestConfig());
+      new LocalTaskQueueTestConfig());
 
 
 
   @BeforeEach
   public void setUp() throws Exception {
-
     helper.setUp();
     storageHelper = new CloudStorageIntegrationTestHelper();
     storageHelper.setUp();
