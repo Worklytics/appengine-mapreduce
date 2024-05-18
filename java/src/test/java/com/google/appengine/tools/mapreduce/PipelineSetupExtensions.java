@@ -20,6 +20,7 @@ import java.util.List;
 @Retention(RetentionPolicy.RUNTIME)
 @ExtendWith({
   DatastoreExtension.class,
+  DatastoreExtension.ParameterResolver.class,
   //AppEngineEnvironmentExtension.class,
   PipelineComponentsExtension.class,
   PipelineComponentsExtension.ParameterResolver.class,
@@ -52,10 +53,6 @@ class PipelineComponentsExtension implements BeforeEachCallback {
   );
 
 
-  //static PipelineService reconstituteFromDatastoreOptions(DatastoreOptions options) {
-  //  return PipelineServiceFactory.newPipelineService(new AppEngineBackEnd(options.getService(), new AppEngineTaskQueue()));
-  //}
-
   @Override
   public void beforeEach(ExtensionContext extensionContext) throws Exception {
     datastore = (Datastore) extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).get(DatastoreExtension.DS_CONTEXT_KEY);
@@ -63,22 +60,12 @@ class PipelineComponentsExtension implements BeforeEachCallback {
     // can be serialized, then used to re-constitute connection to datastore emulator on another thread/process
     datastoreOptions = (DatastoreOptions) extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).get(DatastoreExtension.DS_OPTIONS_CONTEXT_KEY);
 
-    //hack to figure out what random projectId the emulator generated
-
-    //appEngineBackend = new AppEngineBackEnd(datastore, new AppEngineTaskQueue());
-    //pipelineService = PipelineServiceFactory.newPipelineService(appEngineBackend);
-    //pipelineManager = new PipelineManager(appEngineBackend);
-
-
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
       .put(ContextStoreKey.PIPELINE_SERVICE.name(), pipelineService);
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
       .put(ContextStoreKey.PIPELINE_MANAGER.name(), pipelineManager);
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
       .put(ContextStoreKey.APP_ENGINE_BACKEND.name(), appEngineBackend);
-
-    //hack to put pipelineManager into taskQueuecallback; we need to replace tasks client any way, so this will go away
-    //TestingTaskQueueCallback.pipelineManager = pipelineManager;
   }
 
   public static class ParameterResolver implements org.junit.jupiter.api.extension.ParameterResolver {
