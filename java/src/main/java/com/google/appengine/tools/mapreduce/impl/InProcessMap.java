@@ -101,7 +101,7 @@ public class InProcessMap<I, O, R> {
   @SuppressWarnings("unchecked")
   private MapOnlyMapper<I, O> getCopyOfMapper() {
     byte[] bytes = SerializationUtil.serializeToByteArray(mapper);
-    return (MapOnlyMapper<I, O>) SerializationUtil.deserialize(bytes);
+    return SerializationUtil.deserialize(bytes);
   }
 
   private static final DateTimeFormatter DATE_FORMAT =
