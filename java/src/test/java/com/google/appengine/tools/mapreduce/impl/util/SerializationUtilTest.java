@@ -17,6 +17,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
@@ -128,20 +130,28 @@ public class SerializationUtilTest {
     }
   }
 
-  @Test
-  public void testSerializeToDatastore() throws Exception {
-    Key key = this.datastore.newKeyFactory().setKind("mr-entity").newKey(1);
-    List<Value> values = asList(null, new Value(0), new Value(500), new Value(2000),
-        new Value(10000), new Value(1500));
-    for (Value original : values) {
-      Transaction tx = datastore.newTransaction();
-      Entity.Builder entity = Entity.newBuilder(key);
-      SerializationUtil.serializeToDatastoreProperty(tx, entity, "foo", original);
-      datastore.put(entity.build());
-      tx.commit();
-      Entity fromDb = datastore.get(key);
-      Serializable restored = SerializationUtil.deserializeFromDatastoreProperty(tx, fromDb, "foo");
-      assertEquals(original, restored);
-    }
+  @ParameterizedTest
+  @ValueSource(ints = { 0, 500,
+    2000, //sufficient to force sharding
+    4000,
+    // >4000 fails with emulator error: [datastore] io.grpc.StatusRuntimeException: INTERNAL: Frame size 5123097 exceeds maximum: 4194304. If this is normal, increase the maxMessageSize in the channel/server builder
+    // 5000, 10000
+  })
+  public void testSerializeToDatastore(int size) throws Exception {
+    Value original = new Value(size);
+
+    //q: why does this fail 'java.lang.NoSuchMethodError: 'boolean com.google.protobuf.GeneratedMessageV3.isStringEmpty(java.lang.Object)'' ???
+    Transaction tx = this.datastore.newTransaction();
+    Key key = tx.getDatastore().newKeyFactory().setKind("mr-entity").newKey(1+size);
+    Entity.Builder entity = Entity.newBuilder(key);
+    SerializationUtil.serializeToDatastoreProperty(tx, entity, "foo", original);
+    tx.put(entity.build());
+    tx.commit();
+
+    //read back in new txn
+    Entity fromDb = datastore.get(key);
+    Transaction readTx = datastore.newTransaction();
+    Serializable restored = SerializationUtil.deserializeFromDatastoreProperty(readTx, fromDb, "foo");
+    assertEquals(original, restored);
   }
 }

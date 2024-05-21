@@ -107,10 +107,11 @@ public class SerializationUtil {
         Blob value = entity.getBlob(property);
         bytes = value.toByteArray();
       } catch (ClassCastException e) {
-        List<Value<Key>> keys = entity.getList(property);
+        List<KeyValue> keys = entity.getList(property);
 
         //NOTE: fetch() important here; unlike get(), fetch() will return null for missing entities AND return in order
-        List<Entity> shards = tx.fetch(keys.toArray(new Key[keys.size()]));
+        List<Key> asKeys = keys.stream().map(KeyValue::get).collect(Collectors.toList());
+        List<Entity> shards = tx.fetch(asKeys.toArray(new Key[0]));
         ByteArrayOutputStream bout = new ByteArrayOutputStream();
         for (int i = 0; i < shards.size(); i++) {
           Entity shard = shards.get(i);
@@ -143,12 +144,13 @@ public class SerializationUtil {
   public static Iterable<Key> getShardedValueKeysFor(Transaction tx, Key parent, String property) {
 
     KeyQuery.Builder queryBuilder = Query.newKeyQueryBuilder()
-      .setKind(SHARDED_VALUE_KIND)
-      .setFilter(StructuredQuery.PropertyFilter.hasAncestor(parent));
+      .setKind(SHARDED_VALUE_KIND);
 
+    StructuredQuery.Filter filter = StructuredQuery.PropertyFilter.hasAncestor(parent);
     if (property != null) {
-      queryBuilder.setFilter(StructuredQuery.PropertyFilter.eq("property", property));
+      filter = StructuredQuery.CompositeFilter.and(filter, StructuredQuery.PropertyFilter.eq("property", property));
     }
+    queryBuilder.setFilter(filter);
 
     KeyQuery query = queryBuilder.build();
 
@@ -174,7 +176,7 @@ public class SerializationUtil {
 
     if (bytes.length < MAX_BLOB_BYTE_SIZE) {
       tx.delete(toDelete.toArray(new Key[toDelete.size()]));
-      entity.set(property, BlobValue.of(Blob.copyFrom(bytes)));
+      entity.set(property, BlobValue.newBuilder(Blob.copyFrom(bytes)).setExcludeFromIndexes(true).build());
     } else {
       int shardId = 0;
       int offset = 0;
