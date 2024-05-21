@@ -63,7 +63,6 @@ public class MapReduceServletTest{
     helper.setUp();
     servlet = new MapReduceServlet();
     servlet.setDatastore(datastore);
-    servlet.setMapReduceServletImpl(new MapReduceServletImpl(datastore));
   }
 
   @AfterEach
