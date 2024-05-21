@@ -29,6 +29,8 @@ import javax.servlet.http.HttpServletResponse;
  */
 public final class MapReduceServletImpl {
 
+  Datastore datastore;
+
   private static final Logger log = Logger.getLogger(MapReduceServlet.class.getName());
   private static final Map<String, Resource> RESOURCES = ImmutableMap.<String, Resource>builder()
       .put("status", new Resource("/_ah/pipeline/list?class_path=" + MapReduceJob.class.getName()))

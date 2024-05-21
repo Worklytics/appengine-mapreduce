@@ -140,7 +140,6 @@ public class SerializationUtilTest {
   public void testSerializeToDatastore(int size) throws Exception {
     Value original = new Value(size);
 
-    //q: why does this fail 'java.lang.NoSuchMethodError: 'boolean com.google.protobuf.GeneratedMessageV3.isStringEmpty(java.lang.Object)'' ???
     Transaction tx = this.datastore.newTransaction();
     Key key = tx.getDatastore().newKeyFactory().setKind("mr-entity").newKey(1+size);
     Entity.Builder entity = Entity.newBuilder(key);
