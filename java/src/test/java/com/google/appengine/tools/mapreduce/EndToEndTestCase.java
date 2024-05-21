@@ -147,6 +147,7 @@ public abstract class EndToEndTestCase {
       if (taskStateInfo.getUrl().startsWith(PipelineServlet.BASE_URL)) {
         pipelineServlet.doPost(request, response);
       } else {
+        mrServlet.setDatastore(getDatastore());
         mrServlet.doPost(request, response);
       }
     } else {

@@ -62,9 +62,8 @@ public class MapReduceServlet extends HttpServlet {
 
   private static final int REJECT_REQUEST_STATUSCODE = 429; // See rfc6585
 
-  @Setter(onMethod = @__({@VisibleForTesting}))
+
   Datastore datastore;
-  @Setter(onMethod = @__({@VisibleForTesting}))
   MapReduceServletImpl mapReduceServletImpl = new MapReduceServletImpl(datastore);
 
   @SneakyThrows
@@ -76,6 +75,12 @@ public class MapReduceServlet extends HttpServlet {
     if (mapReduceServletImpl == null) {
       mapReduceServletImpl = new MapReduceServletImpl(datastore);
     }
+  }
+
+  @VisibleForTesting
+  void setDatastore(Datastore datastore) {
+    this.datastore = datastore;
+    this.mapReduceServletImpl = new MapReduceServletImpl(datastore);
   }
 
   @Override
