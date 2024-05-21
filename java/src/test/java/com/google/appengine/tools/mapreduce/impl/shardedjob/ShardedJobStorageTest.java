@@ -53,8 +53,11 @@ public class ShardedJobStorageTest extends EndToEndTestCase {
   @Test
   public void testFetchJobById() {
     ShardedJobStateImpl<TestTask> job = createGenericJobState();
-    Entity entity = ShardedJobStateImpl.ShardedJobSerializer.toEntity(null, job);
-    getDatastore().put(entity);
+    Transaction tx = getDatastore().newTransaction();
+    Entity entity = ShardedJobStateImpl.ShardedJobSerializer.toEntity(tx, job);
+    tx.put(entity);
+    tx.commit();
+
     Entity readEntity = getDatastore().get(ShardedJobStateImpl.ShardedJobSerializer.makeKey(getDatastore(), "jobId"));
     assertEquals(entity, readEntity);
   }
@@ -73,8 +76,11 @@ public class ShardedJobStorageTest extends EndToEndTestCase {
     assertFalse(iterable.hasNext());
 
     ShardedJobStateImpl<TestTask> job = createGenericJobState();
-    Entity entity = ShardedJobStateImpl.ShardedJobSerializer.toEntity(null, job);
-    getDatastore().put(entity);
+
+    Transaction tx = getDatastore().newTransaction();
+    Entity entity = ShardedJobStateImpl.ShardedJobSerializer.toEntity(tx, job);
+    tx.put(entity);
+    tx.commit();
 
     QueryResults<Entity> expectOne = getDatastore().run(query);
     Entity singleEntity = expectOne.next();

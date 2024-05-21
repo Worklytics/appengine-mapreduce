@@ -9,6 +9,7 @@ import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.common.base.Preconditions;
+import lombok.NonNull;
 
 import java.util.BitSet;
 
@@ -133,7 +134,7 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
       return datastore.newKeyFactory().setKind(ENTITY_KIND).newKey(jobId);
     }
 
-    static Entity toEntity(Transaction tx, ShardedJobStateImpl<?> in) {
+    static Entity toEntity(@NonNull Transaction tx, ShardedJobStateImpl<?> in) {
       Key key = makeKey(tx.getDatastore(), in.getJobId());
       Entity.Builder jobState = Entity.newBuilder(key);
       serializeToDatastoreProperty(tx, jobState, CONTROLLER_PROPERTY, in.getController());
@@ -147,12 +148,12 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
       return jobState.build();
     }
 
-    static <T extends IncrementalTask> ShardedJobStateImpl<T> fromEntity(Transaction tx, Entity in) {
+    static <T extends IncrementalTask> ShardedJobStateImpl<T> fromEntity(@NonNull Transaction tx, Entity in) {
       return fromEntity(tx, in, false);
     }
 
     static <T extends IncrementalTask> ShardedJobStateImpl<T> fromEntity(
-      Transaction tx, Entity in, boolean lenient) {
+      @NonNull Transaction tx, Entity in, boolean lenient) {
       Preconditions.checkArgument(ENTITY_KIND.equals(in.getKey().getKind()), "Unexpected kind: %s", in);
       return new ShardedJobStateImpl<>(in.getKey().getName(),
           SerializationUtil.<ShardedJobController<T>>deserializeFromDatastoreProperty(tx, in, CONTROLLER_PROPERTY, lenient),

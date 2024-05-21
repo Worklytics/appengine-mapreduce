@@ -11,6 +11,7 @@ import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.apphosting.api.ApiProxy;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
+import lombok.NonNull;
 
 /**
  * Information about execution of an {@link IncrementalTask}.
@@ -187,11 +188,14 @@ public class IncrementalTaskState<T extends IncrementalTask> {
       taskState.set(JOB_ID_PROPERTY, in.getJobId());
       taskState.set(MOST_RECENT_UPDATE_MILLIS_PROPERTY,
         LongValue.newBuilder(in.getMostRecentUpdateMillis()).setExcludeFromIndexes(true).build());
-      if (in.getLockInfo().startTime != null) {
-        taskState.set(SLICE_START_TIME, LongValue.newBuilder(in.getLockInfo().startTime).setExcludeFromIndexes(true).build());
-      }
-      if (in.getLockInfo().requestId != null) {
-        taskState.set(SLICE_REQUEST_ID, StringValue.newBuilder(in.getLockInfo().requestId).setExcludeFromIndexes(true).build());
+
+      if (in.getLockInfo() != null) {
+        if (in.getLockInfo().startTime != null) {
+          taskState.set(SLICE_START_TIME, LongValue.newBuilder(in.getLockInfo().startTime).setExcludeFromIndexes(true).build());
+        }
+        if (in.getLockInfo().requestId != null) {
+          taskState.set(SLICE_REQUEST_ID, StringValue.newBuilder(in.getLockInfo().requestId).setExcludeFromIndexes(true).build());
+        }
       }
       taskState.set(SEQUENCE_NUMBER_PROPERTY, in.getSequenceNumber());
       taskState.set(RETRY_COUNT_PROPERTY, in.getRetryCount());
@@ -205,18 +209,25 @@ public class IncrementalTaskState<T extends IncrementalTask> {
     }
 
     public static <T extends IncrementalTask> IncrementalTaskState<T> fromEntity(
-      Transaction tx, Entity in, boolean lenient) {
+        @NonNull Transaction tx,
+        Entity in,
+        boolean lenient) {
       Preconditions.checkArgument(ENTITY_KIND.equals(in.getKey().getKind()), "Unexpected kind: %s", in);
+      LockInfo lockInfo = null;
+      if (in.contains(SLICE_START_TIME)) {
+        lockInfo = new LockInfo(in.getLong(SLICE_START_TIME),
+          in.getString(SLICE_REQUEST_ID));
+      }
+
       IncrementalTaskState<T> state = new IncrementalTaskState<>(in.getKey().getName(),
           in.getString(JOB_ID_PROPERTY),
           in.getLong(MOST_RECENT_UPDATE_MILLIS_PROPERTY),
-          new LockInfo(in.getLong(SLICE_START_TIME),
-              in.getString(SLICE_REQUEST_ID)),
-          in.getProperties().containsKey(NEXT_TASK_PROPERTY) ? SerializationUtil.deserializeFromDatastoreProperty(tx, in, NEXT_TASK_PROPERTY, lenient) : null,
+          null,
+          in.contains(NEXT_TASK_PROPERTY) ? SerializationUtil.deserializeFromDatastoreProperty(tx, in, NEXT_TASK_PROPERTY, lenient) : null,
           SerializationUtil.deserializeFromDatastoreProperty(tx, in, STATUS_PROPERTY));
       state.setSequenceNumber(
           Ints.checkedCast(in.getLong(SEQUENCE_NUMBER_PROPERTY)));
-      if (in.getProperties().containsKey(RETRY_COUNT_PROPERTY)) {
+      if (in.contains(RETRY_COUNT_PROPERTY)) {
         state.retryCount = Ints.checkedCast(in.getLong(RETRY_COUNT_PROPERTY));
       }
       return state;
@@ -224,7 +235,7 @@ public class IncrementalTaskState<T extends IncrementalTask> {
 
     static boolean hasNextTask(Entity in) {
       Preconditions.checkArgument(ENTITY_KIND.equals(in.getKey().getKind()), "Unexpected kind: %s", in);
-      return in.getProperties().containsKey(NEXT_TASK_PROPERTY);
+      return in.contains(NEXT_TASK_PROPERTY);
     }
   }
 }

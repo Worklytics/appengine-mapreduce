@@ -584,7 +584,9 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
     if (initialTasks.isEmpty()) {
       log.info(jobId + ": No tasks, immediately complete: " + controller);
       jobState.setStatus(new Status(DONE));
-      datastore.put(ShardedJobStateImpl.ShardedJobSerializer.toEntity(null, jobState));
+      Transaction tx = datastore.newTransaction();
+      datastore.put(ShardedJobStateImpl.ShardedJobSerializer.toEntity(tx, jobState));
+      tx.commit();
       controller.completed(Collections.<T>emptyIterator());
     } else {
       writeInitialJobState(datastore, jobState);
