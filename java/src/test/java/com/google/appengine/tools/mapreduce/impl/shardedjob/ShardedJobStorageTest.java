@@ -23,10 +23,14 @@ public class ShardedJobStorageTest extends EndToEndTestCase {
     Transaction tx = getDatastore().newTransaction();
     Entity entity = ShardedJobStateImpl.ShardedJobSerializer.toEntity(tx, job);
     tx.put(entity);
-    Entity readEntity = tx.get(entity.getKey());
+    tx.commit();
+
+    Transaction readTx = getDatastore().newTransaction();
+
+    Entity readEntity = readTx.get(entity.getKey());
     assertEquals(entity, readEntity);
     ShardedJobStateImpl<TestTask> fromEntity =
-        ShardedJobStateImpl.ShardedJobSerializer.fromEntity(tx, readEntity);
+        ShardedJobStateImpl.ShardedJobSerializer.fromEntity(readTx, readEntity);
     assertEquals(job.getJobId(), fromEntity.getJobId());
     assertEquals(job.getActiveTaskCount(), fromEntity.getActiveTaskCount());
     assertEquals(job.getMostRecentUpdateTimeMillis(), fromEntity.getMostRecentUpdateTimeMillis());
@@ -40,14 +44,14 @@ public class ShardedJobStorageTest extends EndToEndTestCase {
   @Test
   public void testExpectedFields() {
     ShardedJobStateImpl<TestTask> job = createGenericJobState();
-    Entity entity = ShardedJobStateImpl.ShardedJobSerializer.toEntity(null, job);
-    Map<String, Value<?>> properties = entity.getProperties();
-    assertEquals(10, properties.get("taskCount"));
-    assertTrue(properties.containsKey("activeShards"));
-    assertTrue(properties.containsKey("status"));
-    assertTrue(properties.containsKey("startTimeMillis"));
-    assertTrue(properties.containsKey("settings"));
-    assertTrue(properties.containsKey("mostRecentUpdateTimeMillis"));
+    Transaction tx = getDatastore().newTransaction();
+    Entity entity = ShardedJobStateImpl.ShardedJobSerializer.toEntity(tx, job);
+    assertEquals(10, entity.getLong("taskCount"));
+    assertTrue(entity.contains("activeShards"));
+    assertTrue(entity.contains("status"));
+    assertTrue(entity.contains("startTimeMillis"));
+    assertTrue(entity.contains("settings"));
+    assertTrue(entity.contains("mostRecentUpdateTimeMillis"));
   }
 
   @Test
