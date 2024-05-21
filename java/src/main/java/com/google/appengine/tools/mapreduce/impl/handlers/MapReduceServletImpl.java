@@ -14,6 +14,7 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.common.collect.ImmutableMap;
+import lombok.AllArgsConstructor;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,6 +28,7 @@ import javax.servlet.http.HttpServletResponse;
 
 /**
  */
+@AllArgsConstructor
 public final class MapReduceServletImpl {
 
   Datastore datastore;
@@ -74,13 +76,10 @@ public final class MapReduceServletImpl {
     }
   }
 
-  private MapReduceServletImpl() {
-  }
-
   /**
    * Handle GET http requests.
    */
-  public static void doGet(HttpServletRequest request, HttpServletResponse response)
+  public void doGet(HttpServletRequest request, HttpServletResponse response)
       throws IOException {
     String handler = getHandler(request);
     if (handler.startsWith(COMMAND_PATH)) {
@@ -96,12 +95,10 @@ public final class MapReduceServletImpl {
   /**
    * Handle POST http requests.
    */
-  public static void doPost(HttpServletRequest request, HttpServletResponse response)
+  public void doPost(HttpServletRequest request, HttpServletResponse response)
       throws IOException {
     String handler = getHandler(request);
 
-    //datastore, setting namespace for request somehow
-    Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
     if (handler.startsWith(CONTROLLER_PATH)) {
       if (!checkForTaskQueue(request, response)) {
         return;

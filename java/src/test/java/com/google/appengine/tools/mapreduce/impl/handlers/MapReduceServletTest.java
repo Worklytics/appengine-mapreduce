@@ -30,6 +30,8 @@ import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.MapReduceJob;
 import com.google.appengine.tools.mapreduce.MapReduceServlet;
 
+import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
+import com.google.cloud.datastore.Datastore;
 import junit.framework.TestCase;
 
 import org.easymock.EasyMock;
@@ -47,18 +49,21 @@ import javax.servlet.http.HttpServletResponse;
  * Tests MapReduceServlet
  *
  */
+@PipelineSetupExtensions
 public class MapReduceServletTest{
 
   private final LocalServiceTestHelper helper =
-      new LocalServiceTestHelper(new LocalDatastoreServiceTestConfig(),
+      new LocalServiceTestHelper(
           new LocalTaskQueueTestConfig(), new LocalMemcacheServiceTestConfig());
 
   private MapReduceServlet servlet;
 
   @BeforeEach
-  public void setUp() throws Exception {
+  public void setUp(Datastore datastore) throws Exception {
     helper.setUp();
     servlet = new MapReduceServlet();
+    servlet.setDatastore(datastore);
+    servlet.setMapReduceServletImpl(new MapReduceServletImpl(datastore));
   }
 
   @AfterEach
