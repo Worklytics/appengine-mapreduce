@@ -11,6 +11,7 @@ import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.apphosting.api.ApiProxy;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
+import lombok.Getter;
 import lombok.NonNull;
 
 /**
@@ -20,6 +21,7 @@ import lombok.NonNull;
  *
  * @param <T> type of task
  */
+@Getter
 public class IncrementalTaskState<T extends IncrementalTask> {
 
   private final String taskId;
@@ -31,10 +33,13 @@ public class IncrementalTaskState<T extends IncrementalTask> {
   private Status status;
   private LockInfo lockInfo;
 
-  static class LockInfo {
+  public static class LockInfo {
 
     private static final String REQUEST_ID = "com.google.appengine.runtime.request_log_id";
+
     private Long startTime;
+
+    @Getter
     private String requestId;
 
     private LockInfo(Long startTime, String requestId) {
@@ -48,10 +53,6 @@ public class IncrementalTaskState<T extends IncrementalTask> {
 
     public long lockedSince() {
       return startTime == null ? -1 : startTime;
-    }
-
-    public String getRequestId() {
-      return requestId;
     }
 
     public void lock() {
@@ -89,25 +90,9 @@ public class IncrementalTaskState<T extends IncrementalTask> {
     this.status = status;
   }
 
-  public String getTaskId() {
-    return taskId;
-  }
-
-  public String getJobId() {
-    return jobId;
-  }
-
-  public long getMostRecentUpdateMillis() {
-    return mostRecentUpdateMillis;
-  }
-
   IncrementalTaskState<T> setMostRecentUpdateMillis(long mostRecentUpdateMillis) {
     this.mostRecentUpdateMillis = mostRecentUpdateMillis;
     return this;
-  }
-
-  public int getSequenceNumber() {
-    return sequenceNumber;
   }
 
   IncrementalTaskState<T> setSequenceNumber(int nextSequenceNumber) {
@@ -115,9 +100,6 @@ public class IncrementalTaskState<T extends IncrementalTask> {
     return this;
   }
 
-  public int getRetryCount() {
-    return retryCount;
-  }
 
   int incrementAndGetRetryCount() {
     return ++retryCount;
@@ -127,21 +109,9 @@ public class IncrementalTaskState<T extends IncrementalTask> {
     retryCount = 0;
   }
 
-  public LockInfo getLockInfo() {
-    return lockInfo;
-  }
-
-  /*Nullable*/ public T getTask() {
-    return task;
-  }
-
   IncrementalTaskState<T> setTask(T task) {
     this.task = task;
     return this;
-  }
-
-  public Status getStatus() {
-    return status;
   }
 
   IncrementalTaskState<T> setStatus(Status status) {
