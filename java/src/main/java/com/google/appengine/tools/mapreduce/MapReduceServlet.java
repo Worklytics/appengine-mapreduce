@@ -78,7 +78,7 @@ public class MapReduceServlet extends HttpServlet {
   }
 
   @VisibleForTesting
-  void setDatastore(Datastore datastore) {
+  public void setDatastore(Datastore datastore) {
     this.datastore = datastore;
     this.mapReduceServletImpl = new MapReduceServletImpl(datastore);
   }
