@@ -16,17 +16,15 @@ package com.google.appengine.tools.mapreduce;
 
 import com.google.appengine.tools.mapreduce.impl.handlers.MapReduceServletImpl;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.RejectRequestException;
+import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.cloud.datastore.Datastore;
-import com.google.cloud.datastore.DatastoreOptions;
 import com.google.common.annotations.VisibleForTesting;
-import lombok.Setter;
-import lombok.SneakyThrows;
+
 
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -63,19 +61,9 @@ public class MapReduceServlet extends HttpServlet {
   private static final int REJECT_REQUEST_STATUSCODE = 429; // See rfc6585
 
 
+  RequestUtils requestUtils = new RequestUtils();
   Datastore datastore;
-  MapReduceServletImpl mapReduceServletImpl = new MapReduceServletImpl(datastore);
-
-  @SneakyThrows
-  public void init() {
-    super.init();
-    if (datastore == null) {
-      datastore = DatastoreOptions.getDefaultInstance().getService();
-    }
-    if (mapReduceServletImpl == null) {
-      mapReduceServletImpl = new MapReduceServletImpl(datastore);
-    }
-  }
+  MapReduceServletImpl mapReduceServletImpl;
 
   @VisibleForTesting
   public void setDatastore(Datastore datastore) {
@@ -86,7 +74,9 @@ public class MapReduceServlet extends HttpServlet {
   @Override
   public void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     //datastore, setting namespace for request somehow
-    init();
+    if (this.datastore == null) {
+      this.setDatastore(requestUtils.buildDatastoreFromRequest(req));
+    }
     try {
       mapReduceServletImpl.doPost(req, resp);
     } catch (RejectRequestException e) {
@@ -96,7 +86,10 @@ public class MapReduceServlet extends HttpServlet {
 
   @Override
   public void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    init();
+    if (this.datastore == null) {
+      this.setDatastore(requestUtils.buildDatastoreFromRequest(req));
+    }
+
     try {
       mapReduceServletImpl.doGet(req, resp);
     } catch (RejectRequestException e) {

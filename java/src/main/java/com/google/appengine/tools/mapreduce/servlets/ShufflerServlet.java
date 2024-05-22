@@ -26,6 +26,7 @@ import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
 import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.impl.MapReduceConstants;
+import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInput;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
 import com.google.appengine.tools.mapreduce.inputs.UnmarshallingInput;
@@ -125,6 +126,7 @@ public class ShufflerServlet extends HttpServlet {
           .setBucketName(shufflerParams.getGcsBucket())
           .setWorkerQueueName(shufflerParams.getShufflerQueue())
           .setServiceAccountKey(shufflerParams.getServiceAccountKey())
+          .setNamespace(shufflerParams.getNamespace())
           .build();
     }
 
@@ -225,7 +227,8 @@ public class ShufflerServlet extends HttpServlet {
   /**
    * Notifies the caller that the job has completed.
    */
-  private static void enqueueCallbackTask(final ShufflerParams shufflerParams, final String url,
+  private static void enqueueCallbackTask(final ShufflerParams shufflerParams,
+                                          final String url,
                                           final String taskName) {
     RetryExecutor.call(getRetryerBuilder(), callable(() -> {
         String hostname = ModulesServiceFactory.getModulesService().getVersionHostname(
@@ -234,7 +237,9 @@ public class ShufflerServlet extends HttpServlet {
         String separator = shufflerParams.getCallbackPath().contains("?") ? "&" : "?";
         try {
           queue.add(TaskOptions.Builder.withUrl(shufflerParams.getCallbackPath() + separator + url)
-              .method(TaskOptions.Method.GET).header("Host", hostname).taskName(taskName));
+            .method(TaskOptions.Method.GET)
+            .param(RequestUtils.PARAM_NAMESPACE, shufflerParams.getNamespace())
+            .header("Host", hostname).taskName(taskName));
         } catch (TaskAlreadyExistsException e) {
           // harmless dup.
         }
@@ -272,8 +277,10 @@ public class ShufflerServlet extends HttpServlet {
   public void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     ShufflerParams shufflerParams = readShufflerParams(req.getInputStream());
     PipelineService service = PipelineServiceFactory.newPipelineService();
-    String pipelineId = service.startNewPipeline(new ShuffleMapReduce(shufflerParams),
-        new JobSetting.OnQueue(shufflerParams.getShufflerQueue()));
+    String pipelineId = service.startNewPipeline(
+        new ShuffleMapReduce(shufflerParams),
+        new JobSetting.OnQueue(shufflerParams.getShufflerQueue()),
+        new JobSetting.DatastoreNamespace(shufflerParams.getNamespace()));
     log.info("Started shuffler: jobId=" + pipelineId + ", params=" + shufflerParams);
 
     resp.setStatus(HttpServletResponse.SC_OK);

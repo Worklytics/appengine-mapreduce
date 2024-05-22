@@ -142,9 +142,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     protected Datastore getDatastore() {
       if (datastore == null) {
-        datastore = DatastoreOptions.getDefaultInstance().toBuilder()
-          .setNamespace(settings.getNamespace())
-          .build().getService();
+        datastore = settings.applyToDatastoreOptions(DatastoreOptions.getDefaultInstance()).getService();
       }
       return datastore;
     }
@@ -199,10 +197,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       WorkerController<I, KeyValue<K, V>, FilesByShard, MapperContext<K, V>> workerController =
           new WorkerController<>(mrJobId, new CountersImpl(), output, resultAndStatus.getHandle());
 
-      DatastoreOptions datastoreOptions =
-        DatastoreOptions.getDefaultInstance().toBuilder()
-          .setNamespace(settings.getNamespace())
-          .build();
+      DatastoreOptions datastoreOptions = settings.applyToDatastoreOptions(DatastoreOptions.getDefaultInstance());
       ShardedJob<?> shardedJob =
           new ShardedJob<>(datastoreOptions, getShardedJobId(), mapTasks.build(), workerController, shardedJobSettings);
       FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());
@@ -308,10 +303,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
           FilesByShard, SortContext> workerController = new WorkerController<>(mrJobId,
           mapResult.getCounters(), output, resultAndStatus.getHandle());
 
-      DatastoreOptions datastoreOptions =
-        DatastoreOptions.getDefaultInstance().toBuilder()
-          .setNamespace(settings.getNamespace())
-          .build();
+      DatastoreOptions datastoreOptions = settings.applyToDatastoreOptions(DatastoreOptions.getDefaultInstance());
       ShardedJob<?> shardedJob =
           new ShardedJob<>(datastoreOptions, getShardedJobId(), sortTasks.build(), workerController, shardedJobSettings);
       FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());
@@ -428,10 +420,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       WorkerController<KeyValue<ByteBuffer, Iterator<ByteBuffer>>,
           KeyValue<ByteBuffer, List<ByteBuffer>>, FilesByShard, MergeContext> workerController =
           new WorkerController<>(mrJobId, priorResult.getCounters(), output, resultAndStatus.getHandle());
-      DatastoreOptions datastoreOptions =
-        DatastoreOptions.getDefaultInstance().toBuilder()
-          .setNamespace(settings.getNamespace())
-          .build();
+      DatastoreOptions datastoreOptions = settings.applyToDatastoreOptions(DatastoreOptions.getDefaultInstance());
       ShardedJob<?> shardedJob =
           new ShardedJob<>(datastoreOptions, getShardedJobId(), mergeTasks.build(), workerController, shardedJobSettings);
       FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());
@@ -524,10 +513,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       WorkerController<KeyValue<K, Iterator<V>>, O, R, ReducerContext<O>> workerController =
           new WorkerController<>(mrJobId, mergeResult.getCounters(), output,
               resultAndStatus.getHandle());
-      DatastoreOptions datastoreOptions =
-        DatastoreOptions.getDefaultInstance().toBuilder()
-          .setNamespace(settings.getNamespace())
-          .build();
+      DatastoreOptions datastoreOptions = settings.applyToDatastoreOptions(DatastoreOptions.getDefaultInstance());
       ShardedJob<?> shardedJob =
           new ShardedJob<>(datastoreOptions, getShardedJobId(), reduceTasks.build(), workerController, shardedJobSettings);
       FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());

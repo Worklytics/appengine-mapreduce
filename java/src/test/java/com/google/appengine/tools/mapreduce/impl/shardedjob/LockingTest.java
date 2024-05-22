@@ -176,6 +176,7 @@ public class LockingTest extends EndToEndTestCase {
     assertDone(jobId);
   }
 
+  // times out??
   /**
    * Tests lock expiration
    */

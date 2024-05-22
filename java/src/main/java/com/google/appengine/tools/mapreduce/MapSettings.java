@@ -8,7 +8,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.github.rholder.retry.*;
 import com.google.appengine.api.backends.BackendService;
 import com.google.appengine.api.backends.BackendServiceFactory;
-import com.google.appengine.api.datastore.Key;
 import com.google.appengine.api.modules.ModulesException;
 import com.google.appengine.api.modules.ModulesService;
 import com.google.appengine.api.modules.ModulesServiceFactory;
@@ -18,6 +17,8 @@ import com.google.appengine.api.taskqueue.TransientFailureException;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
+import com.google.cloud.datastore.DatastoreOptions;
+import com.google.cloud.datastore.Key;
 import com.google.common.base.Preconditions;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -256,6 +257,7 @@ public class MapSettings implements Serializable {
     settings[0] = new JobSetting.OnBackend(backend);
     settings[1] = new JobSetting.OnService(module);
     settings[2] = new JobSetting.OnQueue(workerQueueName);
+    settings[3] = new JobSetting.DatastoreNamespace(namespace);
     System.arraycopy(extra, 0, settings, 3, extra.length);
     return settings;
   }
@@ -344,5 +346,13 @@ public class MapSettings implements Serializable {
       }
     }
     return queueName;
+  }
+
+  DatastoreOptions applyToDatastoreOptions(DatastoreOptions options) {
+    if (namespace == null) {
+      return options;
+    } else {
+      return options.toBuilder().setNamespace(namespace).build();
+    }
   }
 }

@@ -35,6 +35,7 @@ class ShufflerParams implements Serializable, GcpCredentialOptions {
 
   private String shufflerQueue;
   private String gcsBucket;
+  private String namespace;
   private String[] inputFileNames;
   private String outputDir;
   private String serviceAccountKey;

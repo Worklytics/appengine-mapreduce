@@ -12,8 +12,8 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskState
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobService;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobServiceFactory;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobState;
+import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.cloud.datastore.Datastore;
-import com.google.cloud.datastore.DatastoreOptions;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.Longs;
 
@@ -25,6 +25,7 @@ import com.googlecode.charts4j.GCharts;
 import com.googlecode.charts4j.Plot;
 import com.googlecode.charts4j.Plots;
 
+import lombok.NoArgsConstructor;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -43,20 +44,19 @@ import javax.servlet.http.HttpServletResponse;
  * UI Status view logic handler.
  *
  */
+@NoArgsConstructor
 final class StatusHandler {
 
   private static final Logger log = Logger.getLogger(StatusHandler.class.getName());
 
   public static final int DEFAULT_JOBS_PER_PAGE_COUNT = 50;
 
+
   // Command paths
   public static final String LIST_JOBS_PATH = "list_jobs";
   public static final String CLEANUP_JOB_PATH = "cleanup_job";
   public static final String ABORT_JOB_PATH = "abort_job";
   public static final String GET_JOB_DETAIL_PATH = "get_job_detail";
-
-  private StatusHandler() {
-  }
 
   private static JSONObject handleCleanupJob(Datastore datastore, String jobId) throws JSONException {
     JSONObject retValue = new JSONObject();
@@ -84,8 +84,10 @@ final class StatusHandler {
     boolean isPost = "POST".equals(request.getMethod());
     JSONObject retValue = null;
 
-    //TODO: parse from request
-    Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
+    //TODO: in imminent future, will be injected and this won't be static method
+    RequestUtils requestUtil = new RequestUtils();
+    Datastore datastore = requestUtil.buildDatastoreFromRequest(request);
+
     try {
       if (command.equals(LIST_JOBS_PATH) && !isPost) {
         retValue = handleListJobs(request);
