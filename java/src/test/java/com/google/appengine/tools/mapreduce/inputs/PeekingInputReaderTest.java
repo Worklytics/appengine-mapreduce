@@ -5,7 +5,6 @@ import com.google.appengine.tools.mapreduce.Marshaller;
 import com.google.appengine.tools.mapreduce.Marshallers;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 
-import junit.framework.TestCase;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;

@@ -23,7 +23,6 @@ import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.verify;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalMemcacheServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
@@ -32,8 +31,6 @@ import com.google.appengine.tools.mapreduce.MapReduceServlet;
 
 import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
 import com.google.cloud.datastore.Datastore;
-import junit.framework.TestCase;
-
 import org.easymock.EasyMock;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
