@@ -9,6 +9,8 @@ import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.common.base.Preconditions;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NonNull;
 
 import java.util.BitSet;
@@ -20,6 +22,8 @@ import java.util.BitSet;
  *
  * @param <T> type of the IncrementalTask
  */
+@Getter
+@EqualsAndHashCode
 class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState {
 
   private final String jobId;
@@ -50,35 +54,7 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
     this.startTimeMillis = startTimeMillis;
     this.mostRecentUpdateTimeMillis = startTimeMillis;
     this.status = status;
-  }
 
-  @Override
-  public String getJobId() {
-    return jobId;
-  }
-
-  ShardedJobController<T> getController() {
-    return controller;
-  }
-
-  @Override
-  public ShardedJobSettings getSettings() {
-    return settings;
-  }
-
-  @Override
-  public int getTotalTaskCount() {
-    return totalTaskCount;
-  }
-
-  @Override
-  public long getStartTimeMillis() {
-    return startTimeMillis;
-  }
-
-  @Override
-  public long getMostRecentUpdateTimeMillis() {
-    return mostRecentUpdateTimeMillis;
   }
 
   @Override public int getActiveTaskCount() {
@@ -97,11 +73,6 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
   ShardedJobStateImpl<T> setMostRecentUpdateTimeMillis(long mostRecentUpdateTimeMillis) {
     this.mostRecentUpdateTimeMillis = mostRecentUpdateTimeMillis;
     return this;
-  }
-
-  @Override
-  public Status getStatus() {
-    return status;
   }
 
   ShardedJobStateImpl<T> setStatus(Status status) {

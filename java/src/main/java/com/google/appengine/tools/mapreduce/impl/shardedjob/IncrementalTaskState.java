@@ -194,7 +194,7 @@ public class IncrementalTaskState<T extends IncrementalTask> {
       IncrementalTaskState<T> state = new IncrementalTaskState<>(in.getKey().getName(),
           in.getString(JOB_ID_PROPERTY),
           in.getLong(MOST_RECENT_UPDATE_MILLIS_PROPERTY),
-          null,
+          lockInfo,
           in.contains(NEXT_TASK_PROPERTY) ? SerializationUtil.deserializeFromDatastoreProperty(tx, in, NEXT_TASK_PROPERTY, lenient) : null,
           SerializationUtil.deserializeFromDatastoreProperty(tx, in, STATUS_PROPERTY));
       state.setSequenceNumber(

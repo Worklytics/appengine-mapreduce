@@ -124,8 +124,10 @@ public class MapSettings implements Serializable {
     }
 
     /**
-     * Specifies the Module that the job will run on.
-     * If this is not set or {@code null}, it will run on the current module.
+     * Specifies the Module (Service) that the job will run on.
+     * If this is not set or {@code null}, it will run on the current module (service).
+     *
+     * in appengine gen2, these are called services
      */
     public B setModule(String module) {
       this.module = module;
