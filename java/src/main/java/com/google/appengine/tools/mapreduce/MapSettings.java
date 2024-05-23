@@ -25,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 
 import java.io.Serializable;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -63,8 +64,14 @@ public class MapSettings implements Serializable {
   public static final int DEFAULT_SHARD_RETRIES = 4;
   public static final int DEFAULT_SLICE_RETRIES = 20;
 
+
+  @Getter
+  private final String projectId;
+  @Getter
+  private final String databaseId;
   @Getter
   private final String namespace;
+
   private final String baseUrl;
   private final String backend;
   private final String module;
@@ -77,6 +84,8 @@ public class MapSettings implements Serializable {
   @ToString
   abstract static class BaseBuilder<B extends BaseBuilder<B>> {
 
+    protected String projectId;
+    protected String databaseId;
     protected String namespace;
     protected String baseUrl = DEFAULT_BASE_URL;
     protected String module;
@@ -91,6 +100,8 @@ public class MapSettings implements Serializable {
     }
 
     BaseBuilder(MapSettings settings) {
+      projectId = settings.getProjectId();
+      databaseId = settings.getDatabaseId();
       namespace = settings.getNamespace();
       baseUrl = settings.getBaseUrl();
       module = settings.getModule();
@@ -185,6 +196,15 @@ public class MapSettings implements Serializable {
       return self();
     }
 
+    public B setProjectId(String projectId) {
+      this.projectId = projectId;
+      return self();
+    }
+
+    public B setDatabaseId(String databaseId) {
+      this.databaseId = databaseId;
+      return self();
+    }
   }
 
   public static class Builder extends BaseBuilder<Builder> {
@@ -209,6 +229,8 @@ public class MapSettings implements Serializable {
   MapSettings(BaseBuilder<?> builder) {
     Preconditions.checkArgument(
         builder.module == null || builder.backend == null, "Module and Backend cannot be combined");
+    projectId = builder.projectId;
+    databaseId = builder.databaseId;
     namespace = builder.namespace;
     baseUrl = builder.baseUrl;
     module = builder.module;
@@ -253,12 +275,12 @@ public class MapSettings implements Serializable {
   }
 
   JobSetting[] toJobSettings(JobSetting... extra) {
-    JobSetting[] settings = new JobSetting[3 + extra.length];
+    JobSetting[] settings = new JobSetting[4 + extra.length];
     settings[0] = new JobSetting.OnBackend(backend);
     settings[1] = new JobSetting.OnService(module);
     settings[2] = new JobSetting.OnQueue(workerQueueName);
     settings[3] = new JobSetting.DatastoreNamespace(namespace);
-    System.arraycopy(extra, 0, settings, 3, extra.length);
+    System.arraycopy(extra, 0, settings, 4, extra.length);
     return settings;
   }
 
@@ -348,11 +370,15 @@ public class MapSettings implements Serializable {
     return queueName;
   }
 
-  DatastoreOptions applyToDatastoreOptions(DatastoreOptions options) {
-    if (namespace == null) {
-      return options;
-    } else {
-      return options.toBuilder().setNamespace(namespace).build();
+  DatastoreOptions getDatastoreOptions() {
+    DatastoreOptions.Builder optionsBuilder = DatastoreOptions.newBuilder();
+    optionsBuilder.setProjectId(Optional.ofNullable(projectId).orElseGet(DatastoreOptions::getDefaultProjectId));
+    if (databaseId != null) {
+      optionsBuilder.setDatabaseId(databaseId);
     }
+    if (namespace != null) {
+      optionsBuilder.setNamespace(namespace);
+    }
+    return optionsBuilder.build();
   }
 }

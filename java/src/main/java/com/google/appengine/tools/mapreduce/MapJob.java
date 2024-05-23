@@ -78,7 +78,12 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
             + " job, using 'default'");
         queue = DEFAULT_QUEUE_NAME;
       }
-      settings = new MapReduceSettings.Builder().setWorkerQueueName(queue).build();
+      settings = new MapReduceSettings.Builder()
+        .setProjectId(settings.getProjectId())
+        .setDatabaseId(settings.getDatabaseId())
+        .setNamespace(settings.getNamespace())
+        .setWorkerQueueName(queue)
+        .build();
     }
     String jobId = getJobKey().getName();
     Context context = new BaseContext(jobId);
@@ -106,7 +111,7 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
     WorkerController<I, O, R, MapOnlyMapperContext<O>> workerController = new WorkerController<>(
         jobId, new CountersImpl(), output, resultAndStatus.getHandle());
     ShardedJob<?> shardedJob =
-        new ShardedJob<>(settings.applyToDatastoreOptions(DatastoreOptions.getDefaultInstance()), jobId, mapTasks.build(), workerController, shardedJobSettings);
+        new ShardedJob<>(settings.getDatastoreOptions(), jobId, mapTasks.build(), workerController, shardedJobSettings);
     FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());
     JobSetting[] jobSetting = settings.toJobSettings(waitFor(shardedJobResult),
             statusConsoleUrl(shardedJobSettings.getMapReduceStatusUrl()), maxAttempts(1));

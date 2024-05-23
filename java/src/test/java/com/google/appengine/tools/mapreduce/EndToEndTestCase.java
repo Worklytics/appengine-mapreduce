@@ -15,15 +15,14 @@ import com.google.appengine.tools.development.testing.LocalModulesServiceTestCon
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobHandler;
-import com.google.appengine.tools.pipeline.Injectable;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
-import com.google.appengine.tools.pipeline.impl.util.DIUtil;
 import com.google.cloud.datastore.Datastore;
 import com.google.common.base.CharMatcher;
 
 import lombok.Getter;
+import lombok.Setter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
@@ -46,7 +45,7 @@ public abstract class EndToEndTestCase {
   private static final Logger logger = Logger.getLogger(EndToEndTestCase.class.getName());
 
   private MapReduceServlet mrServlet = new MapReduceServlet();
-  private PipelineServlet pipelineServlet = new PipelineServlet();
+
   private final LocalServiceTestHelper helper =
       new LocalServiceTestHelper(
           new LocalTaskQueueTestConfig().setDisableAutoTaskExecution(true),
@@ -57,11 +56,6 @@ public abstract class EndToEndTestCase {
   /** Implement in sub-classes to set system environment properties for tests. */
   protected Map<String, String> getEnvAttributes() throws Exception {
     return null;
-  }
-
-  @Injectable(PipelineServlet.class)
-  static class InjectablePipelineServlet extends PipelineServlet {
-
   }
 
   @Getter
@@ -80,6 +74,14 @@ public abstract class EndToEndTestCase {
   }
 
   @Getter
+  PipelineServlet pipelineServlet;
+  @BeforeEach
+  public void setPipelineServlet(PipelineServlet pipelineServlet) {
+    this.pipelineServlet = pipelineServlet;
+  }
+
+
+  @Getter
   private CloudStorageIntegrationTestHelper storageTestHelper;
 
   @BeforeEach
@@ -93,10 +95,6 @@ public abstract class EndToEndTestCase {
     // Creating files is not allowed in some test execution environments, so don't.
     storageTestHelper = new CloudStorageIntegrationTestHelper();
     storageTestHelper.setUp();
-
-    pipelineServlet = new PipelineServlet();
-    DIUtil.inject(pipelineServlet);
-    pipelineServlet.init();
   }
 
   @AfterEach

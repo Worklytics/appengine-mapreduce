@@ -142,7 +142,11 @@ public class EndToEndTest extends EndToEndTestCase {
 
   private <I, O, R> void runTest(MapSpecification<I, O, R> mrSpec, Verifier<R> verifier)
       throws Exception {
-    runTest(mrSpec, new MapSettings.Builder().build(), verifier);
+    runTest(mrSpec, new MapSettings.Builder()
+      .setProjectId(getDatastore().getOptions().getProjectId())
+      .setNamespace(getDatastore().getOptions().getNamespace())
+      .setDatabaseId(getDatastore().getOptions().getDatabaseId())
+      .build(), verifier);
   }
 
   private <I, O, R> void runTest(MapSpecification<I, O, R> mrSpec, MapSettings settings,

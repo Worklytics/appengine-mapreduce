@@ -54,13 +54,13 @@ public class DatastoreExtension implements BeforeAllCallback, AfterAllCallback, 
         log.log(Level.WARNING, "DatastoreExtension : Failed to stop datastore emulator; retrying...", e);
       }
     }
-    //log.info("Datastore emulator stopped");
+    log.info("Datastore emulator stopped");
   }
 
   @Override
   public void beforeEach(ExtensionContext extensionContext) throws Exception {
     globalDatastoreHelper.reset();
-    //log.info("Datastore emulator reset");
+    log.info("Datastore emulator reset");
     DatastoreOptions options = globalDatastoreHelper.getOptions().toBuilder()
       .setProjectId(TEST_DATASTORE_PROJECT_ID)
       .build();
