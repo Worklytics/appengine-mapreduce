@@ -2,10 +2,9 @@
 
 package com.google.appengine.tools.mapreduce.impl.pipeline;
 
-import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTask;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobController;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobServiceFactory;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.*;
+import com.google.appengine.tools.pipeline.DefaultDIModule;
+import com.google.appengine.tools.pipeline.Injectable;
 import com.google.appengine.tools.pipeline.Job0;
 import com.google.appengine.tools.pipeline.Value;
 import com.google.cloud.datastore.Datastore;
@@ -13,6 +12,7 @@ import com.google.cloud.datastore.DatastoreOptions;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
+import javax.inject.Inject;
 import java.util.List;
 
 /**
@@ -21,6 +21,7 @@ import java.util.List;
  *
  * @param <T> type of task
  */
+@Injectable(DefaultDIModule.class)
 @RequiredArgsConstructor
 public class ShardedJob<T extends IncrementalTask> extends Job0<Void> {
 
@@ -33,10 +34,13 @@ public class ShardedJob<T extends IncrementalTask> extends Job0<Void> {
   @NonNull private final ShardedJobController<T> controller;
   @NonNull private final ShardedJobSettings settings;
 
+  @Inject
+  transient ShardedJobService shardedJobService;
+
   @Override
   public Value<Void> run() {
     Datastore datastore = datastoreOptions.getService();
-    ShardedJobServiceFactory.getShardedJobService().startJob(datastore, jobId, workers, controller, settings);
+    shardedJobService.startJob(datastore, jobId, workers, controller, settings);
     setStatusConsoleUrl(settings.getMapReduceStatusUrl());
     return null;
   }

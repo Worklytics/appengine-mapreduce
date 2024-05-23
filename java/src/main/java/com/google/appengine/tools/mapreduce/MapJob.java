@@ -10,6 +10,7 @@ import com.google.appengine.tools.mapreduce.impl.WorkerShardTask;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ExamineStatusAndReturnResult;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ResultAndStatus;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ShardedJob;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobService;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobServiceFactory;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.pipeline.FutureValue;
@@ -25,6 +26,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
+import javax.inject.Inject;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -51,6 +53,10 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
     this.specification = specification;
     this.settings = settings;
   }
+
+  @Inject
+  transient ShardedJobService shardedJobService;
+
 
   public static final String DEFAULT_QUEUE_NAME = "default";
 
@@ -125,7 +131,7 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
     String mrJobId = getJobKey().getName();
     Datastore datastore = DatastoreOptions.getDefaultInstance().toBuilder()
         .setNamespace(settings.getNamespace()).build().getService();
-    ShardedJobServiceFactory.getShardedJobService().abortJob(datastore, mrJobId);
+    shardedJobService.abortJob(datastore, mrJobId);
     return null;
   }
 

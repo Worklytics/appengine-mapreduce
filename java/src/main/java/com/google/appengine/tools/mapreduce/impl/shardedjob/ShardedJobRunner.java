@@ -36,6 +36,7 @@ import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -52,7 +53,11 @@ import java.util.logging.Logger;
  *
  * @param <T> type of tasks that the job being processed consists of
  */
+@RequiredArgsConstructor
 public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHandler {
+
+
+  final PipelineService pipelineService;
 
   // High-level overview:
   //
@@ -634,8 +639,10 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
     changeJobStatus(datastore, jobId, new Status(ABORTED));
   }
 
+
   boolean cleanupJob(Datastore datastore, String jobId) {
-    ShardedJobStateImpl<T> jobState = lookupJobState(null, jobId);
+    Transaction txn = datastore.newTransaction();
+    ShardedJobStateImpl<T> jobState = lookupJobState(txn, jobId);
     if (jobState == null) {
       return true;
     }
@@ -644,8 +651,8 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
     }
     int taskCount = jobState.getTotalTaskCount();
     if (taskCount > 0) {
-      PipelineService pipeline = PipelineServiceFactory.newPipelineService();
-      pipeline.startNewPipeline(new DeleteShardedJob(datastore.getOptions(), jobId, taskCount));
+
+      pipelineService.startNewPipeline(new DeleteShardedJob(datastore.getOptions(), jobId, taskCount));
     }
     final Key jobKey = ShardedJobStateImpl.ShardedJobSerializer.makeKey(datastore, jobId);
 

@@ -30,10 +30,13 @@ import com.google.appengine.tools.mapreduce.MapReduceJob;
 import com.google.appengine.tools.mapreduce.MapReduceServlet;
 
 import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
+import com.google.appengine.tools.mapreduce.di.DaggerDefaultMapReduceContainer;
+import com.google.appengine.tools.pipeline.impl.util.DIUtil;
 import com.google.cloud.datastore.Datastore;
 import org.easymock.EasyMock;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.PrintWriter;
@@ -56,10 +59,13 @@ public class MapReduceServletTest{
   private MapReduceServlet servlet;
 
   @BeforeEach
-  public void setUp(Datastore datastore) throws Exception {
+  public void setUp() throws Exception {
     helper.setUp();
     servlet = new MapReduceServlet();
-    servlet.setDatastore(datastore);
+
+    // still using default module, which builds pipeline options with defualts, which is not good
+    DIUtil.overrideComponentInstanceForTests(DaggerDefaultMapReduceContainer.class, DaggerDefaultMapReduceContainer.create());
+    DIUtil.inject(servlet);
   }
 
   @AfterEach
@@ -81,6 +87,8 @@ public class MapReduceServletTest{
     verify(request, response);
   }
 
+  @Disabled
+  @Test
   //this stupid test fails because it's coupled to exact JSON serialization implementation
   // (eg, calling to PrintWriter.write, with chars/ints/strings as expected)
   public void ignoredTestCommandError() throws Exception {

@@ -11,8 +11,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.appengine.tools.mapreduce.MapReduceJob;
 import com.google.appengine.tools.mapreduce.MapReduceServlet;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
+import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
+import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.cloud.datastore.Datastore;
-import com.google.cloud.datastore.DatastoreOptions;
 import com.google.common.collect.ImmutableMap;
 import lombok.AllArgsConstructor;
 
@@ -26,12 +27,14 @@ import java.util.logging.Logger;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-/**
- */
-@AllArgsConstructor
+import javax.inject.Inject;
+
+@AllArgsConstructor(onConstructor_ = @Inject)
 public final class MapReduceServletImpl {
 
-  Datastore datastore;
+  PipelineService pipelineService;
+  StatusHandler statusHandler;
+  RequestUtils requestUtils;
 
   private static final Logger log = Logger.getLogger(MapReduceServlet.class.getName());
   private static final Map<String, Resource> RESOURCES = ImmutableMap.<String, Resource>builder()
@@ -86,7 +89,7 @@ public final class MapReduceServletImpl {
       if (!checkForAjax(request, response)) {
         return;
       }
-      StatusHandler.handleCommand(handler.substring(COMMAND_PATH.length() + 1), request, response);
+      statusHandler.handleCommand(handler.substring(COMMAND_PATH.length() + 1), request, response);
     } else {
       handleStaticResources(handler, response);
     }
@@ -103,21 +106,23 @@ public final class MapReduceServletImpl {
       if (!checkForTaskQueue(request, response)) {
         return;
       }
-      new ShardedJobRunner<>().completeShard(datastore,
+      Datastore datastore = requestUtils.buildDatastoreFromRequest(request);
+      new ShardedJobRunner<>(pipelineService).completeShard(datastore,
               checkNotNull(request.getParameter(JOB_ID_PARAM), "Null job id"),
               checkNotNull(request.getParameter(TASK_ID_PARAM), "Null task id"));
     } else if (handler.startsWith(WORKER_PATH)) {
       if (!checkForTaskQueue(request, response)) {
         return;
       }
-      new ShardedJobRunner<>().runTask(datastore,
+      Datastore datastore = requestUtils.buildDatastoreFromRequest(request);
+      new ShardedJobRunner<>(pipelineService).runTask(datastore,
         checkNotNull(request.getParameter(JOB_ID_PARAM), "Null job id"),
         checkNotNull(request.getParameter(TASK_ID_PARAM), "Null task id"), Integer.parseInt(request.getParameter(SEQUENCE_NUMBER_PARAM)));
     } else if (handler.startsWith(COMMAND_PATH)) {
       if (!checkForAjax(request, response)) {
         return;
       }
-      StatusHandler.handleCommand(handler.substring(COMMAND_PATH.length() + 1), request, response);
+      statusHandler.handleCommand(handler.substring(COMMAND_PATH.length() + 1), request, response);
     } else {
       throw new RuntimeException(
           "Received an unknown MapReduce request handler. See logs for more detail.");

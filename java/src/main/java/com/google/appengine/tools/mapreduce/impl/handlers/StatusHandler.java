@@ -25,7 +25,9 @@ import com.googlecode.charts4j.GCharts;
 import com.googlecode.charts4j.Plot;
 import com.googlecode.charts4j.Plots;
 
+import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -40,10 +42,13 @@ import java.util.logging.Logger;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import javax.inject.Inject;
+
 /**
  * UI Status view logic handler.
  *
  */
+@AllArgsConstructor(onConstructor_ = @Inject)
 @NoArgsConstructor
 final class StatusHandler {
 
@@ -51,6 +56,8 @@ final class StatusHandler {
 
   public static final int DEFAULT_JOBS_PER_PAGE_COUNT = 50;
 
+  @Inject ShardedJobService shardedJobService;
+  @Inject RequestUtils requestUtil;
 
   // Command paths
   public static final String LIST_JOBS_PATH = "list_jobs";
@@ -58,9 +65,9 @@ final class StatusHandler {
   public static final String ABORT_JOB_PATH = "abort_job";
   public static final String GET_JOB_DETAIL_PATH = "get_job_detail";
 
-  private static JSONObject handleCleanupJob(Datastore datastore, String jobId) throws JSONException {
+  private JSONObject handleCleanupJob(Datastore datastore, String jobId) throws JSONException {
     JSONObject retValue = new JSONObject();
-    if (ShardedJobServiceFactory.getShardedJobService().cleanupJob(datastore, jobId)) {
+    if (shardedJobService.cleanupJob(datastore, jobId)) {
       retValue.put("status", "Successfully deleted requested job.");
     } else {
       retValue.put("status", "Can't delete an active job");
@@ -68,9 +75,9 @@ final class StatusHandler {
     return retValue;
   }
 
-  private static JSONObject handleAbortJob(Datastore datastore, String jobId) throws JSONException {
+  private JSONObject handleAbortJob(Datastore datastore, String jobId) throws JSONException {
     JSONObject retValue = new JSONObject();
-    ShardedJobServiceFactory.getShardedJobService().abortJob(datastore, jobId);
+    shardedJobService.abortJob(datastore, jobId);
     retValue.put("status", "Successfully aborted requested job.");
     return retValue;
   }
@@ -78,14 +85,12 @@ final class StatusHandler {
   /**
    * Handles all status page commands.
    */
-  static void handleCommand(
+  void handleCommand(
       String command, HttpServletRequest request, HttpServletResponse response) {
     response.setContentType("application/json");
     boolean isPost = "POST".equals(request.getMethod());
     JSONObject retValue = null;
 
-    //TODO: in imminent future, will be injected and this won't be static method
-    RequestUtils requestUtil = new RequestUtils();
     Datastore datastore = requestUtil.buildDatastoreFromRequest(request);
 
     try {
@@ -164,8 +169,7 @@ final class StatusHandler {
    * Handle the get_job_detail AJAX command.
    */
   @VisibleForTesting
-  static JSONObject handleGetJobDetail(Datastore datastore, String jobId) {
-    ShardedJobService shardedJobService = ShardedJobServiceFactory.getShardedJobService();
+  JSONObject handleGetJobDetail(Datastore datastore, String jobId) {
     ShardedJobState state = shardedJobService.getJobState(datastore, jobId);
     if (state == null) {
       return null;

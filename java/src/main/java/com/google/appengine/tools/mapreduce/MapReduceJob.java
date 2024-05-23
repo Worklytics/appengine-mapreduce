@@ -20,6 +20,7 @@ import com.google.appengine.tools.mapreduce.impl.pipeline.CleanupPipelineJob;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ExamineStatusAndReturnResult;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ResultAndStatus;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ShardedJob;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobService;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobServiceFactory;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.mapreduce.impl.sort.MergeContext;
@@ -47,6 +48,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 
+import javax.inject.Inject;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -77,7 +79,11 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   @NonNull private final MapReduceSettings settings;
 
   @Setter(onMethod = @__(@VisibleForTesting))
-  private transient Datastore datastore;
+  @Inject
+  transient Datastore datastore;
+  @Setter(onMethod = @__(@VisibleForTesting))
+  @Inject
+  transient ShardedJobService shardedJobService;
 
   protected Datastore getDatastore() {
     if (datastore == null) {
@@ -125,7 +131,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
    * The pipeline job to execute the Map stage of the MapReduce. (For all shards)
    */
   @RequiredArgsConstructor
-  private static class MapJob<I, K, V> extends Job0<MapReduceResult<FilesByShard>> {
+  static class MapJob<I, K, V> extends Job0<MapReduceResult<FilesByShard>> {
 
     private static final long serialVersionUID = 1L;
 
@@ -139,6 +145,10 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     @Setter(onMethod = @__(@VisibleForTesting))
     private transient Datastore datastore;
+
+    @Setter(onMethod = @__(@VisibleForTesting))
+    @Inject
+    transient ShardedJobService shardedJobService;
 
     protected Datastore getDatastore() {
       if (datastore == null) {
@@ -212,7 +222,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     @SuppressWarnings("unused")
     public Value<MapReduceResult<FilesByShard>> handleException(CancellationException ex) {
-      ShardedJobServiceFactory.getShardedJobService().abortJob(getDatastore(), getShardedJobId());
+      shardedJobService.abortJob(getDatastore(), getShardedJobId());
       return null;
     }
   }
@@ -221,7 +231,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
    * The pipeline job to execute the Sort stage of the MapReduce. (For all shards)
    */
   @RequiredArgsConstructor
-  private static class SortJob extends Job1<
+  static class SortJob extends Job1<
       MapReduceResult<FilesByShard>,
       MapReduceResult<FilesByShard>> {
     private static final long serialVersionUID = 1L;
@@ -233,6 +243,10 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     @Setter(onMethod = @__(@VisibleForTesting))
     private transient Datastore datastore;
+
+    @Setter(onMethod = @__(@VisibleForTesting))
+    @Inject
+    transient ShardedJobService shardedJobService;
 
     protected Datastore getDatastore() {
       if (datastore == null) {
@@ -315,7 +329,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     @SuppressWarnings("unused")
     public Value<FilesByShard> handleException(CancellationException ex) {
-      ShardedJobServiceFactory.getShardedJobService().abortJob(getDatastore(), getShardedJobId());
+      shardedJobService.abortJob(getDatastore(), getShardedJobId());
       return null;
     }
   }
@@ -324,7 +338,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
    * The pipeline job to execute the optional Merge stage of the MapReduce. (For all shards)
    */
   @RequiredArgsConstructor
-  private static class MergeJob extends
+  static class MergeJob extends
       Job1<MapReduceResult<FilesByShard>, MapReduceResult<FilesByShard>> {
 
 
@@ -340,6 +354,10 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     @Setter(onMethod = @__(@VisibleForTesting))
     private transient Datastore datastore;
+
+    @Setter(onMethod = @__(@VisibleForTesting))
+    @Inject
+    transient ShardedJobService shardedJobService;
 
     protected Datastore getDatastore() {
       if (datastore == null) {
@@ -436,7 +454,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     @SuppressWarnings("unused")
     public Value<FilesByShard> handleException(CancellationException ex) {
-      ShardedJobServiceFactory.getShardedJobService().abortJob(getDatastore(), getShardedJobId());
+      shardedJobService.abortJob(getDatastore(), getShardedJobId());
       return null;
     }
   }
@@ -453,7 +471,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
    * The pipeline job to execute the Reduce stage of the MapReduce. (For all shards)
    */
   @RequiredArgsConstructor
-  private static class ReduceJob<K, V, O, R> extends Job1<MapReduceResult<R>,
+  static class ReduceJob<K, V, O, R> extends Job1<MapReduceResult<R>,
       MapReduceResult<FilesByShard>> {
 
     private static final long serialVersionUID = 590237832617368335L;
@@ -473,6 +491,10 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       }
       return datastore;
     }
+
+    @Setter(onMethod = @__(@VisibleForTesting))
+    @Inject
+    transient ShardedJobService shardedJobService;
 
     private String getShardedJobId() {
       return "reduce-" + mrJobId;
@@ -524,13 +546,13 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     @SuppressWarnings("unused")
     public Value<MapReduceResult<R>> handleException(CancellationException ex) {
-      ShardedJobServiceFactory.getShardedJobService().abortJob(getDatastore(), getShardedJobId());
+      shardedJobService.abortJob(getDatastore(), getShardedJobId());
       return null;
     }
   }
 
   @RequiredArgsConstructor
-  private static class Cleanup extends Job1<Void, MapReduceResult<FilesByShard>> {
+  static class Cleanup extends Job1<Void, MapReduceResult<FilesByShard>> {
 
     private static final long serialVersionUID = 4559443543355672948L;
 

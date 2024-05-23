@@ -363,7 +363,7 @@ public class EndToEndTest extends EndToEndTestCase {
   @Test
   public void testDoNothingWithEmptyReadersList() throws Exception {
     runTest(new MapReduceSpecification.Builder<>(new NoInput<Long>(0), new Mod37Mapper(),
-        NoReducer.<String, Long, String>create(), new NoOutput<String, String>())
+        NoReducer.create(), new NoOutput<String, String>())
         .setKeyMarshaller(Marshallers.getStringMarshaller())
         .setValueMarshaller(Marshallers.getLongMarshaller()).setJobName("Empty test MR").build(),
         new Verifier<String>() {

@@ -25,7 +25,6 @@ import java.util.Random;
  */
 public class EndToEndTest extends EndToEndTestCase {
 
-  private final ShardedJobService service = ShardedJobServiceFactory.getShardedJobService();
   private ShardedJobSettings settings;
 
   @BeforeEach
@@ -44,28 +43,28 @@ public class EndToEndTest extends EndToEndTestCase {
     int expectedResult = 42113;
 
     String jobId = "job1";
-    assertNull(service.getJobState(getDatastore(), jobId));
+    assertNull(getShardedJobService().getJobState(getDatastore(), jobId));
 
     assertEquals(0, getTasks().size());
     TestController controller = new TestController(getDatastore().getOptions(), expectedResult);
-    service.startJob(getDatastore(), jobId, tasks, controller, settings);
-    assertEquals(new Status(RUNNING), service.getJobState(getDatastore(), jobId).getStatus());
+    getShardedJobService().startJob(getDatastore(), jobId, tasks, controller, settings);
+    assertEquals(new Status(RUNNING), getShardedJobService().getJobState(getDatastore(), jobId).getStatus());
     // 5 initial tasks
     assertEquals(5, getTasks().size());
-    assertEquals(5, service.getJobState(getDatastore(), jobId).getActiveTaskCount());
-    assertEquals(5, service.getJobState(getDatastore(), jobId).getTotalTaskCount());
+    assertEquals(5, getShardedJobService().getJobState(getDatastore(), jobId).getActiveTaskCount());
+    assertEquals(5, getShardedJobService().getJobState(getDatastore(), jobId).getTotalTaskCount());
 
     // Starting again should not add any tasks.
     controller = new TestController(getDatastore().getOptions(), expectedResult);
-    service.startJob(getDatastore(), jobId, tasks, controller, settings);
-    assertEquals(new Status(RUNNING), service.getJobState(getDatastore(), jobId).getStatus());
+    getShardedJobService().startJob(getDatastore(), jobId, tasks, controller, settings);
+    assertEquals(new Status(RUNNING), getShardedJobService().getJobState(getDatastore(), jobId).getStatus());
     assertEquals(5, getTasks().size());
-    assertEquals(5, service.getJobState(getDatastore(), jobId).getActiveTaskCount());
-    assertEquals(5, service.getJobState(getDatastore(), jobId).getTotalTaskCount());
+    assertEquals(5, getShardedJobService().getJobState(getDatastore(), jobId).getActiveTaskCount());
+    assertEquals(5, getShardedJobService().getJobState(getDatastore(), jobId).getTotalTaskCount());
 
     executeTasksUntilEmpty();
 
-    ShardedJobState state = service.getJobState(getDatastore(), jobId);
+    ShardedJobState state = getShardedJobService().getJobState(getDatastore(), jobId);
     assertEquals(new Status(DONE), state.getStatus());
     assertEquals(0, state.getActiveTaskCount());
     assertEquals(5, state.getTotalTaskCount());
@@ -96,12 +95,12 @@ public class EndToEndTest extends EndToEndTestCase {
     TestTask task = new TestTask(0, 1, 1, 1, bytes);
     String jobId = "job1";
     TestController controller = new TestController1( getDatastore().getOptions(), 1);
-    service.startJob(getDatastore(), jobId, ImmutableList.of(task), controller, settings);
-    assertEquals(new Status(RUNNING), service.getJobState(getDatastore(), jobId).getStatus());
+    getShardedJobService().startJob(getDatastore(), jobId, ImmutableList.of(task), controller, settings);
+    assertEquals(new Status(RUNNING), getShardedJobService().getJobState(getDatastore(), jobId).getStatus());
     executeTasksUntilEmpty();
-    ShardedJobState state = service.getJobState(getDatastore(), jobId);
+    ShardedJobState state = getShardedJobService().getJobState(getDatastore(), jobId);
     assertEquals(new Status(DONE), state.getStatus());
-    IncrementalTaskState<IncrementalTask> it = Iterators.getOnlyElement(service.lookupTasks(getDatastore().newTransaction(), state));
+    IncrementalTaskState<IncrementalTask> it = Iterators.getOnlyElement(getShardedJobService().lookupTasks(getDatastore().newTransaction(), state));
     assertNull(((TestTask) it.getTask()).getPayload());
 
     Query<Entity> query = Query.newEntityQueryBuilder().setKind("mr-entity").build();
@@ -114,10 +113,10 @@ public class EndToEndTest extends EndToEndTestCase {
   @Test
   public void testNoTasks() throws Exception {
     String jobId = "job1";
-    assertNull(service.getJobState(getDatastore(), jobId));
+    assertNull(getShardedJobService().getJobState(getDatastore(), jobId));
     TestController controller = new TestController(getDatastore().getOptions(), 0);
-    service.startJob(getDatastore(), jobId, ImmutableList.<TestTask>of(), controller, settings);
-    ShardedJobState state = service.getJobState(getDatastore(), jobId);
+    getShardedJobService().startJob(getDatastore(), jobId, ImmutableList.of(), controller, settings);
+    ShardedJobState state = getShardedJobService().getJobState(getDatastore(), jobId);
     assertEquals(new Status(DONE), state.getStatus());
     assertEquals(0, state.getActiveTaskCount());
     assertEquals(0, state.getTotalTaskCount());

@@ -14,12 +14,13 @@
 
 package com.google.appengine.tools.mapreduce;
 
+import com.google.appengine.tools.mapreduce.di.DaggerDefaultMapReduceContainer;
+import com.google.appengine.tools.mapreduce.di.DefaultMapReduceContainer;
 import com.google.appengine.tools.mapreduce.impl.handlers.MapReduceServletImpl;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.RejectRequestException;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
+import com.google.appengine.tools.pipeline.Injectable;
 import com.google.cloud.datastore.Datastore;
-import com.google.common.annotations.VisibleForTesting;
-
 
 import java.io.IOException;
 import java.util.logging.Level;
@@ -28,6 +29,8 @@ import java.util.logging.Logger;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
+import javax.inject.Inject;
 
 /**
  * Servlet for all MapReduce API related functions.
@@ -54,29 +57,20 @@ import jakarta.servlet.http.HttpServletResponse;
  * </pre>
  *
  */
+@Injectable(DaggerDefaultMapReduceContainer.class)
 public class MapReduceServlet extends HttpServlet {
   private static final long serialVersionUID = 1L;
   private static final Logger log = Logger.getLogger(MapReduceServlet.class.getName());
 
   private static final int REJECT_REQUEST_STATUSCODE = 429; // See rfc6585
 
-
-  RequestUtils requestUtils = new RequestUtils();
-  Datastore datastore;
+  @Inject
   MapReduceServletImpl mapReduceServletImpl;
-
-  @VisibleForTesting
-  public void setDatastore(Datastore datastore) {
-    this.datastore = datastore;
-    this.mapReduceServletImpl = new MapReduceServletImpl(datastore);
-  }
 
   @Override
   public void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     //datastore, setting namespace for request somehow
-    if (this.datastore == null) {
-      this.setDatastore(requestUtils.buildDatastoreFromRequest(req));
-    }
+
     try {
       mapReduceServletImpl.doPost(req, resp);
     } catch (RejectRequestException e) {
@@ -86,10 +80,6 @@ public class MapReduceServlet extends HttpServlet {
 
   @Override
   public void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    if (this.datastore == null) {
-      this.setDatastore(requestUtils.buildDatastoreFromRequest(req));
-    }
-
     try {
       mapReduceServletImpl.doGet(req, resp);
     } catch (RejectRequestException e) {

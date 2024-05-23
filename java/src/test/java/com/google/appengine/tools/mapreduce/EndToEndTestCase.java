@@ -15,6 +15,8 @@ import com.google.appengine.tools.development.testing.LocalModulesServiceTestCon
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobHandler;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobService;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobServiceFactory;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
@@ -58,28 +60,19 @@ public abstract class EndToEndTestCase {
     return null;
   }
 
-  @Getter
+  @Getter @Setter(onMethod_ = @BeforeEach)
   Datastore datastore;
 
-  @Getter
+  @Getter @Setter(onMethod_ = @BeforeEach)
   PipelineService pipelineService;
 
-  @BeforeEach
-  public void injectDatastore(Datastore datastore ) {
-    this.datastore = datastore;
-  }
-  @BeforeEach
-  public void setPipelineService(PipelineService pipelineService) {
-    this.pipelineService = pipelineService;
-  }
-
-  @Getter
+  @Getter @Setter(onMethod_ = @BeforeEach)
   PipelineServlet pipelineServlet;
-  @BeforeEach
-  public void setPipelineServlet(PipelineServlet pipelineServlet) {
-    this.pipelineServlet = pipelineServlet;
-  }
 
+  public ShardedJobService getShardedJobService() {
+    ShardedJobServiceFactory factory = new ShardedJobServiceFactory(getPipelineService());
+    return factory.getShardedJobService();
+  }
 
   @Getter
   private CloudStorageIntegrationTestHelper storageTestHelper;
@@ -100,7 +93,6 @@ public abstract class EndToEndTestCase {
   @AfterEach
   public void tearDown() throws Exception {
     helper.tearDown();
-    storageTestHelper.tearDown();
   }
 
   protected List<QueueStateInfo.TaskStateInfo> getTasks() {
@@ -159,7 +151,6 @@ public abstract class EndToEndTestCase {
       if (taskStateInfo.getUrl().startsWith(PipelineServlet.baseUrl())) {
         pipelineServlet.doPost(request, response);
       } else {
-        mrServlet.setDatastore(getDatastore());
         mrServlet.doPost(request, response);
       }
     } else {
