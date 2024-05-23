@@ -18,6 +18,7 @@ package com.google.appengine.tools.mapreduce.impl.util;
 
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.CorruptDataException;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import lombok.SneakyThrows;
@@ -51,43 +52,49 @@ public class SerializationUtil {
 
   public static int MAX_UNCOMPRESSED_BYTE_SIZE = 50_000;
 
-
   public static byte[] serialize(Serializable obj) throws IOException {
     // Serialize the object
     ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
     try (ObjectOutputStream objectOut = new ObjectOutputStream(byteOut)) {
       objectOut.writeObject(obj);
     }
-    byte[] serializedData = byteOut.toByteArray();
-
     // Compress only if serialized data exceeds threshold
-    if (serializedData.length > MAX_UNCOMPRESSED_BYTE_SIZE) {
+    if (byteOut.size() > MAX_UNCOMPRESSED_BYTE_SIZE) {
       ByteArrayOutputStream compressedByteOut = new ByteArrayOutputStream();
       try (GZIPOutputStream gzipOut = new GZIPOutputStream(compressedByteOut);
            ObjectOutputStream objectOut = new ObjectOutputStream(gzipOut)) {
         objectOut.writeObject(obj);
         objectOut.flush();
         gzipOut.finish();
-        serializedData = compressedByteOut.toByteArray();
+        return compressedByteOut.toByteArray();
       }
     }
-    return serializedData;
+    return byteOut.toByteArray();
   }
 
   @SneakyThrows
-  public static <T> T  deserialize(byte[] data) throws IOException {
+  public static <T> T deserialize(byte[] data) throws IOException, ClassNotFoundException {
     // Attempt to decompress
-    try (ByteArrayInputStream byteIn = new ByteArrayInputStream(data);
-         GZIPInputStream gzipIn = new GZIPInputStream(byteIn);
-         ObjectInputStream objectIn = new ObjectInputStream(gzipIn)) {
-      return (T) objectIn.readObject();
-    } catch (IOException e) {
-      // If decompression fails, assume data was not compressed
-      try (ByteArrayInputStream byteIn = new ByteArrayInputStream(data);
-           ObjectInputStream objectIn = new ObjectInputStream(byteIn)) {
-        return (T) objectIn.readObject();
+    try (ByteArrayInputStream byteIn = new ByteArrayInputStream(data)) {
+      if (isGZIPCompressed(data)) {
+        try (GZIPInputStream gzipIn = new GZIPInputStream(byteIn);
+             ObjectInputStream objectIn = new ObjectInputStream(gzipIn)) {
+          return (T) objectIn.readObject();
+        }
+      } else {
+        try (ObjectInputStream objectIn = new ObjectInputStream(byteIn)) {
+          return (T) objectIn.readObject();
+        }
       }
     }
+  }
+
+  @VisibleForTesting
+  static boolean isGZIPCompressed(byte[] bytes) {
+    return (bytes != null)
+      && (bytes.length >= 2)
+      && ((bytes[0] == (byte) (GZIPInputStream.GZIP_MAGIC))
+      && (bytes[1] == (byte) (GZIPInputStream.GZIP_MAGIC >> 8)));
   }
 
 
