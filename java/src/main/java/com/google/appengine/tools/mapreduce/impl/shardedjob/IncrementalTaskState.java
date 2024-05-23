@@ -187,6 +187,8 @@ public class IncrementalTaskState<T extends IncrementalTask> {
       if (in.contains(SLICE_START_TIME)) {
         lockInfo = new LockInfo(in.getLong(SLICE_START_TIME),
           in.getString(SLICE_REQUEST_ID));
+      } else {
+        lockInfo = new LockInfo(null, null);
       }
 
       IncrementalTaskState<T> state = new IncrementalTaskState<>(in.getKey().getName(),
