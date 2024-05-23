@@ -12,8 +12,6 @@ import static com.google.appengine.tools.mapreduce.MapSettings.WORKER_PATH;
 import static com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet.makeViewerUrl;
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
 import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
@@ -27,6 +25,8 @@ import com.google.appengine.tools.pipeline.JobSetting.StatusConsoleUrl;
 import com.google.apphosting.api.ApiProxy;
 import com.google.apphosting.api.ApiProxy.Environment;
 
+import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.Key;
 import org.easymock.EasyMock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,11 +39,11 @@ import java.util.Set;
 
 /**
  */
+@PipelineSetupExtensions
 @SuppressWarnings("deprecation")
 public class MapSettingsTest {
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper(
-      new LocalDatastoreServiceTestConfig(),
       new LocalTaskQueueTestConfig(),
       new LocalModulesServiceTestConfig()
         .addBasicScalingModuleVersion("module1", "v1", 10)
@@ -51,8 +51,10 @@ public class MapSettingsTest {
         .addBasicScalingModuleVersion("default", "1", 1)
         .addBasicScalingModuleVersion("default", "2", 1));
 
+  Datastore datastore;
+
   @BeforeEach
-  public void setUp() {
+  public void setUp(Datastore datastore) {
     helper.setUp();
     Map<String, Object> attributes = ApiProxy.getCurrentEnvironment().getAttributes();
     @SuppressWarnings("unchecked")
@@ -63,6 +65,7 @@ public class MapSettingsTest {
       attributes.put("com.google.appengine.devappserver.portmapping", portMap);
     }
     portMap.put("b1", "backend-hostname");
+    this.datastore = datastore;
   }
 
   @Test
@@ -78,6 +81,7 @@ public class MapSettingsTest {
     assertEquals(DEFAULT_SLICE_TIMEOUT_RATIO, mrSettings.getSliceTimeoutRatio());
   }
 
+  @Test
   public void testNonDefaultSettings() {
     MapSettings.Builder builder = new MapSettings.Builder();
     builder.setBackend("b1");
@@ -139,6 +143,7 @@ public class MapSettingsTest {
     assertEquals("m1", settings.getModule());
   }
 
+  @Test
   public void testValidate() throws Exception {
     MapSettings.Builder builder = new MapSettings.Builder();
     // TODO(user): replace "bad_queue" with "bad-queue". The latter is just
@@ -152,6 +157,7 @@ public class MapSettingsTest {
     }
   }
 
+  @Test
   public void testBuilderWithSettings() {
     MapSettings settings = new MapSettings.Builder()
         .setModule("m")
@@ -171,8 +177,9 @@ public class MapSettingsTest {
     assertEquals("good-queue", settings.getWorkerQueueName());
   }
 
+  @Test
   public void testMakeShardedJobSettings() {
-    Key key = KeyFactory.createKey("Kind1", "value1");
+    Key key = datastore.newKeyFactory().setKind("Kind1").newKey("value1");
     MapSettings settings = new MapSettings.Builder().setWorkerQueueName("good-queue").build();
     ShardedJobSettings sjSettings = settings.toShardedJobSettings("job1", key);
     assertNull(sjSettings.getBackend());
