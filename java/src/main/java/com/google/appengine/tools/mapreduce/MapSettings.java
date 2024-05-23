@@ -19,6 +19,7 @@ import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.Key;
 import com.google.common.base.Preconditions;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 
@@ -33,7 +34,7 @@ import java.util.concurrent.TimeUnit;
  * dependent on the performance or resource usage of the computation, or if
  * different backends, modules or different base urls have different versions of the code).
  */
-@SuppressWarnings("deprecation")
+@Getter
 @ToString
 @RequiredArgsConstructor
 public class MapSettings implements Serializable {
@@ -62,14 +63,9 @@ public class MapSettings implements Serializable {
   public static final int DEFAULT_SHARD_RETRIES = 4;
   public static final int DEFAULT_SLICE_RETRIES = 20;
 
-
-  @Getter
   private final String projectId;
-  @Getter
   private final String databaseId;
-  @Getter
   private final String namespace;
-
   private final String baseUrl;
   private final String module;
   private final String workerQueueName;
@@ -193,10 +189,8 @@ public class MapSettings implements Serializable {
     }
   }
 
+  @NoArgsConstructor
   public static class Builder extends BaseBuilder<Builder> {
-
-    public Builder() {
-    }
 
     public Builder(MapSettings settings) {
       super(settings);
@@ -223,34 +217,6 @@ public class MapSettings implements Serializable {
     sliceTimeoutRatio = builder.sliceTimeoutRatio;
     maxShardRetries = builder.maxShardRetries;
     maxSliceRetries = builder.maxSliceRetries;
-  }
-
-  String getBaseUrl() {
-    return baseUrl;
-  }
-
-  String getModule() {
-    return module;
-  }
-
-  String getWorkerQueueName() {
-    return workerQueueName;
-  }
-
-  int getMillisPerSlice() {
-    return millisPerSlice;
-  }
-
-  double getSliceTimeoutRatio() {
-    return sliceTimeoutRatio;
-  }
-
-  int getMaxShardRetries() {
-    return maxShardRetries;
-  }
-
-  int getMaxSliceRetries() {
-    return maxSliceRetries;
   }
 
   JobSetting[] toJobSettings(JobSetting... extra) {

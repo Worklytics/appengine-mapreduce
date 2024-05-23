@@ -22,6 +22,7 @@ import java.util.logging.Logger;
  *
  * @author ohler@google.com (Christian Ohler)
  */
+@Getter
 @ToString
 public class MapReduceSettings extends MapSettings implements GcpCredentialOptions {
 
@@ -32,18 +33,11 @@ public class MapReduceSettings extends MapSettings implements GcpCredentialOptio
   public static final int DEFAULT_SORT_READ_TIME_MILLIS = 180000;
   public static final int DEFAULT_MERGE_FANIN = 32;
 
-
-  @Getter
   private final String bucketName;
-  @Getter
   private final int mapFanout;
-  @Getter
   private final Long maxSortMemory;
-  @Getter
   private final int sortReadTimeMillis;
-  @Getter
   private final int sortBatchPerEmitBytes;
-  @Getter
   private final int mergeFanin;
 
   /**
@@ -55,9 +49,9 @@ public class MapReduceSettings extends MapSettings implements GcpCredentialOptio
    * in GAE/GCE/etc is the most secure approach, as no keys need to be generated or passed around, which always entails
    * some risk of exposure.
    */
-  @Getter
   private final String serviceAccountKey;
 
+  @Getter
   public static class Builder extends BaseBuilder<Builder> {
 
     private String bucketName;
@@ -66,7 +60,6 @@ public class MapReduceSettings extends MapSettings implements GcpCredentialOptio
     private int sortReadTimeMillis = DEFAULT_SORT_READ_TIME_MILLIS;
     private int sortBatchPerEmitBytes = DEFAULT_SORT_BATCH_PER_EMIT_BYTES;
     private int mergeFanin = DEFAULT_MERGE_FANIN;
-    @Getter
     private String serviceAccountKey;
 
     public Builder() {}
