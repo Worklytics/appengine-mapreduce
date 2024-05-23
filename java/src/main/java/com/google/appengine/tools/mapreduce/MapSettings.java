@@ -6,8 +6,6 @@ import static com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSet
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.github.rholder.retry.*;
-import com.google.appengine.api.backends.BackendService;
-import com.google.appengine.api.backends.BackendServiceFactory;
 import com.google.appengine.api.modules.ModulesException;
 import com.google.appengine.api.modules.ModulesService;
 import com.google.appengine.api.modules.ModulesServiceFactory;
@@ -73,7 +71,6 @@ public class MapSettings implements Serializable {
   private final String namespace;
 
   private final String baseUrl;
-  private final String backend;
   private final String module;
   private final String workerQueueName;
   private final int millisPerSlice;
@@ -89,7 +86,6 @@ public class MapSettings implements Serializable {
     protected String namespace;
     protected String baseUrl = DEFAULT_BASE_URL;
     protected String module;
-    protected String backend;
     protected String workerQueueName;
     protected int millisPerSlice = DEFAULT_MILLIS_PER_SLICE;
     protected double sliceTimeoutRatio = DEFAULT_SLICE_TIMEOUT_RATIO;
@@ -105,7 +101,6 @@ public class MapSettings implements Serializable {
       namespace = settings.getNamespace();
       baseUrl = settings.getBaseUrl();
       module = settings.getModule();
-      backend = settings.getBackend();
       workerQueueName = settings.getWorkerQueueName();
       millisPerSlice = settings.getMillisPerSlice();
       sliceTimeoutRatio = settings.getSliceTimeoutRatio();
@@ -138,15 +133,6 @@ public class MapSettings implements Serializable {
      */
     public B setModule(String module) {
       this.module = module;
-      return self();
-    }
-
-    /**
-     * @deprecated Use modules instead.
-     */
-    @Deprecated
-    public B setBackend(String backend) {
-      this.backend = backend;
       return self();
     }
 
@@ -227,14 +213,11 @@ public class MapSettings implements Serializable {
   }
 
   MapSettings(BaseBuilder<?> builder) {
-    Preconditions.checkArgument(
-        builder.module == null || builder.backend == null, "Module and Backend cannot be combined");
     projectId = builder.projectId;
     databaseId = builder.databaseId;
     namespace = builder.namespace;
     baseUrl = builder.baseUrl;
     module = builder.module;
-    backend = builder.backend;
     workerQueueName = this.checkQueueSettings(builder.workerQueueName);
     millisPerSlice = builder.millisPerSlice;
     sliceTimeoutRatio = builder.sliceTimeoutRatio;
@@ -248,10 +231,6 @@ public class MapSettings implements Serializable {
 
   String getModule() {
     return module;
-  }
-
-  String getBackend() {
-    return backend;
   }
 
   String getWorkerQueueName() {
@@ -275,61 +254,39 @@ public class MapSettings implements Serializable {
   }
 
   JobSetting[] toJobSettings(JobSetting... extra) {
-    JobSetting[] settings = new JobSetting[4 + extra.length];
-    settings[0] = new JobSetting.OnBackend(backend);
-    settings[1] = new JobSetting.OnService(module);
-    settings[2] = new JobSetting.OnQueue(workerQueueName);
-    settings[3] = new JobSetting.DatastoreNamespace(namespace);
-    System.arraycopy(extra, 0, settings, 4, extra.length);
+    JobSetting[] settings = new JobSetting[3 + extra.length];
+    settings[0] = new JobSetting.OnService(module);
+    settings[1] = new JobSetting.OnQueue(workerQueueName);
+    settings[2] = new JobSetting.DatastoreNamespace(namespace);
+    System.arraycopy(extra, 0, settings, 3, extra.length);
     return settings;
   }
 
-  private static String getCurrentBackend() {
-    if (Boolean.parseBoolean(System.getenv("GAE_VM"))) {
-      // MVM can't be a backend.
-      return null;
-    }
-    BackendService backendService = BackendServiceFactory.getBackendService();
-    String currentBackend = backendService.getCurrentBackend();
-    // If currentBackend contains ':' it is actually a B type module (see b/12893879)
-    if (currentBackend != null && currentBackend.indexOf(':') != -1) {
-      currentBackend = null;
-    }
-    return currentBackend;
-  }
-
   ShardedJobSettings toShardedJobSettings(String shardedJobId, Key pipelineKey) {
-    String backend = getBackend();
+
     String module = getModule();
     String version = null;
-    if (backend == null) {
-      if (module == null) {
-        String currentBackend = getCurrentBackend();
-        if (currentBackend != null) {
-          backend = currentBackend;
-        } else {
-          ModulesService modulesService = ModulesServiceFactory.getModulesService();
-          module = modulesService.getCurrentModule();
-          version = modulesService.getCurrentVersion();
-        }
+    if (module == null) {
+      ModulesService modulesService = ModulesServiceFactory.getModulesService();
+      module = modulesService.getCurrentModule();
+      version = modulesService.getCurrentVersion();
+    } else {
+      final ModulesService modulesService = ModulesServiceFactory.getModulesService();
+      if (module.equals(modulesService.getCurrentModule())) {
+        version = modulesService.getCurrentVersion();
       } else {
-        final ModulesService modulesService = ModulesServiceFactory.getModulesService();
-        if (module.equals(modulesService.getCurrentModule())) {
-          version = modulesService.getCurrentVersion();
-        } else {
-          // TODO(user): we may want to support providing a version for a module
-          final String requestedModule = module;
+        // TODO(user): we may want to support providing a version for a module
+        final String requestedModule = module;
 
-          version = RetryExecutor.call(getModulesRetryerBuilder(), () -> modulesService.getDefaultVersion(requestedModule));
-        }
+        version = RetryExecutor.call(getModulesRetryerBuilder(), () -> modulesService.getDefaultVersion(requestedModule));
       }
     }
+
     final ShardedJobSettings.Builder builder = new ShardedJobSettings.Builder()
         .setControllerPath(baseUrl + CONTROLLER_PATH + "/" + shardedJobId)
         .setWorkerPath(baseUrl + WORKER_PATH + "/" + shardedJobId)
         .setMapReduceStatusUrl(baseUrl + "detail?mapreduce_id=" + shardedJobId)
         .setPipelineStatusUrl(PipelineServlet.makeViewerUrl(pipelineKey, pipelineKey))
-        .setBackend(backend)
         .setModule(module)
         .setVersion(version)
         .setQueueName(workerQueueName)

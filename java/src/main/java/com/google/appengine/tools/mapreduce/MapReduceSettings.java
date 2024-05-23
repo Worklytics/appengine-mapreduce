@@ -3,26 +3,13 @@
 package com.google.appengine.tools.mapreduce;
 
 import com.google.appengine.api.appidentity.AppIdentityServiceFactory;
-import com.google.appengine.api.appidentity.AppIdentityServiceFailureException;
 
-import com.google.auth.Credentials;
-import com.google.auth.oauth2.GoogleCredentials;
-import com.google.auth.oauth2.ServiceAccountCredentials;
-import com.google.cloud.storage.BlobId;
-import com.google.cloud.storage.BlobInfo;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.Getter;
-import lombok.Setter;
-import lombok.SneakyThrows;
 import lombok.ToString;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 

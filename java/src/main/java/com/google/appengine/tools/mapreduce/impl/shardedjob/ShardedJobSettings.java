@@ -4,7 +4,6 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.appengine.api.backends.BackendServiceFactory;
 import com.google.appengine.api.modules.ModulesServiceFactory;
 import lombok.Getter;
 import lombok.ToString;
@@ -33,7 +32,6 @@ public final class ShardedJobSettings implements Serializable {
 
   //q: does this need to get bucketName / credentials?
 
-  /*Nullable*/ private final String backend;
   /*Nullable*/ private final String module;
   /*Nullable*/ private final String version;
   // TODO(ohler): Integrate with pipeline and put this under /_ah/pipeline.
@@ -52,7 +50,6 @@ public final class ShardedJobSettings implements Serializable {
    */
   public static class Builder {
 
-    private String backend;
     private String module;
     private String version;
     private String pipelineStatusUrl;
@@ -66,11 +63,6 @@ public final class ShardedJobSettings implements Serializable {
 
     public Builder setPipelineStatusUrl(String pipelineStatusUrl) {
       this.pipelineStatusUrl = pipelineStatusUrl;
-      return this;
-    }
-
-    public Builder setBackend(/*Nullable*/ String backend) {
-      this.backend = backend;
       return this;
     }
 
@@ -121,19 +113,18 @@ public final class ShardedJobSettings implements Serializable {
 
     public ShardedJobSettings build() {
       return new ShardedJobSettings(controllerPath, workerPath, mrStatusUrl, pipelineStatusUrl,
-          backend, module, version, queueName, maxShardRetries, maxSliceRetries,
+          module, version, queueName, maxShardRetries, maxSliceRetries,
           sliceTimeoutMillis);
     }
   }
 
   private ShardedJobSettings(String controllerPath, String workerPath, String mrStatusUrl,
-      String pipelineStatusUrl, String backend, String module, String version, String queueName,
+      String pipelineStatusUrl, String module, String version, String queueName,
       int maxShardRetries, int maxSliceRetries, int sliceTimeoutMillis) {
     this.controllerPath = controllerPath;
     this.workerPath = workerPath;
     this.mrStatusUrl = mrStatusUrl;
     this.pipelineStatusUrl = pipelineStatusUrl;
-    this.backend = backend;
     this.module = module;
     this.version = version;
     this.queueName = queueName;
@@ -148,9 +139,6 @@ public final class ShardedJobSettings implements Serializable {
   }
 
   private String resolveTaskQueueTarget() {
-    if (backend != null) {
-      return BackendServiceFactory.getBackendService().getBackendAddress(backend);
-    }
     return ModulesServiceFactory.getModulesService().getVersionHostname(module, version);
   }
 
