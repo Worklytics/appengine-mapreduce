@@ -35,6 +35,7 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
+import lombok.NonNull;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -101,14 +102,14 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
 
 
 
-  private ShardedJobStateImpl<T> lookupJobState(Transaction tx, String jobId) {
+  private ShardedJobStateImpl<T> lookupJobState(@NonNull Transaction tx, String jobId) {
     return (ShardedJobStateImpl<T>) Optional.ofNullable(tx.get(ShardedJobStateImpl.ShardedJobSerializer.makeKey(tx.getDatastore(), jobId)))
       .map(in -> ShardedJobStateImpl.ShardedJobSerializer.fromEntity(tx, in))
       .orElse(null);
   }
 
   @VisibleForTesting
-  IncrementalTaskState<T> lookupTaskState(Transaction tx, String taskId) {
+  IncrementalTaskState<T> lookupTaskState(@NonNull Transaction tx, String taskId) {
     return (IncrementalTaskState<T>) Optional.ofNullable(tx.get(IncrementalTaskState.Serializer.makeKey(tx.getDatastore(), taskId)))
       .map(in -> IncrementalTaskState.Serializer.fromEntity(tx, in))
       .orElse(null);
@@ -118,14 +119,14 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
 
 
   @VisibleForTesting
-  ShardRetryState<T> lookupShardRetryState(Transaction tx, String taskId) {
+  ShardRetryState<T> lookupShardRetryState(@NonNull Transaction tx, String taskId) {
     return (ShardRetryState<T>) Optional.ofNullable(tx.get(ShardRetryState.Serializer.makeKey(tx.getDatastore(), taskId)))
       .map(in -> ShardRetryState.Serializer.fromEntity(tx, in))
       .orElse(null);
   }
 
   Iterator<IncrementalTaskState<T>> lookupTasks(
-    Transaction tx, final String jobId, final int taskCount, final boolean lenient) {
+    @NonNull Transaction tx, final String jobId, final int taskCount, final boolean lenient) {
     return new AbstractIterator<>() {
       private int lastCount;
       private Iterator<Entity> lastBatch = Collections.emptyIterator();
@@ -162,7 +163,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
     jobState.getController().completed(tasks);
   }
 
-  private void scheduleControllerTask(Transaction tx, String jobId, String taskId,
+  private void scheduleControllerTask(String jobId, String taskId,
       ShardedJobSettings settings) {
     TaskOptions taskOptions = TaskOptions.Builder.withMethod(TaskOptions.Method.POST)
         .url(settings.getControllerPath())
@@ -175,7 +176,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
     QueueFactory.getQueue(settings.getQueueName()).add(taskOptions);
   }
 
-  private void scheduleWorkerTask(Transaction tx, ShardedJobSettings settings,
+  private void scheduleWorkerTask(ShardedJobSettings settings,
       IncrementalTaskState<T> state, Long eta) {
     TaskOptions taskOptions = TaskOptions.Builder.withMethod(TaskOptions.Method.POST)
         .url(settings.getWorkerPath())
@@ -290,7 +291,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
     if (lockExpiration > currentTime && !wasRequestCompleted) {
       // if lock was not expired AND not abandon reschedule in 1 minute.
       long eta = Math.min(lockExpiration, currentTime + 60_000);
-      scheduleWorkerTask(null, jobState.getSettings(), taskState, eta);
+      scheduleWorkerTask(jobState.getSettings(), taskState, eta);
       log.info("Lock for " + taskId + " is being held. Will retry after " + (eta - currentTime));
     } else {
       ShardRetryState<T> retryState;
@@ -338,14 +339,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
     Entity entity = IncrementalTaskState.Serializer.toEntity(tx, taskState);
     try {
       tx.put(entity);
-      tx.commit();
       locked = true;
-    } catch (ConcurrentModificationException ex) {
-      // TODO: would be nice to have a test for this...
-      log.warning("Failed to acquire the lock, Will reschedule task for: " + taskState.getJobId()
-          + " on slice " + taskState.getSequenceNumber());
-      long eta = System.currentTimeMillis() + new Random().nextInt(5000) + 5000;
-      scheduleWorkerTask(null, jobState.getSettings(), taskState, eta);
     } finally {
       if (!locked) {
         taskState.getLockInfo().unlock();
@@ -356,12 +350,12 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
 
   @Override
   public void runTask(Datastore datastore, final String jobId, final String taskId, final int sequenceNumber) {
-    final ShardedJobStateImpl<T> jobState = lookupJobState(null, jobId);
+    Transaction tx = datastore.newTransaction();
+    final ShardedJobStateImpl<T> jobState = lookupJobState(tx, jobId);
     if (jobState == null) {
       log.info(taskId + ": Job is gone, ignoring runTask call.");
       return;
     }
-    Transaction tx = datastore.newTransaction();
     try {
       IncrementalTaskState<T> taskState =
           getAndValidateTaskState(tx, taskId, sequenceNumber, jobState);
@@ -372,8 +366,16 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
       task.prepare();
       try {
         if (lockShard(tx, jobState, taskState)) {
+          tx.commit(); // will throw if can't commit, which similar
           runAndUpdateTask(datastore, jobId, taskId, sequenceNumber, jobState, taskState);
         }
+        //previously this was inside the lock ... I think outside should be OK, and prefer to commit() txn where started
+      } catch (ConcurrentModificationException ex) {
+          // TODO: would be nice to have a test for this...
+          log.warning("Failed to acquire the lock, Will reschedule task for: " + taskState.getJobId()
+            + " on slice " + taskState.getSequenceNumber());
+          long eta = System.currentTimeMillis() + new Random().nextInt(5000) + 5000;
+          scheduleWorkerTask(jobState.getSettings(), taskState, eta);
       } finally {
         task.cleanup();
       }
@@ -508,9 +510,9 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
         private void scheduleTask(ShardedJobStateImpl<T> jobState,
             IncrementalTaskState<T> taskState, Transaction tx) {
           if (taskState.getStatus().isActive()) {
-            scheduleWorkerTask(tx, jobState.getSettings(), taskState, null);
+            scheduleWorkerTask(jobState.getSettings(), taskState, null);
           } else {
-            scheduleControllerTask(tx, jobState.getJobId(), taskState.getTaskId(),
+            scheduleControllerTask(jobState.getJobId(), taskState.getTaskId(),
                 jobState.getSettings());
           }
         }
@@ -549,7 +551,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
         ShardRetryState<T> retryState = ShardRetryState.createFor(taskState);
         tx.put(IncrementalTaskState.Serializer.toEntity(tx, taskState),
             ShardRetryState.Serializer.toEntity(tx, retryState));
-        scheduleWorkerTask(tx, settings, taskState, null);
+        scheduleWorkerTask(settings, taskState, null);
         tx.commit();
       } finally {
         rollbackIfActive(tx);
