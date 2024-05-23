@@ -55,6 +55,7 @@ public class MapReduceSettingsTest {
     assertNull(mrSettings.getWorkerQueueName());
   }
 
+  @Test
   public void testNonDefaultSettings() {
     MapReduceSettings.Builder builder = new MapReduceSettings.Builder();
     builder.setBackend("b1");

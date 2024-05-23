@@ -95,6 +95,7 @@ public class MarshallersTest {
     checkTrailingBytes(m, value);
   }
 
+  @Test
   @SuppressWarnings({"rawtypes", "unchecked"})
   public void testObjectMarshaller() {
     Marshaller m = Marshallers.getSerializationMarshaller();
