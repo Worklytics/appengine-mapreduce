@@ -5,9 +5,9 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.fail;
 import static org.junit.Assert.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.Iterator;
 
@@ -15,18 +15,16 @@ import java.util.Iterator;
  * A mock controller used for unit tests. It simply sums the inputs to combine the results.
  *
  */
-@EqualsAndHashCode
+@Getter
+@EqualsAndHashCode(callSuper = true)
 @RequiredArgsConstructor
 public class TestController extends ShardedJobController<TestTask> {
 
   private static final long serialVersionUID = 2L;
 
-  @Getter
   private final DatastoreOptions datastoreOptions;
-  @Getter
   private final int expectedResult;
 
-  @Getter
   private boolean completed = false;
 
 

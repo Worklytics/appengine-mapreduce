@@ -6,20 +6,20 @@ import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.replay;
 import static org.junit.Assert.assertFalse;
 
-import com.google.appengine.api.blobstore.dev.LocalBlobstoreService;
 import com.google.appengine.api.taskqueue.dev.LocalTaskQueue;
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo;
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo.HeaderWrapper;
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo.TaskStateInfo;
-import com.google.appengine.tools.development.ApiProxyLocal;
 import com.google.appengine.tools.development.testing.LocalMemcacheServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobHandler;
+import com.google.appengine.tools.pipeline.Injectable;
+import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
-import com.google.apphosting.api.ApiProxy;
+import com.google.appengine.tools.pipeline.impl.util.DIUtil;
 import com.google.cloud.datastore.Datastore;
 import com.google.common.base.CharMatcher;
 
@@ -37,16 +37,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @PipelineSetupExtensions
 public abstract class EndToEndTestCase {
 
   private static final Logger logger = Logger.getLogger(EndToEndTestCase.class.getName());
 
-  private final MapReduceServlet mrServlet = new MapReduceServlet();
-  private final PipelineServlet pipelineServlet = new PipelineServlet();
+  private MapReduceServlet mrServlet = new MapReduceServlet();
+  private PipelineServlet pipelineServlet = new PipelineServlet();
   private final LocalServiceTestHelper helper =
       new LocalServiceTestHelper(
           new LocalTaskQueueTestConfig().setDisableAutoTaskExecution(true),
@@ -59,12 +59,24 @@ public abstract class EndToEndTestCase {
     return null;
   }
 
+  @Injectable(PipelineServlet.class)
+  static class InjectablePipelineServlet extends PipelineServlet {
+
+  }
+
   @Getter
   Datastore datastore;
+
+  @Getter
+  PipelineService pipelineService;
 
   @BeforeEach
   public void injectDatastore(Datastore datastore ) {
     this.datastore = datastore;
+  }
+  @BeforeEach
+  public void setPipelineService(PipelineService pipelineService) {
+    this.pipelineService = pipelineService;
   }
 
   @Getter
@@ -78,11 +90,13 @@ public abstract class EndToEndTestCase {
       LocalServiceTestHelper.getApiProxyLocal().appendProperties(envAttributes);
     }
     taskQueue = LocalTaskQueueTestConfig.getLocalTaskQueue();
-    ApiProxyLocal proxy = (ApiProxyLocal) ApiProxy.getDelegate();
     // Creating files is not allowed in some test execution environments, so don't.
-    proxy.setProperty(LocalBlobstoreService.NO_STORAGE_PROPERTY, "true");
     storageTestHelper = new CloudStorageIntegrationTestHelper();
     storageTestHelper.setUp();
+
+    pipelineServlet = new PipelineServlet();
+    DIUtil.inject(pipelineServlet);
+    pipelineServlet.init();
   }
 
   @AfterEach

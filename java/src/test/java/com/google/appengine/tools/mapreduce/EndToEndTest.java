@@ -76,8 +76,6 @@ public class EndToEndTest extends EndToEndTestCase {
 
   private static final Logger log = Logger.getLogger(EndToEndTest.class.getName());
 
-  private PipelineService pipelineService;
-
 
   GoogleCloudStorageFileOutput.Options cloudStorageFileOutputOptions;
   MapReduceSettings testSettings;
@@ -85,7 +83,6 @@ public class EndToEndTest extends EndToEndTestCase {
   @BeforeEach
   public void setUp() throws Exception {
     super.setUp();
-    pipelineService = PipelineServiceFactory.newPipelineService();
     cloudStorageFileOutputOptions = GoogleCloudStorageFileOutput.BaseOptions.defaults()
       .withServiceAccountKey(getStorageTestHelper().getBase64EncodedServiceAccountKey())
       .withProjectId(getStorageTestHelper().getProjectId()); //prob not really needed ..
@@ -108,10 +105,10 @@ public class EndToEndTest extends EndToEndTestCase {
 
   private <I, K, V, O, R> void runWithPipeline(MapReduceSettings settings,
       MapReduceSpecification<I, K, V, O, R> mrSpec, Verifier<R> verifier) throws Exception {
-    String jobId = pipelineService.startNewPipeline(new MapReduceJob<>(mrSpec, settings));
+    String jobId = getPipelineService().startNewPipeline(new MapReduceJob<>(mrSpec, settings));
     assertFalse(jobId.isEmpty());
     executeTasksUntilEmpty("default");
-    JobInfo info = pipelineService.getJobInfo(jobId);
+    JobInfo info = getPipelineService().getJobInfo(jobId);
     @SuppressWarnings("unchecked")
     MapReduceResult<R> result = (MapReduceResult<R>) info.getOutput();
     assertEquals(JobInfo.State.COMPLETED_SUCCESSFULLY, info.getJobState());
@@ -132,10 +129,10 @@ public class EndToEndTest extends EndToEndTestCase {
 
   private <I, O, R> void runWithPipeline(MapSettings settings, MapSpecification<I, O, R> mrSpec,
       Verifier<R> verifier) throws Exception {
-    String jobId = pipelineService.startNewPipeline(new MapJob<>(mrSpec, settings));
+    String jobId = getPipelineService().startNewPipeline(new MapJob<>(mrSpec, settings));
     assertFalse(jobId.isEmpty());
     executeTasksUntilEmpty("default");
-    JobInfo info = pipelineService.getJobInfo(jobId);
+    JobInfo info = getPipelineService().getJobInfo(jobId);
     @SuppressWarnings("unchecked")
     MapReduceResult<R> result = (MapReduceResult<R>) info.getOutput();
     assertEquals(JobInfo.State.COMPLETED_SUCCESSFULLY, info.getJobState());

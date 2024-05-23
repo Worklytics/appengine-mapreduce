@@ -60,6 +60,10 @@ class PipelineComponentsExtension implements BeforeEachCallback {
     // can be serialized, then used to re-constitute connection to datastore emulator on another thread/process
     datastoreOptions = (DatastoreOptions) extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).get(DatastoreExtension.DS_OPTIONS_CONTEXT_KEY);
 
+    appEngineBackend = new AppEngineBackEnd(datastore, new AppEngineTaskQueue());
+    pipelineService = PipelineServiceFactory.newPipelineService(appEngineBackend);
+    pipelineManager = new PipelineManager(appEngineBackend);
+
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
       .put(ContextStoreKey.PIPELINE_SERVICE.name(), pipelineService);
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)

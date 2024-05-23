@@ -3,7 +3,7 @@ package com.google.appengine.tools.mapreduce.impl.util;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 public class RequestUtils {
 
