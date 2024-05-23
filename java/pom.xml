@@ -241,6 +241,22 @@
       <scope>provided</scope> <!-- if deploying to GAE standard with legacy apis enabled -->
     </dependency>
 
+    <!-- Dagger - Dependency Inject FW - https://github.com/google/dagger -->
+    <!-- TBC: if micronaut, that provides compile-time DI too ... -->
+    <!-- also, is this very extensible? believe this will in effect require users to provide Dagger 2 module FQN to @Injectable to leverage this -->
+    <dependency>
+      <groupId>com.google.dagger</groupId>
+      <artifactId>dagger</artifactId>
+      <version>2.51.1</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.dagger</groupId>
+      <artifactId>dagger-compiler</artifactId>
+      <version>2.51.1</version>
+      <scope>compile</scope>
+    </dependency>
+
     <!-- Test Dependencies -->
     <dependency>
       <groupId>com.google.appengine</groupId>
