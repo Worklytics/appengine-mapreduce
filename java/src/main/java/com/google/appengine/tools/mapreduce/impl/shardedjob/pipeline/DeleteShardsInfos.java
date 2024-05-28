@@ -55,6 +55,8 @@ public class DeleteShardsInfos extends Job0<Void> {
       ShardedJobRunner.getRetryerBuilder().withStopStrategy(StopStrategies.neverStop()),
       callable(() -> tx.delete(toDelete.toArray(new Key[toDelete.size()]))));
 
+    tx.commit();
+
     return null;
   }
 

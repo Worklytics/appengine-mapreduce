@@ -371,6 +371,7 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
       task.prepare();
       try {
         if (lockShard(tx, jobState, taskState)) {
+          // committing here, which forces acquisition of lock ...
           tx.commit(); // will throw if can't commit, which similar
           runAndUpdateTask(datastore, jobId, taskId, sequenceNumber, jobState, taskState);
         }
@@ -466,9 +467,24 @@ public class ShardedJobRunner<T extends IncrementalTask> implements ShardedJobHa
     taskState.incrementAndGetRetryCount(); // trigger saving the last task instead of current
   }
 
-  private void updateTask(Datastore datastore, final ShardedJobStateImpl<T> jobState,
+  /**
+   * updates task state for job IFF sequence number is the expected value; if not expected value, implies concurrent
+   * execution and this update is ignored (eg, other execution wins); this leaves possibility that task's work executed
+   * multiple times, in whole or in part.
+   *
+   * @param datastore client to use for update
+   * @param jobState state of job under which task executing
+   * @param taskState to udate
+   * @param shardRetryState retry state of the shard
+   * @param aggressiveRetry how aggressively to retry update
+   */
+  private void updateTask(Datastore datastore,
+                          final ShardedJobStateImpl<T> jobState,
                           final IncrementalTaskState<T> taskState, /* Nullable */
-      final ShardRetryState<T> shardRetryState, boolean aggressiveRetry) {
+                          final ShardRetryState<T> shardRetryState,
+                          boolean aggressiveRetry) {
+
+    // inc sequence number and release lock
     taskState.setSequenceNumber(taskState.getSequenceNumber() + 1);
     taskState.getLockInfo().unlock();
 
