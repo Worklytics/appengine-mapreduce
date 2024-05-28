@@ -9,6 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 
 import com.google.appengine.tools.mapreduce.EndToEndTestCase;
+import com.google.appengine.tools.mapreduce.di.DaggerDefaultMapReduceContainer;
+import com.google.appengine.tools.pipeline.impl.util.DIUtil;
 import com.google.cloud.datastore.*;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;

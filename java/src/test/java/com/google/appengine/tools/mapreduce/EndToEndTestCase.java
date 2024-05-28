@@ -14,12 +14,15 @@ import com.google.appengine.tools.development.testing.LocalMemcacheServiceTestCo
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
+import com.google.appengine.tools.mapreduce.di.DaggerDefaultMapReduceContainer;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobHandler;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobService;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobServiceFactory;
+import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
+import com.google.appengine.tools.pipeline.impl.util.DIUtil;
 import com.google.cloud.datastore.Datastore;
 import com.google.common.base.CharMatcher;
 
@@ -88,6 +91,12 @@ public abstract class EndToEndTestCase {
     // Creating files is not allowed in some test execution environments, so don't.
     storageTestHelper = new CloudStorageIntegrationTestHelper();
     storageTestHelper.setUp();
+
+    // still using default module, which builds pipeline options with defualts, which is not good
+
+    //TODO: fix this with RequestUtils that returns the datastore instance
+    DIUtil.overrideComponentInstanceForTests(DaggerDefaultMapReduceContainer.class, DaggerDefaultMapReduceContainer.create());
+    DIUtil.inject(mrServlet);
   }
 
   @AfterEach
@@ -144,6 +153,9 @@ public abstract class EndToEndTestCase {
     }
     expect(request.getParameterNames()).andReturn(Collections.enumeration(parameters.keySet()))
         .anyTimes();
+
+    expect(request.getParameter(RequestUtils.PARAM_NAMESPACE))
+      .andReturn(null).anyTimes();
 
     replay(request, response);
 

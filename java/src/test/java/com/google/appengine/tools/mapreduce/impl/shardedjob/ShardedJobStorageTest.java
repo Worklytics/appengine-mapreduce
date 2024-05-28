@@ -9,7 +9,6 @@ import com.google.appengine.tools.mapreduce.EndToEndTestCase;
 import com.google.cloud.datastore.*;
 import org.junit.jupiter.api.Test;
 import java.util.Iterator;
-import java.util.Map;
 
 /**
  * Tests the format in which ShardedJobs are written to the datastore.
