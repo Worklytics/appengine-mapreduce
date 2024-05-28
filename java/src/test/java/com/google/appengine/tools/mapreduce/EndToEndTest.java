@@ -76,8 +76,6 @@ public class EndToEndTest extends EndToEndTestCase {
 
   private static final Logger log = Logger.getLogger(EndToEndTest.class.getName());
 
-  private PipelineService pipelineService;
-
 
   GoogleCloudStorageFileOutput.Options cloudStorageFileOutputOptions;
   MapReduceSettings testSettings;
@@ -85,7 +83,6 @@ public class EndToEndTest extends EndToEndTestCase {
   @BeforeEach
   public void setUp() throws Exception {
     super.setUp();
-    pipelineService = PipelineServiceFactory.newPipelineService();
     cloudStorageFileOutputOptions = GoogleCloudStorageFileOutput.BaseOptions.defaults()
       .withServiceAccountKey(getStorageTestHelper().getBase64EncodedServiceAccountKey())
       .withProjectId(getStorageTestHelper().getProjectId()); //prob not really needed ..
@@ -108,10 +105,10 @@ public class EndToEndTest extends EndToEndTestCase {
 
   private <I, K, V, O, R> void runWithPipeline(MapReduceSettings settings,
       MapReduceSpecification<I, K, V, O, R> mrSpec, Verifier<R> verifier) throws Exception {
-    String jobId = pipelineService.startNewPipeline(new MapReduceJob<>(mrSpec, settings));
+    String jobId = getPipelineService().startNewPipeline(new MapReduceJob<>(mrSpec, settings));
     assertFalse(jobId.isEmpty());
     executeTasksUntilEmpty("default");
-    JobInfo info = pipelineService.getJobInfo(jobId);
+    JobInfo info = getPipelineService().getJobInfo(jobId);
     @SuppressWarnings("unchecked")
     MapReduceResult<R> result = (MapReduceResult<R>) info.getOutput();
     assertEquals(JobInfo.State.COMPLETED_SUCCESSFULLY, info.getJobState());
@@ -132,10 +129,10 @@ public class EndToEndTest extends EndToEndTestCase {
 
   private <I, O, R> void runWithPipeline(MapSettings settings, MapSpecification<I, O, R> mrSpec,
       Verifier<R> verifier) throws Exception {
-    String jobId = pipelineService.startNewPipeline(new MapJob<>(mrSpec, settings));
+    String jobId = getPipelineService().startNewPipeline(new MapJob<>(mrSpec, settings));
     assertFalse(jobId.isEmpty());
     executeTasksUntilEmpty("default");
-    JobInfo info = pipelineService.getJobInfo(jobId);
+    JobInfo info = getPipelineService().getJobInfo(jobId);
     @SuppressWarnings("unchecked")
     MapReduceResult<R> result = (MapReduceResult<R>) info.getOutput();
     assertEquals(JobInfo.State.COMPLETED_SUCCESSFULLY, info.getJobState());
@@ -145,7 +142,11 @@ public class EndToEndTest extends EndToEndTestCase {
 
   private <I, O, R> void runTest(MapSpecification<I, O, R> mrSpec, Verifier<R> verifier)
       throws Exception {
-    runTest(mrSpec, new MapSettings.Builder().build(), verifier);
+    runTest(mrSpec, new MapSettings.Builder()
+      .setProjectId(getDatastore().getOptions().getProjectId())
+      .setNamespace(getDatastore().getOptions().getNamespace())
+      .setDatabaseId(getDatastore().getOptions().getDatabaseId())
+      .build(), verifier);
   }
 
   private <I, O, R> void runTest(MapSpecification<I, O, R> mrSpec, MapSettings settings,
@@ -362,7 +363,7 @@ public class EndToEndTest extends EndToEndTestCase {
   @Test
   public void testDoNothingWithEmptyReadersList() throws Exception {
     runTest(new MapReduceSpecification.Builder<>(new NoInput<Long>(0), new Mod37Mapper(),
-        NoReducer.<String, Long, String>create(), new NoOutput<String, String>())
+        NoReducer.create(), new NoOutput<String, String>())
         .setKeyMarshaller(Marshallers.getStringMarshaller())
         .setValueMarshaller(Marshallers.getLongMarshaller()).setJobName("Empty test MR").build(),
         new Verifier<String>() {

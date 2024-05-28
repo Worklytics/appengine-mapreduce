@@ -23,34 +23,37 @@ import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.verify;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalMemcacheServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.MapReduceJob;
 import com.google.appengine.tools.mapreduce.MapReduceServlet;
 
-import junit.framework.TestCase;
-
+import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
+import com.google.appengine.tools.mapreduce.di.DaggerDefaultMapReduceContainer;
+import com.google.appengine.tools.pipeline.impl.util.DIUtil;
+import com.google.cloud.datastore.Datastore;
 import org.easymock.EasyMock;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.PrintWriter;
 
-import javax.servlet.ServletOutputStream;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * Tests MapReduceServlet
  *
  */
+@PipelineSetupExtensions
 public class MapReduceServletTest{
 
   private final LocalServiceTestHelper helper =
-      new LocalServiceTestHelper(new LocalDatastoreServiceTestConfig(),
+      new LocalServiceTestHelper(
           new LocalTaskQueueTestConfig(), new LocalMemcacheServiceTestConfig());
 
   private MapReduceServlet servlet;
@@ -59,6 +62,10 @@ public class MapReduceServletTest{
   public void setUp() throws Exception {
     helper.setUp();
     servlet = new MapReduceServlet();
+
+    // still using default module, which builds pipeline options with defualts, which is not good
+    DIUtil.overrideComponentInstanceForTests(DaggerDefaultMapReduceContainer.class, DaggerDefaultMapReduceContainer.create());
+    DIUtil.inject(servlet);
   }
 
   @AfterEach
@@ -80,6 +87,8 @@ public class MapReduceServletTest{
     verify(request, response);
   }
 
+  @Disabled
+  @Test
   //this stupid test fails because it's coupled to exact JSON serialization implementation
   // (eg, calling to PrintWriter.write, with chars/ints/strings as expected)
   public void ignoredTestCommandError() throws Exception {

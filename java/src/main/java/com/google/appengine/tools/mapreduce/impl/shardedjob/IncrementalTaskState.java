@@ -2,19 +2,17 @@
 
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
-import static com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.CompressionType.GZIP;
 import static com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.serializeToDatastoreProperty;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
-import com.google.appengine.api.datastore.Transaction;
+import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.apphosting.api.ApiProxy;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
+import lombok.Getter;
+import lombok.NonNull;
 
 /**
  * Information about execution of an {@link IncrementalTask}.
@@ -23,6 +21,7 @@ import com.google.common.primitives.Ints;
  *
  * @param <T> type of task
  */
+@Getter
 public class IncrementalTaskState<T extends IncrementalTask> {
 
   private final String taskId;
@@ -34,10 +33,13 @@ public class IncrementalTaskState<T extends IncrementalTask> {
   private Status status;
   private LockInfo lockInfo;
 
-  static class LockInfo {
+  public static class LockInfo {
 
     private static final String REQUEST_ID = "com.google.appengine.runtime.request_log_id";
+
     private Long startTime;
+
+    @Getter
     private String requestId;
 
     private LockInfo(Long startTime, String requestId) {
@@ -51,10 +53,6 @@ public class IncrementalTaskState<T extends IncrementalTask> {
 
     public long lockedSince() {
       return startTime == null ? -1 : startTime;
-    }
-
-    public String getRequestId() {
-      return requestId;
     }
 
     public void lock() {
@@ -92,25 +90,9 @@ public class IncrementalTaskState<T extends IncrementalTask> {
     this.status = status;
   }
 
-  public String getTaskId() {
-    return taskId;
-  }
-
-  public String getJobId() {
-    return jobId;
-  }
-
-  public long getMostRecentUpdateMillis() {
-    return mostRecentUpdateMillis;
-  }
-
   IncrementalTaskState<T> setMostRecentUpdateMillis(long mostRecentUpdateMillis) {
     this.mostRecentUpdateMillis = mostRecentUpdateMillis;
     return this;
-  }
-
-  public int getSequenceNumber() {
-    return sequenceNumber;
   }
 
   IncrementalTaskState<T> setSequenceNumber(int nextSequenceNumber) {
@@ -118,9 +100,6 @@ public class IncrementalTaskState<T extends IncrementalTask> {
     return this;
   }
 
-  public int getRetryCount() {
-    return retryCount;
-  }
 
   int incrementAndGetRetryCount() {
     return ++retryCount;
@@ -130,21 +109,9 @@ public class IncrementalTaskState<T extends IncrementalTask> {
     retryCount = 0;
   }
 
-  public LockInfo getLockInfo() {
-    return lockInfo;
-  }
-
-  /*Nullable*/ public T getTask() {
-    return task;
-  }
-
   IncrementalTaskState<T> setTask(T task) {
     this.task = task;
     return this;
-  }
-
-  public Status getStatus() {
-    return status;
   }
 
   IncrementalTaskState<T> setStatus(Status status) {
@@ -181,56 +148,66 @@ public class IncrementalTaskState<T extends IncrementalTask> {
     private static final String NEXT_TASK_PROPERTY = "nextTask";
     private static final String STATUS_PROPERTY = "status";
 
-    public static Key makeKey(String taskId) {
-      return KeyFactory.createKey(ENTITY_KIND, taskId);
+    public static Key makeKey(Datastore datastore, String taskId) {
+      return datastore.newKeyFactory().setKind(ENTITY_KIND).newKey(taskId);
     }
 
     public static Entity toEntity(Transaction tx, IncrementalTaskState<?> in) {
-      Key key = makeKey(in.getTaskId());
-      Entity taskState = new Entity(key);
-      taskState.setProperty(JOB_ID_PROPERTY, in.getJobId());
-      taskState.setUnindexedProperty(MOST_RECENT_UPDATE_MILLIS_PROPERTY,
-          in.getMostRecentUpdateMillis());
-      if (in.getLockInfo().startTime != null) {
-        taskState.setUnindexedProperty(SLICE_START_TIME, in.getLockInfo().startTime);
+      Key key = makeKey(tx.getDatastore(), in.getTaskId());
+      Entity.Builder taskState = Entity.newBuilder(key);
+      taskState.set(JOB_ID_PROPERTY, in.getJobId());
+      taskState.set(MOST_RECENT_UPDATE_MILLIS_PROPERTY,
+        LongValue.newBuilder(in.getMostRecentUpdateMillis()).setExcludeFromIndexes(true).build());
+
+      if (in.getLockInfo() != null) {
+        if (in.getLockInfo().startTime != null) {
+          taskState.set(SLICE_START_TIME, LongValue.newBuilder(in.getLockInfo().startTime).setExcludeFromIndexes(true).build());
+        }
+        if (in.getLockInfo().requestId != null) {
+          taskState.set(SLICE_REQUEST_ID, StringValue.newBuilder(in.getLockInfo().requestId).setExcludeFromIndexes(true).build());
+        }
       }
-      if (in.getLockInfo().requestId != null) {
-        taskState.setUnindexedProperty(SLICE_REQUEST_ID, in.getLockInfo().requestId);
-      }
-      taskState.setProperty(SEQUENCE_NUMBER_PROPERTY, in.getSequenceNumber());
-      taskState.setProperty(RETRY_COUNT_PROPERTY, in.getRetryCount());
-      serializeToDatastoreProperty(tx, taskState, NEXT_TASK_PROPERTY, in.getTask(), GZIP);
+      taskState.set(SEQUENCE_NUMBER_PROPERTY, in.getSequenceNumber());
+      taskState.set(RETRY_COUNT_PROPERTY, in.getRetryCount());
+      serializeToDatastoreProperty(tx, taskState, NEXT_TASK_PROPERTY, in.getTask());
       serializeToDatastoreProperty(tx, taskState, STATUS_PROPERTY, in.getStatus());
-      return taskState;
+      return taskState.build();
     }
 
-    static <T extends IncrementalTask> IncrementalTaskState<T> fromEntity(Entity in) {
-      return fromEntity(in, false);
+    static <T extends IncrementalTask> IncrementalTaskState<T> fromEntity(Transaction tx, Entity in) {
+      return fromEntity(tx, in, false);
     }
 
     public static <T extends IncrementalTask> IncrementalTaskState<T> fromEntity(
-        Entity in, boolean lenient) {
-      Preconditions.checkArgument(ENTITY_KIND.equals(in.getKind()), "Unexpected kind: %s", in);
+        @NonNull Transaction tx,
+        Entity in,
+        boolean lenient) {
+      Preconditions.checkArgument(ENTITY_KIND.equals(in.getKey().getKind()), "Unexpected kind: %s", in);
+      LockInfo lockInfo = null;
+      if (in.contains(SLICE_START_TIME)) {
+        lockInfo = new LockInfo(in.getLong(SLICE_START_TIME),
+          in.getString(SLICE_REQUEST_ID));
+      } else {
+        lockInfo = new LockInfo(null, null);
+      }
+
       IncrementalTaskState<T> state = new IncrementalTaskState<>(in.getKey().getName(),
-          (String) in.getProperty(JOB_ID_PROPERTY),
-          (Long) in.getProperty(MOST_RECENT_UPDATE_MILLIS_PROPERTY),
-          new LockInfo((Long) in.getProperty(SLICE_START_TIME),
-              (String) in.getProperty(SLICE_REQUEST_ID)),
-          in.hasProperty(NEXT_TASK_PROPERTY) ? SerializationUtil
-              .<T>deserializeFromDatastoreProperty(in, NEXT_TASK_PROPERTY, lenient)
-              : null,
-          SerializationUtil.<Status>deserializeFromDatastoreProperty(in, STATUS_PROPERTY));
+          in.getString(JOB_ID_PROPERTY),
+          in.getLong(MOST_RECENT_UPDATE_MILLIS_PROPERTY),
+          lockInfo,
+          in.contains(NEXT_TASK_PROPERTY) ? SerializationUtil.deserializeFromDatastoreProperty(tx, in, NEXT_TASK_PROPERTY, lenient) : null,
+          SerializationUtil.deserializeFromDatastoreProperty(tx, in, STATUS_PROPERTY));
       state.setSequenceNumber(
-          Ints.checkedCast((Long) in.getProperty(SEQUENCE_NUMBER_PROPERTY)));
-      if (in.hasProperty(RETRY_COUNT_PROPERTY)) {
-        state.retryCount = Ints.checkedCast((Long) in.getProperty(RETRY_COUNT_PROPERTY));
+          Ints.checkedCast(in.getLong(SEQUENCE_NUMBER_PROPERTY)));
+      if (in.contains(RETRY_COUNT_PROPERTY)) {
+        state.retryCount = Ints.checkedCast(in.getLong(RETRY_COUNT_PROPERTY));
       }
       return state;
     }
 
     static boolean hasNextTask(Entity in) {
-      Preconditions.checkArgument(ENTITY_KIND.equals(in.getKind()), "Unexpected kind: %s", in);
-      return in.hasProperty(NEXT_TASK_PROPERTY);
+      Preconditions.checkArgument(ENTITY_KIND.equals(in.getKey().getKind()), "Unexpected kind: %s", in);
+      return in.contains(NEXT_TASK_PROPERTY);
     }
   }
 }

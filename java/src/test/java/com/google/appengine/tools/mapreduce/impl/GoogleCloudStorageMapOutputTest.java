@@ -6,7 +6,7 @@ import com.google.appengine.tools.mapreduce.*;
 
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
-import junit.framework.TestCase;
+import lombok.AllArgsConstructor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -99,21 +99,12 @@ public class GoogleCloudStorageMapOutputTest {
     return values;
   }
 
+  @AllArgsConstructor(staticName = "of")
   private static class SliceData {
 
     private final int slices;
     private final int maxValuesPerSlice;
     private final int maxValueSize;
-
-    private SliceData(int slices, int maxValuesPerSlice, int maxValueSize) {
-      this.slices = slices;
-      this.maxValuesPerSlice = maxValuesPerSlice;
-      this.maxValueSize = maxValueSize;
-    }
-
-    public static SliceData of(int slices, int maxValuesPerSlice, int maxValueSize) {
-      return new SliceData(slices, maxValuesPerSlice, maxValueSize);
-    }
   }
 
   private void writeAndVerifyContent(SliceData... sliceData) throws IOException  {

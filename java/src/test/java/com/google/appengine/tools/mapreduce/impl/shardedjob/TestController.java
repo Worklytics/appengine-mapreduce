@@ -1,8 +1,13 @@
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.fail;
+import com.google.cloud.datastore.DatastoreOptions;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
 import static org.junit.Assert.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.Iterator;
 
@@ -10,15 +15,18 @@ import java.util.Iterator;
  * A mock controller used for unit tests. It simply sums the inputs to combine the results.
  *
  */
+@Getter
+@EqualsAndHashCode(callSuper = true)
+@RequiredArgsConstructor
 public class TestController extends ShardedJobController<TestTask> {
 
-  private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 2L;
+
+  private final DatastoreOptions datastoreOptions;
   private final int expectedResult;
+
   private boolean completed = false;
 
-  public TestController(int expectedResult) {
-    this.expectedResult = expectedResult;
-  }
 
   @Override
   public void completed(Iterator<TestTask> results) {
@@ -34,37 +42,6 @@ public class TestController extends ShardedJobController<TestTask> {
   @Override
   public void failed(Status status) {
     fail("Should not have been called");
-  }
-
-  public boolean isCompleted() {
-    return completed;
-  }
-
-  @Override
-  public int hashCode() {
-    final int prime = 31;
-    int result = 1;
-    result = prime * result + (completed ? 1231 : 1237);
-    result = prime * result + expectedResult;
-    return result;
-  }
-
-  @Override
-  public boolean equals(Object obj) {
-    if (this == obj) {
-      return true;
-    }
-    if (obj == null) {
-      return false;
-    }
-    if (getClass() != obj.getClass()) {
-      return false;
-    }
-    TestController other = (TestController) obj;
-    if (completed != other.completed) {
-      return false;
-    }
-    return expectedResult == other.expectedResult;
   }
 
 }

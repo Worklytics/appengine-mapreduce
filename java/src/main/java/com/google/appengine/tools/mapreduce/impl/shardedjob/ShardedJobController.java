@@ -2,6 +2,8 @@
 
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
+import lombok.EqualsAndHashCode;
+
 import java.io.Serializable;
 import java.util.Iterator;
 
@@ -13,6 +15,7 @@ import java.util.Iterator;
  *
  * @param <T> the type of the incremental task
  */
+@EqualsAndHashCode
 public abstract class ShardedJobController<T extends IncrementalTask> implements Serializable {
 
   private static final long serialVersionUID = 6209078163062384156L;

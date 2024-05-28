@@ -12,6 +12,8 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskState
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobService;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobServiceFactory;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobState;
+import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
+import com.google.cloud.datastore.Datastore;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.Longs;
 
@@ -23,6 +25,9 @@ import com.googlecode.charts4j.GCharts;
 import com.googlecode.charts4j.Plot;
 import com.googlecode.charts4j.Plots;
 
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -34,18 +39,25 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+import javax.inject.Inject;
 
 /**
  * UI Status view logic handler.
  *
  */
+@AllArgsConstructor(onConstructor_ = @Inject)
+@NoArgsConstructor
 final class StatusHandler {
 
   private static final Logger log = Logger.getLogger(StatusHandler.class.getName());
 
   public static final int DEFAULT_JOBS_PER_PAGE_COUNT = 50;
+
+  @Inject ShardedJobService shardedJobService;
+  @Inject RequestUtils requestUtil;
 
   // Command paths
   public static final String LIST_JOBS_PATH = "list_jobs";
@@ -53,12 +65,9 @@ final class StatusHandler {
   public static final String ABORT_JOB_PATH = "abort_job";
   public static final String GET_JOB_DETAIL_PATH = "get_job_detail";
 
-  private StatusHandler() {
-  }
-
-  private static JSONObject handleCleanupJob(String jobId) throws JSONException {
+  private JSONObject handleCleanupJob(Datastore datastore, String jobId) throws JSONException {
     JSONObject retValue = new JSONObject();
-    if (ShardedJobServiceFactory.getShardedJobService().cleanupJob(jobId)) {
+    if (shardedJobService.cleanupJob(datastore, jobId)) {
       retValue.put("status", "Successfully deleted requested job.");
     } else {
       retValue.put("status", "Can't delete an active job");
@@ -66,9 +75,9 @@ final class StatusHandler {
     return retValue;
   }
 
-  private static JSONObject handleAbortJob(String jobId) throws JSONException {
+  private JSONObject handleAbortJob(Datastore datastore, String jobId) throws JSONException {
     JSONObject retValue = new JSONObject();
-    ShardedJobServiceFactory.getShardedJobService().abortJob(jobId);
+    shardedJobService.abortJob(datastore, jobId);
     retValue.put("status", "Successfully aborted requested job.");
     return retValue;
   }
@@ -76,20 +85,23 @@ final class StatusHandler {
   /**
    * Handles all status page commands.
    */
-  static void handleCommand(
+  void handleCommand(
       String command, HttpServletRequest request, HttpServletResponse response) {
     response.setContentType("application/json");
     boolean isPost = "POST".equals(request.getMethod());
     JSONObject retValue = null;
+
+    Datastore datastore = requestUtil.buildDatastoreFromRequest(request);
+
     try {
       if (command.equals(LIST_JOBS_PATH) && !isPost) {
         retValue = handleListJobs(request);
       } else if (command.equals(CLEANUP_JOB_PATH) && isPost) {
-        retValue = handleCleanupJob(request.getParameter("mapreduce_id"));
+        retValue = handleCleanupJob(datastore, request.getParameter("mapreduce_id"));
       } else if (command.equals(ABORT_JOB_PATH) && isPost) {
-        retValue = handleAbortJob(request.getParameter("mapreduce_id"));
+        retValue = handleAbortJob(datastore, request.getParameter("mapreduce_id"));
       } else if (command.equals(GET_JOB_DETAIL_PATH) && !isPost) {
-        retValue = handleGetJobDetail(request.getParameter("mapreduce_id"));
+        retValue = handleGetJobDetail(datastore, request.getParameter("mapreduce_id"));
       }
     } catch (Exception t) {
       log.log(Level.SEVERE, "Got exception while running command", t);
@@ -157,9 +169,8 @@ final class StatusHandler {
    * Handle the get_job_detail AJAX command.
    */
   @VisibleForTesting
-  static JSONObject handleGetJobDetail(String jobId) {
-    ShardedJobService shardedJobService = ShardedJobServiceFactory.getShardedJobService();
-    ShardedJobState state = shardedJobService.getJobState(jobId);
+  JSONObject handleGetJobDetail(Datastore datastore, String jobId) {
+    ShardedJobState state = shardedJobService.getJobState(datastore, jobId);
     if (state == null) {
       return null;
     }
@@ -194,7 +205,7 @@ final class StatusHandler {
       Counters totalCounters = new CountersImpl();
       int i = 0;
       long[] workerCallCounts = new long[state.getTotalTaskCount()];
-      Iterator<IncrementalTaskState<IncrementalTask>> tasks = shardedJobService.lookupTasks(state);
+      Iterator<IncrementalTaskState<IncrementalTask>> tasks = shardedJobService.lookupTasks(datastore.newTransaction(), state);
       while (tasks.hasNext()) {
         IncrementalTaskState<?> taskState = tasks.next();
         JSONObject shardObject = new JSONObject();

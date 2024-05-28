@@ -6,9 +6,6 @@ import static com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSet
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.github.rholder.retry.*;
-import com.google.appengine.api.backends.BackendService;
-import com.google.appengine.api.backends.BackendServiceFactory;
-import com.google.appengine.api.datastore.Key;
 import com.google.appengine.api.modules.ModulesException;
 import com.google.appengine.api.modules.ModulesService;
 import com.google.appengine.api.modules.ModulesServiceFactory;
@@ -18,11 +15,16 @@ import com.google.appengine.api.taskqueue.TransientFailureException;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
+import com.google.cloud.datastore.DatastoreOptions;
+import com.google.cloud.datastore.Key;
 import com.google.common.base.Preconditions;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 
 import java.io.Serializable;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -32,21 +34,21 @@ import java.util.concurrent.TimeUnit;
  * dependent on the performance or resource usage of the computation, or if
  * different backends, modules or different base urls have different versions of the code).
  */
-@SuppressWarnings("deprecation")
+@Getter
 @ToString
 @RequiredArgsConstructor
 public class MapSettings implements Serializable {
 
   private static final long serialVersionUID = 51425056338041064L;
 
-  private static final RetryerBuilder getQueueRetryerBuilder() {
+  private static RetryerBuilder getQueueRetryerBuilder() {
     return RetryerBuilder.newBuilder()
       .withWaitStrategy(WaitStrategies.exponentialWait(20_000, TimeUnit.MILLISECONDS))
       .withStopStrategy(StopStrategies.stopAfterAttempt(8))
       .retryIfExceptionOfType(TransientFailureException.class);
   }
 
-  private static final RetryerBuilder getModulesRetryerBuilder() {
+  private static RetryerBuilder getModulesRetryerBuilder() {
     return RetryerBuilder.newBuilder()
       .withWaitStrategy(WaitStrategies.exponentialWait(20_000, TimeUnit.MILLISECONDS))
       .withStopStrategy(StopStrategies.stopAfterAttempt(8))
@@ -61,8 +63,10 @@ public class MapSettings implements Serializable {
   public static final int DEFAULT_SHARD_RETRIES = 4;
   public static final int DEFAULT_SLICE_RETRIES = 20;
 
+  private final String projectId;
+  private final String databaseId;
+  private final String namespace;
   private final String baseUrl;
-  private final String backend;
   private final String module;
   private final String workerQueueName;
   private final int millisPerSlice;
@@ -70,11 +74,14 @@ public class MapSettings implements Serializable {
   private final int maxShardRetries;
   private final int maxSliceRetries;
 
+  @ToString
   abstract static class BaseBuilder<B extends BaseBuilder<B>> {
 
+    protected String projectId;
+    protected String databaseId;
+    protected String namespace;
     protected String baseUrl = DEFAULT_BASE_URL;
     protected String module;
-    protected String backend;
     protected String workerQueueName;
     protected int millisPerSlice = DEFAULT_MILLIS_PER_SLICE;
     protected double sliceTimeoutRatio = DEFAULT_SLICE_TIMEOUT_RATIO;
@@ -85,9 +92,11 @@ public class MapSettings implements Serializable {
     }
 
     BaseBuilder(MapSettings settings) {
+      projectId = settings.getProjectId();
+      databaseId = settings.getDatabaseId();
+      namespace = settings.getNamespace();
       baseUrl = settings.getBaseUrl();
       module = settings.getModule();
-      backend = settings.getBackend();
       workerQueueName = settings.getWorkerQueueName();
       millisPerSlice = settings.getMillisPerSlice();
       sliceTimeoutRatio = settings.getSliceTimeoutRatio();
@@ -96,6 +105,14 @@ public class MapSettings implements Serializable {
     }
 
     protected abstract B self();
+
+    /**
+     * Sets the namespace that will be used for all requests related to this job.
+     */
+    public B setNamespace(String namespace) {
+      this.namespace = namespace;
+      return self();
+    }
 
     /**
      * Sets the base URL that will be used for all requests related to this job.
@@ -107,20 +124,13 @@ public class MapSettings implements Serializable {
     }
 
     /**
-     * Specifies the Module that the job will run on.
-     * If this is not set or {@code null}, it will run on the current module.
+     * Specifies the Module (Service) that the job will run on.
+     * If this is not set or {@code null}, it will run on the current module (service).
+     *
+     * in appengine gen2, these are called services
      */
     public B setModule(String module) {
       this.module = module;
-      return self();
-    }
-
-    /**
-     * @deprecated Use modules instead.
-     */
-    @Deprecated
-    public B setBackend(String backend) {
-      this.backend = backend;
       return self();
     }
 
@@ -170,12 +180,19 @@ public class MapSettings implements Serializable {
       return self();
     }
 
+    public B setProjectId(String projectId) {
+      this.projectId = projectId;
+      return self();
+    }
+
+    public B setDatabaseId(String databaseId) {
+      this.databaseId = databaseId;
+      return self();
+    }
   }
 
+  @NoArgsConstructor
   public static class Builder extends BaseBuilder<Builder> {
-
-    public Builder() {
-    }
 
     public Builder(MapSettings settings) {
       super(settings);
@@ -192,11 +209,11 @@ public class MapSettings implements Serializable {
   }
 
   MapSettings(BaseBuilder<?> builder) {
-    Preconditions.checkArgument(
-        builder.module == null || builder.backend == null, "Module and Backend cannot be combined");
+    projectId = builder.projectId;
+    databaseId = builder.databaseId;
+    namespace = builder.namespace;
     baseUrl = builder.baseUrl;
     module = builder.module;
-    backend = builder.backend;
     workerQueueName = this.checkQueueSettings(builder.workerQueueName);
     millisPerSlice = builder.millisPerSlice;
     sliceTimeoutRatio = builder.sliceTimeoutRatio;
@@ -204,106 +221,40 @@ public class MapSettings implements Serializable {
     maxSliceRetries = builder.maxSliceRetries;
   }
 
-  String getBaseUrl() {
-    return baseUrl;
-  }
-
-  String getModule() {
-    return module;
-  }
-
-  String getBackend() {
-    return backend;
-  }
-
-  String getWorkerQueueName() {
-    return workerQueueName;
-  }
-
-  int getMillisPerSlice() {
-    return millisPerSlice;
-  }
-
-  double getSliceTimeoutRatio() {
-    return sliceTimeoutRatio;
-  }
-
-  int getMaxShardRetries() {
-    return maxShardRetries;
-  }
-
-  int getMaxSliceRetries() {
-    return maxSliceRetries;
-  }
-
-  @Override
-  public String toString() {
-    return getClass().getSimpleName() + "("
-        + baseUrl + ", "
-        + backend + ", "
-        + module + ", "
-        + workerQueueName + ", "
-        + millisPerSlice + ", "
-        + sliceTimeoutRatio + ", "
-        + maxSliceRetries + ", "
-        + maxShardRetries + ")";
-  }
-
   JobSetting[] toJobSettings(JobSetting... extra) {
     JobSetting[] settings = new JobSetting[3 + extra.length];
-    settings[0] = new JobSetting.OnBackend(backend);
-    settings[1] = new JobSetting.OnService(module);
-    settings[2] = new JobSetting.OnQueue(workerQueueName);
+    settings[0] = new JobSetting.OnService(module);
+    settings[1] = new JobSetting.OnQueue(workerQueueName);
+    settings[2] = new JobSetting.DatastoreNamespace(namespace);
     System.arraycopy(extra, 0, settings, 3, extra.length);
     return settings;
   }
 
-  private static String getCurrentBackend() {
-    if (Boolean.parseBoolean(System.getenv("GAE_VM"))) {
-      // MVM can't be a backend.
-      return null;
-    }
-    BackendService backendService = BackendServiceFactory.getBackendService();
-    String currentBackend = backendService.getCurrentBackend();
-    // If currentBackend contains ':' it is actually a B type module (see b/12893879)
-    if (currentBackend != null && currentBackend.indexOf(':') != -1) {
-      currentBackend = null;
-    }
-    return currentBackend;
-  }
-
   ShardedJobSettings toShardedJobSettings(String shardedJobId, Key pipelineKey) {
-    String backend = getBackend();
+
     String module = getModule();
     String version = null;
-    if (backend == null) {
-      if (module == null) {
-        String currentBackend = getCurrentBackend();
-        if (currentBackend != null) {
-          backend = currentBackend;
-        } else {
-          ModulesService modulesService = ModulesServiceFactory.getModulesService();
-          module = modulesService.getCurrentModule();
-          version = modulesService.getCurrentVersion();
-        }
+    if (module == null) {
+      ModulesService modulesService = ModulesServiceFactory.getModulesService();
+      module = modulesService.getCurrentModule();
+      version = modulesService.getCurrentVersion();
+    } else {
+      final ModulesService modulesService = ModulesServiceFactory.getModulesService();
+      if (module.equals(modulesService.getCurrentModule())) {
+        version = modulesService.getCurrentVersion();
       } else {
-        final ModulesService modulesService = ModulesServiceFactory.getModulesService();
-        if (module.equals(modulesService.getCurrentModule())) {
-          version = modulesService.getCurrentVersion();
-        } else {
-          // TODO(user): we may want to support providing a version for a module
-          final String requestedModule = module;
+        // TODO(user): we may want to support providing a version for a module
+        final String requestedModule = module;
 
-          version = RetryExecutor.call(getModulesRetryerBuilder(), () -> modulesService.getDefaultVersion(requestedModule));
-        }
+        version = RetryExecutor.call(getModulesRetryerBuilder(), () -> modulesService.getDefaultVersion(requestedModule));
       }
     }
+
     final ShardedJobSettings.Builder builder = new ShardedJobSettings.Builder()
         .setControllerPath(baseUrl + CONTROLLER_PATH + "/" + shardedJobId)
         .setWorkerPath(baseUrl + WORKER_PATH + "/" + shardedJobId)
         .setMapReduceStatusUrl(baseUrl + "detail?mapreduce_id=" + shardedJobId)
         .setPipelineStatusUrl(PipelineServlet.makeViewerUrl(pipelineKey, pipelineKey))
-        .setBackend(backend)
         .setModule(module)
         .setVersion(version)
         .setQueueName(workerQueueName)
@@ -342,5 +293,17 @@ public class MapSettings implements Serializable {
       }
     }
     return queueName;
+  }
+
+  DatastoreOptions getDatastoreOptions() {
+    DatastoreOptions.Builder optionsBuilder = DatastoreOptions.newBuilder();
+    optionsBuilder.setProjectId(Optional.ofNullable(projectId).orElseGet(DatastoreOptions::getDefaultProjectId));
+    if (databaseId != null) {
+      optionsBuilder.setDatabaseId(databaseId);
+    }
+    if (namespace != null) {
+      optionsBuilder.setNamespace(namespace);
+    }
+    return optionsBuilder.build();
   }
 }

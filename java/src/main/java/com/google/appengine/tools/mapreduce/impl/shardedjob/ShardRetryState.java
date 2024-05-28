@@ -6,10 +6,7 @@ import static com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.d
 import static com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.serializeToDatastoreProperty;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
-import com.google.appengine.api.datastore.Transaction;
+import com.google.cloud.datastore.*;
 import com.google.common.primitives.Ints;
 
 /**
@@ -65,21 +62,22 @@ public final class ShardRetryState<T extends IncrementalTask> {
     private static final String INITIAL_TASK_PROPERTY = "initialTask";
     private static final String RETRY_COUNT_PROPERTY = "retryCount";
 
-    public static Key makeKey(String taskId) {
-      Key parent = IncrementalTaskState.Serializer.makeKey(taskId);
-      return KeyFactory.createKey(parent, ENTITY_KIND, 1);
+    public static Key makeKey(Datastore datastore, String taskId) {
+
+      Key parent = IncrementalTaskState.Serializer.makeKey(datastore, taskId);
+      return Key.newBuilder(parent, ENTITY_KIND, 1L).build();
     }
 
     static Entity toEntity(Transaction tx, ShardRetryState<?> in) {
-      Entity shardInfo = new Entity(makeKey(in.getTaskId()));
+      Entity.Builder shardInfo = Entity.newBuilder(makeKey(tx.getDatastore(), in.getTaskId()));
       serializeToDatastoreProperty(tx, shardInfo, INITIAL_TASK_PROPERTY, in.initialTask);
-      shardInfo.setUnindexedProperty(RETRY_COUNT_PROPERTY, in.retryCount);
-      return shardInfo;
+      shardInfo.set(RETRY_COUNT_PROPERTY, LongValue.newBuilder(in.retryCount).setExcludeFromIndexes(true).build());
+      return shardInfo.build();
     }
 
-    static <T extends IncrementalTask> ShardRetryState<T> fromEntity(Entity in) {
-      T initialTask = deserializeFromDatastoreProperty(in, INITIAL_TASK_PROPERTY);
-      int retryCount = Ints.checkedCast((Long) in.getProperty(RETRY_COUNT_PROPERTY));
+    static <T extends IncrementalTask> ShardRetryState<T> fromEntity(Transaction tx, Entity in) {
+      T initialTask = deserializeFromDatastoreProperty(tx, in, INITIAL_TASK_PROPERTY);
+      int retryCount = Ints.checkedCast(in.getLong(RETRY_COUNT_PROPERTY));
       return new ShardRetryState<>(in.getKey().getParent().getName(), initialTask, retryCount);
     }
   }

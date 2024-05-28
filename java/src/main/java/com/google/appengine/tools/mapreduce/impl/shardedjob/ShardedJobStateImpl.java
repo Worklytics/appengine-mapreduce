@@ -5,14 +5,13 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob;
 import static com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.serializeToDatastoreProperty;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
-import com.google.appengine.api.datastore.Transaction;
+import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Ints;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NonNull;
 
 import java.util.BitSet;
 
@@ -23,6 +22,8 @@ import java.util.BitSet;
  *
  * @param <T> type of the IncrementalTask
  */
+@Getter
+@EqualsAndHashCode
 class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState {
 
   private final String jobId;
@@ -53,35 +54,7 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
     this.startTimeMillis = startTimeMillis;
     this.mostRecentUpdateTimeMillis = startTimeMillis;
     this.status = status;
-  }
 
-  @Override
-  public String getJobId() {
-    return jobId;
-  }
-
-  ShardedJobController<T> getController() {
-    return controller;
-  }
-
-  @Override
-  public ShardedJobSettings getSettings() {
-    return settings;
-  }
-
-  @Override
-  public int getTotalTaskCount() {
-    return totalTaskCount;
-  }
-
-  @Override
-  public long getStartTimeMillis() {
-    return startTimeMillis;
-  }
-
-  @Override
-  public long getMostRecentUpdateTimeMillis() {
-    return mostRecentUpdateTimeMillis;
   }
 
   @Override public int getActiveTaskCount() {
@@ -100,11 +73,6 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
   ShardedJobStateImpl<T> setMostRecentUpdateTimeMillis(long mostRecentUpdateTimeMillis) {
     this.mostRecentUpdateTimeMillis = mostRecentUpdateTimeMillis;
     return this;
-  }
-
-  @Override
-  public Status getStatus() {
-    return status;
   }
 
   ShardedJobStateImpl<T> setStatus(Status status) {
@@ -133,42 +101,39 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
     private static final String SHARDS_COMPLETED_PROPERTY = "activeShards";
     private static final String STATUS_PROPERTY = "status";
 
-    static Key makeKey(String jobId) {
-      return KeyFactory.createKey(ENTITY_KIND, jobId);
+    static Key makeKey(Datastore datastore, String jobId) {
+      return datastore.newKeyFactory().setKind(ENTITY_KIND).newKey(jobId);
     }
 
-    static Entity toEntity(Transaction tx, ShardedJobStateImpl<?> in) {
-      Key key = makeKey(in.getJobId());
-      Entity jobState = new Entity(key);
+    static Entity toEntity(@NonNull Transaction tx, ShardedJobStateImpl<?> in) {
+      Key key = makeKey(tx.getDatastore(), in.getJobId());
+      Entity.Builder jobState = Entity.newBuilder(key);
       serializeToDatastoreProperty(tx, jobState, CONTROLLER_PROPERTY, in.getController());
       serializeToDatastoreProperty(tx, jobState, SETTINGS_PROPERTY, in.getSettings());
       serializeToDatastoreProperty(tx, jobState, SHARDS_COMPLETED_PROPERTY, in.shardsCompleted);
       serializeToDatastoreProperty(tx, jobState, STATUS_PROPERTY, in.getStatus());
-      jobState.setUnindexedProperty(TOTAL_TASK_COUNT_PROPERTY, in.getTotalTaskCount());
-      jobState.setUnindexedProperty(START_TIME_PROPERTY, in.getStartTimeMillis());
-      jobState.setUnindexedProperty(MOST_RECENT_UPDATE_TIME_PROPERTY,
-          in.getMostRecentUpdateTimeMillis());
-      return jobState;
+      jobState.set(TOTAL_TASK_COUNT_PROPERTY, LongValue.newBuilder(in.getTotalTaskCount()).setExcludeFromIndexes(true).build());
+      jobState.set(START_TIME_PROPERTY, LongValue.newBuilder(in.getStartTimeMillis()).setExcludeFromIndexes(true).build());
+      jobState.set(MOST_RECENT_UPDATE_TIME_PROPERTY,
+        LongValue.newBuilder(in.getMostRecentUpdateTimeMillis()).setExcludeFromIndexes(true).build());
+      return jobState.build();
     }
 
-    static <T extends IncrementalTask> ShardedJobStateImpl<T> fromEntity(Entity in) {
-      return fromEntity(in, false);
+    static <T extends IncrementalTask> ShardedJobStateImpl<T> fromEntity(@NonNull Transaction tx, Entity in) {
+      return fromEntity(tx, in, false);
     }
 
     static <T extends IncrementalTask> ShardedJobStateImpl<T> fromEntity(
-        Entity in, boolean lenient) {
-      Preconditions.checkArgument(ENTITY_KIND.equals(in.getKind()), "Unexpected kind: %s", in);
+      @NonNull Transaction tx, Entity in, boolean lenient) {
+      Preconditions.checkArgument(ENTITY_KIND.equals(in.getKey().getKind()), "Unexpected kind: %s", in);
       return new ShardedJobStateImpl<>(in.getKey().getName(),
-          SerializationUtil.<ShardedJobController<T>>deserializeFromDatastoreProperty(in,
-              CONTROLLER_PROPERTY, lenient),
-          SerializationUtil.<ShardedJobSettings>deserializeFromDatastoreProperty(
-              in, SETTINGS_PROPERTY),
-          Ints.checkedCast((Long) in.getProperty(TOTAL_TASK_COUNT_PROPERTY)),
-          (Long) in.getProperty(START_TIME_PROPERTY),
-          SerializationUtil.<Status>deserializeFromDatastoreProperty(in, STATUS_PROPERTY))
-          .setMostRecentUpdateTimeMillis((Long) in.getProperty(MOST_RECENT_UPDATE_TIME_PROPERTY))
-          .setShardsCompleted((BitSet) SerializationUtil.deserializeFromDatastoreProperty(in,
-              SHARDS_COMPLETED_PROPERTY));
+          SerializationUtil.<ShardedJobController<T>>deserializeFromDatastoreProperty(tx, in, CONTROLLER_PROPERTY, lenient),
+          SerializationUtil.<ShardedJobSettings>deserializeFromDatastoreProperty(tx, in, SETTINGS_PROPERTY),
+          (int) in.getLong(TOTAL_TASK_COUNT_PROPERTY),
+          in.getLong(START_TIME_PROPERTY),
+          SerializationUtil.deserializeFromDatastoreProperty(tx, in, STATUS_PROPERTY))
+            .setMostRecentUpdateTimeMillis(in.getLong(MOST_RECENT_UPDATE_TIME_PROPERTY))
+            .setShardsCompleted((BitSet) SerializationUtil.deserializeFromDatastoreProperty(tx, in, SHARDS_COMPLETED_PROPERTY));
     }
   }
 }

@@ -24,6 +24,7 @@ import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.mapreduce.outputs.InMemoryOutput;
 import com.google.common.collect.ImmutableList;
 
+import lombok.SneakyThrows;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -169,16 +170,18 @@ public class InProcessMapReduce<I, K, V, O, R> {
     };
   }
 
+  @SneakyThrows
   @SuppressWarnings("unchecked")
   private Mapper<I, K, V> getCopyOfMapper() {
     byte[] bytes = SerializationUtil.serializeToByteArray(mapper);
-    return (Mapper<I, K, V>) SerializationUtil.deserializeFromByteArray(bytes);
+    return (Mapper<I, K, V>) SerializationUtil.deserialize(bytes);
   }
 
+  @SneakyThrows
   @SuppressWarnings("unchecked")
   private Reducer<K, V, O> getCopyOfReducer() {
     byte[] bytes = SerializationUtil.serializeToByteArray(reducer);
-    return (Reducer<K, V, O>) SerializationUtil.deserializeFromByteArray(bytes);
+    return (Reducer<K, V, O>) SerializationUtil.deserialize(bytes);
   }
 
   MapReduceResult<R> reduce(List<List<KeyValue<K, List<V>>>> inputs, Output<O, R> output,

@@ -20,13 +20,12 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.appengine.api.blobstore.dev.LocalBlobstoreService;
 import com.google.appengine.api.taskqueue.QueueFactory;
+import com.google.appengine.tools.cloudtasktest.JakartaServletInvokingTaskCallback;
 import com.google.appengine.tools.development.ApiProxyLocal;
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalMemcacheServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
-import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig.ServletInvokingTaskCallback;
 import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.impl.sort.LexicographicalComparator;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInputReader;
@@ -36,13 +35,13 @@ import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput
 import com.google.appengine.tools.mapreduce.outputs.LevelDbOutputWriter;
 import com.google.appengine.tools.mapreduce.servlets.ShufflerServlet.ShuffleMapReduce;
 import com.google.appengine.tools.pipeline.PipelineService;
-import com.google.appengine.tools.pipeline.PipelineServiceFactory;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.apphosting.api.ApiProxy;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.TreeMultimap;
 
 import lombok.Getter;
+import lombok.Setter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -60,14 +59,15 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * Tests for {@link ShufflerServlet}
  */
+@PipelineSetupExtensions
 public class ShufflerServletTest {
 
   private static final Logger log = Logger.getLogger(ShufflerServletTest.class.getName());
@@ -89,18 +89,18 @@ public class ShufflerServletTest {
   private static final Semaphore WAIT_ON = new Semaphore(0);
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper(
-      new LocalDatastoreServiceTestConfig(),
       new LocalTaskQueueTestConfig().setDisableAutoTaskExecution(false).setCallbackClass(TaskRunner.class),
       new LocalMemcacheServiceTestConfig(),
       new LocalModulesServiceTestConfig()
   );
 
-  public static class TaskRunner extends ServletInvokingTaskCallback {
+
+  public static class TaskRunner extends JakartaServletInvokingTaskCallback {
 
     private static final Map<String, HttpServlet> servletMap =
         new ImmutableMap.Builder<String, HttpServlet>()
             .put("/mapreduce", new MapReduceServlet())
-            .put("/_ah/pipeline", new PipelineServlet())
+            .put("/_ah/pipeline", new PipelineServlet(null, null, null, null, null, null, null))
             .put(CALLBACK_PATH, new CallbackServlet())
             .build();
 
@@ -129,6 +129,8 @@ public class ShufflerServletTest {
   @Getter
   CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
 
+  @Setter(onMethod_ = @BeforeEach)
+  PipelineService pipelineService;
 
   @BeforeEach
   public void setUp() throws Exception {
@@ -143,6 +145,7 @@ public class ShufflerServletTest {
 
 
 
+
   @AfterEach
   public void tearDown() throws Exception {
     for (int count = 0; getQueueDepth() > 0; count++) {
@@ -153,7 +156,6 @@ public class ShufflerServletTest {
       Thread.sleep(1000);
     }
     helper.tearDown();
-    storageIntegrationTestHelper.tearDown();
   }
 
 
@@ -170,9 +172,8 @@ public class ShufflerServletTest {
   public void testDataIsOrdered() throws InterruptedException, IOException {
     ShufflerParams shufflerParams = createParams(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey(), storageIntegrationTestHelper.getBucket(), 3, 2);
     TreeMultimap<ByteBuffer, ByteBuffer> input = writeInputFiles(shufflerParams, new Random(0));
-    PipelineService service = PipelineServiceFactory.newPipelineService();
     ShuffleMapReduce mr = new ShuffleMapReduce(shufflerParams);
-    String pipelineId = service.startNewPipeline(mr);
+    String pipelineId = pipelineService.startNewPipeline(mr);
     assertTrue(WAIT_ON.tryAcquire(100, TimeUnit.SECONDS));
     List<KeyValue<ByteBuffer, List<ByteBuffer>>> output =
         validateOrdered(shufflerParams, mr, pipelineId);

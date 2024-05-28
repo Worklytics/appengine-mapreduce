@@ -1,5 +1,7 @@
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
+import com.google.cloud.datastore.Datastore;
+
 /**
  * As part of its operation, the {@code ShardedJobService} will enqueue task
  * queue tasks that send requests to the URLs specified in
@@ -17,11 +19,11 @@ public interface ShardedJobHandler {
    * Is invoked by the servlet that handles
    * {@link ShardedJobSettings#getControllerPath} when a shard has completed.
    */
-  void completeShard(final String jobId, final String taskId);
+  void completeShard(Datastore datastore, final String jobId, final String taskId);
 
   /**
    * Is invoked by the servlet that handles
    * {@link ShardedJobSettings#getWorkerPath} to run a task.
    */
-  void runTask(final String jobId, final String taskId, final int sequenceNumber);
+  void runTask(Datastore datastore, final String jobId, final String taskId, final int sequenceNumber);
 }

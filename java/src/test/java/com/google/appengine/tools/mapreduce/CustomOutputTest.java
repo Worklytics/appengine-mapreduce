@@ -98,10 +98,12 @@ public class CustomOutputTest extends EndToEndTestCase {
         .setReducer(ValueProjectionReducer.<String, Long>create())
         .setOutput(new CustomOutput())
         .setNumReducers(17);
-    PipelineService pipelineService = PipelineServiceFactory.newPipelineService();
     MapReduceSettings mrSettings = new MapReduceSettings.Builder()
       .setServiceAccountKey(getStorageTestHelper().getBase64EncodedServiceAccountKey())
       .setBucketName(getStorageTestHelper().getBucket())
+      .setProjectId(datastore.getOptions().getProjectId())
+      .setNamespace(datastore.getOptions().getNamespace())
+      .setDatabaseId(datastore.getOptions().getDatabaseId())
       .build();
     String jobId = pipelineService.startNewPipeline(
         new MapReduceJob<>(mrSpecBuilder.build(), mrSettings));

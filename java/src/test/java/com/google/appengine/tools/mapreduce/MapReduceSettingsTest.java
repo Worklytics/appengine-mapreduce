@@ -40,7 +40,6 @@ public class MapReduceSettingsTest {
   @Test
   public void testDefaultSettings() {
     MapReduceSettings mrSettings = new MapReduceSettings.Builder().build();
-    assertNull(mrSettings.getBackend());
     assertEquals(DEFAULT_BASE_URL, mrSettings.getBaseUrl());
     assertEquals("app_default_bucket", mrSettings.getBucketName());
     assertEquals(DEFAULT_MAP_FANOUT, mrSettings.getMapFanout());
@@ -55,16 +54,10 @@ public class MapReduceSettingsTest {
     assertNull(mrSettings.getWorkerQueueName());
   }
 
+  @Test
   public void testNonDefaultSettings() {
     MapReduceSettings.Builder builder = new MapReduceSettings.Builder();
-    builder.setBackend("b1");
-    try {
-      builder.setModule("m").build();
-      fail("Expected exception to be thrown");
-    } catch (IllegalArgumentException ex) {
-      // expected
-      builder.setModule(null);
-    }
+    builder.setModule("m").build();
     builder = builder.setBaseUrl("base-url");
     builder = builder.setBucketName("bucket");
     try {
@@ -119,7 +112,7 @@ public class MapReduceSettingsTest {
 
 
     MapReduceSettings mrSettings = builder.build();
-    assertEquals("b1", mrSettings.getBackend());
+    //assertEquals("b1", mrSettings.getModule());
     assertNull(mrSettings.getModule());
     assertEquals("bucket", mrSettings.getBucketName());
     assertEquals("base-url", mrSettings.getBaseUrl());
@@ -134,15 +127,8 @@ public class MapReduceSettingsTest {
     assertEquals("queue1", mrSettings.getWorkerQueueName());
 
     builder = new MapReduceSettings.Builder().setModule("m1");
-    try {
-      builder.setBackend("b").build();
-      fail("Expected exception to be thrown");
-    } catch (IllegalArgumentException ex) {
-      // expected
-      builder.setBackend(null);
-    }
+
     mrSettings = builder.build();
-    assertNull(mrSettings.getBackend());
     assertEquals("m1", mrSettings.getModule());
   }
 }

@@ -3,23 +3,18 @@
 package com.google.appengine.tools.mapreduce.impl.handlers;
 
 
-import com.google.appengine.api.datastore.DatastoreService;
-import com.google.appengine.api.datastore.DatastoreServiceFactory;
-import com.google.appengine.api.datastore.FetchOptions;
-import com.google.appengine.api.datastore.Query;
 import com.google.appengine.tools.mapreduce.EndToEndTestCase;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobController;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobService;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobServiceFactory;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobState;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.TestTask;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.*;
+import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.Query;
+import com.google.cloud.datastore.QueryResults;
 import com.google.common.collect.ImmutableList;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Array;
@@ -31,7 +26,11 @@ import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+
 public class StatusHandlerTest extends EndToEndTestCase {
+
+
+  StatusHandler statusHandler;
 
   private static final class DummyWorkerController
       extends ShardedJobController<TestTask> {
@@ -44,36 +43,55 @@ public class StatusHandlerTest extends EndToEndTestCase {
     public void completed(Iterator<TestTask> results) {}
   }
 
+  @BeforeEach
+  public void setUp() {
+    statusHandler = new StatusHandler(getShardedJobService(), new RequestUtils());
+  }
+
   @Test
   public void testCleanupJob() throws Exception {
-    ShardedJobService jobService = ShardedJobServiceFactory.getShardedJobService();
-    assertTrue(jobService.cleanupJob("testCleanupJob")); // No such job yet
+    assertTrue(getShardedJobService().cleanupJob(getDatastore(), "testCleanupJob")); // No such job yet
     ShardedJobSettings settings = new ShardedJobSettings.Builder().build();
     ShardedJobController<TestTask> controller = new DummyWorkerController();
     byte[] bytes = new byte[1024 * 1024];
     new Random().nextBytes(bytes);
     TestTask s1 = new TestTask(0, 2, 2, 2, bytes);
     TestTask s2 = new TestTask(1, 2, 2, 1);
-    jobService.startJob("testCleanupJob", ImmutableList.of(s1, s2), controller, settings);
-    assertFalse(jobService.cleanupJob("testCleanupJob"));
+    getShardedJobService().startJob(getDatastore(), "testCleanupJob", ImmutableList.of(s1, s2), controller, settings);
+    assertFalse(getShardedJobService().cleanupJob(getDatastore(), "testCleanupJob"));
     executeTasksUntilEmpty();
-    DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
-    assertEquals(3, ds.prepare(new Query()).countEntities(FetchOptions.Builder.withDefaults()));
-    assertTrue(jobService.cleanupJob("testCleanupJob"));
+
+
+    Query<Entity> query = Query.newEntityQueryBuilder()
+      .setKind("MR-ShardedJob") // Specify your entity kind here
+      .build();
+    //TODO: what other entities to count??
+    assertEquals(3, countResults(getDatastore().run(query)));
+
+
+    assertTrue(getShardedJobService().cleanupJob(getDatastore(), "testCleanupJob"));
     executeTasksUntilEmpty();
-    assertEquals(0, ds.prepare(new Query()).countEntities(FetchOptions.Builder.withDefaults()));
+    assertEquals(0, countResults(getDatastore().run(query)));
+  }
+
+  int countResults(QueryResults<?> results) {
+    int i = 0;
+    while (results.hasNext()) {
+      results.next();
+      i++;
+    }
+    return i;
   }
 
   // Tests that an job that has just been initialized returns a reasonable job detail.
   @Test
   public void testGetJobDetail_empty() throws Exception {
-    ShardedJobService jobService = ShardedJobServiceFactory.getShardedJobService();
     ShardedJobSettings settings = new ShardedJobSettings.Builder().build();
     ShardedJobController<TestTask> controller = new DummyWorkerController();
-    jobService.startJob("testGetJobDetail_empty", ImmutableList.<TestTask>of(), controller,
-        settings);
+    getShardedJobService().startJob(getDatastore(), "testGetJobDetail_empty", ImmutableList.<TestTask>of(),
+      controller, settings);
 
-    JSONObject result = StatusHandler.handleGetJobDetail("testGetJobDetail_empty");
+    JSONObject result = statusHandler.handleGetJobDetail(getDatastore(), "testGetJobDetail_empty");
     assertEquals("testGetJobDetail_empty", result.getString("mapreduce_id"));
     assertEquals(0, result.getJSONArray("shards").length());
     assertNotNull(result.getJSONObject("mapper_spec"));
@@ -84,18 +102,17 @@ public class StatusHandlerTest extends EndToEndTestCase {
   // Tests that a populated job (with a couple of shards) generates a reasonable job detail.
   @Test
   public void testGetJobDetail_populated() throws Exception {
-    ShardedJobService jobService = ShardedJobServiceFactory.getShardedJobService();
     ShardedJobSettings settings = new ShardedJobSettings.Builder().build();
     ShardedJobController<TestTask> controller = new DummyWorkerController();
     TestTask s1 = new TestTask(0, 2, 2, 2);
     TestTask s2 = new TestTask(1, 2, 2, 1);
-    jobService.startJob("testGetJobDetail_populated", ImmutableList.of(s1, s2), controller,
-        settings);
-    ShardedJobState state = jobService.getJobState("testGetJobDetail_populated");
+    getShardedJobService().startJob(getDatastore(), "testGetJobDetail_populated", ImmutableList.of(s1, s2),
+      controller, settings);
+    ShardedJobState state = getShardedJobService().getJobState(getDatastore(), "testGetJobDetail_populated");
     assertEquals(2, state.getActiveTaskCount());
     assertEquals(2, state.getTotalTaskCount());
     assertEquals(new Status(Status.StatusCode.RUNNING), state.getStatus());
-    JSONObject jobDetail = StatusHandler.handleGetJobDetail("testGetJobDetail_populated");
+    JSONObject jobDetail = statusHandler.handleGetJobDetail(getDatastore(), "testGetJobDetail_populated");
     assertNotNull(jobDetail);
     assertEquals("testGetJobDetail_populated", jobDetail.getString("mapreduce_id"));
     assertEquals("testGetJobDetail_populated", jobDetail.getString("name"));
@@ -122,7 +139,7 @@ public class StatusHandlerTest extends EndToEndTestCase {
 
     executeTasksUntilEmpty();
 
-    jobDetail = StatusHandler.handleGetJobDetail("testGetJobDetail_populated");
+    jobDetail = statusHandler.handleGetJobDetail(getDatastore(), "testGetJobDetail_populated");
     assertNotNull(jobDetail);
     assertEquals("testGetJobDetail_populated", jobDetail.getString("mapreduce_id"));
     assertEquals("testGetJobDetail_populated", jobDetail.getString("name"));

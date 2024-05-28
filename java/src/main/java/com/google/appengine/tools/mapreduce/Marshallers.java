@@ -10,7 +10,9 @@ import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.SneakyThrows;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
@@ -33,18 +35,24 @@ public class Marshallers {
 
     private static final long serialVersionUID = 401446902678227352L;
 
+    @SneakyThrows
     @Override
     public ByteBuffer toBytes(T object) {
-      return ByteBuffer.wrap(SerializationUtil.serializeToByteArray(object, true));
+      return ByteBuffer.wrap(SerializationUtil.serialize(object));
     }
 
+    @SneakyThrows
     @Override
     public T fromBytes(ByteBuffer in) {
-      T value = SerializationUtil.deserializeFromByteBuffer(in, true);
-      if (in.hasRemaining()) {
-        throw new CorruptDataException("Trailing bytes after reading object");
+      byte[] serialized = new byte[in.remaining()];
+      in.get(serialized);
+      try {
+        return (T) SerializationUtil.deserialize(serialized);
+      } catch (EOFException e)  {
+        throw new CorruptDataException("Could not deserialize object; stream ended before full object read back.", e);
       }
-      return value;
+      //TODO: so, per Marshaller contract, tests want exception thrown if extra bytes are present on the *end* of the
+      // buffer.
     }
   }
 
